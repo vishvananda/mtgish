@@ -42,28 +42,58 @@ fn untag_value(value: Value, root: bool) -> Value {
 }
 pub fn assert_fixture_matches(text: &str) {
     let mut source = BTreeMap::new();
+    let mut unnamed = BTreeMap::<String, Vec<Value>>::new();
     for line in text.lines() {
         let card: OracleCard = ron::from_str(line).unwrap();
-        let name = corpus::Identity::of(&card).unwrap().names.remove(0);
-        source.insert(name, serde_json::to_value(card).unwrap());
+        let identity = corpus::Identity::of(&card).unwrap();
+        let value = serde_json::to_value(card).unwrap();
+        if let Some(name) = identity.names.into_iter().next() {
+            source.insert(name, value);
+        } else {
+            // Sticker sheets have an identity but no card name. Compare their
+            // whole enum value instead of assuming every Source is a card face.
+            let variant = value.as_object().unwrap().keys().next().unwrap().clone();
+            unnamed.entry(variant).or_default().push(value);
+        }
     }
     let path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgish.lines.json");
     let mut checked = 0;
     for line in std::io::BufReader::new(std::fs::File::open(path).unwrap()).lines() {
         let line = line.unwrap();
-        if !source
+        let named = source
             .keys()
-            .any(|name| line.contains(&format!("\"Name\":{name:?}")))
+            .any(|name| line.contains(&format!("\"Name\":{name:?}")));
+        if !named
+            && !unnamed
+                .keys()
+                .any(|kind| line.contains(&format!("\"_OracleCard\":{kind:?}")))
         {
             continue;
         }
         let tagged: Value = serde_json::from_str(&line).unwrap();
         let value = untag(tagged);
         let card: OracleCard = serde_json::from_value(value.clone()).unwrap();
-        let name = corpus::Identity::of(&card).unwrap().names.remove(0);
+        let Some(name) = corpus::Identity::of(&card)
+            .unwrap()
+            .names
+            .into_iter()
+            .next()
+        else {
+            let kind = value.as_object().unwrap().keys().next().unwrap();
+            if let Some(expected) = unnamed.get_mut(kind) {
+                if let Some(index) = expected.iter().position(|v| v == &value) {
+                    expected.remove(index);
+                }
+            }
+            continue;
+        };
         assert_eq!(value, source[&name], "{name}");
         checked += 1;
     }
     assert_eq!(checked, source.len());
+    assert!(
+        unnamed.values().all(Vec::is_empty),
+        "unmatched unnamed Source records: {unnamed:?}"
+    );
 }

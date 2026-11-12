@@ -10824,7 +10824,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         WasCrewedByACreatureThisTurn(IsCreatureType(Assassin)),
       ),
       ActionList([
@@ -43995,7 +43995,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         PowerIs(GreaterThanOrEqualTo(Integer(6))),
       ),
       ActionList([
@@ -81619,7 +81619,7 @@ Card(
       APlayerPassesFilter(
         YourTeam,
         ControlsA(And([
-          Other(Trigger_ThatCreature),
+          Other(ThisPermanent),
           IsCreatureType(Warrior),
         ])),
       ),
@@ -173648,7 +173648,7 @@ Card(
       APlayerPassesFilter(
         YourTeam,
         ControlsA(And([
-          Other(Trigger_ThatCreature),
+          Other(ThisPermanent),
           IsCreatureType(Warrior),
         ])),
       ),
@@ -251347,7 +251347,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         IsRenowned,
       ),
       ActionList([
@@ -437302,7 +437302,7 @@ Card(
       PlayerPassesFilter(
         You,
         ControlsA(And([
-          Other(Trigger_ThatCreature),
+          Other(ThisPermanent),
           IsNonToken,
           IsCreatureType(Pirate),
         ])),
@@ -631847,7 +631847,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         IsModified,
       ),
       Targeted(
@@ -668239,7 +668239,7 @@ Card(
       PlayerPassesFilter(
         You,
         ControlsA(And([
-          Other(Trigger_ThatCreature),
+          Other(ThisPermanent),
           IsCardtype(Artifact),
           IsCardtype(Creature),
         ])),
@@ -734124,7 +734124,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         IsEnchanted,
       ),
       Targeted(
@@ -855556,7 +855556,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         DoesntHaveAbility(FirstStrike),
       ),
       ActionList([
@@ -855571,7 +855571,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         HasAbility(FirstStrike),
       ),
       ActionList([
@@ -1097353,7 +1097353,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         IsNotSuspected,
       ),
       ActionList([
@@ -1180490,7 +1180490,7 @@ Card(
       APlayerPassesFilter(
         YourTeam,
         ControlsA(And([
-          Other(Trigger_ThatCreature),
+          Other(ThisPermanent),
           IsCreatureType(Warrior),
         ])),
       ),
@@ -1272352,7 +1272352,7 @@ Card(
       ThisPermanent,
       [
         EntersWithNumberCounters(
-          NumSpellsCastThisTurn(Other(ThatEnteringPermanent)),
+          NumSpellsCastThisTurn(Other(ThisSpell)),
           PTCounter(
             1,
             1,
@@ -1334688,7 +1334688,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         IsEquipped,
       ),
       Modal_ChooseOne([
@@ -1434658,7 +1434658,7 @@ StickerSheet(
         TriggerI(
           WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
           PermanentPassesFilter(
-            Trigger_ThatCreature,
+            ThisPermanent,
             IsNonCreatureType(Brushwagg),
           ),
           ActionList([
@@ -1502216,7 +1502216,7 @@ Card(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       APermanentEnteredTheBattlefieldUnderPlayersControlThisTurn(
         And([
-          Other(Trigger_ThatCreature),
+          Other(ThisPermanent),
           IsCardtype(Creature),
         ]),
         You,
@@ -1511036,7 +1511036,7 @@ Card(
     TriggerI(
       WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
       PermanentPassesFilter(
-        Trigger_ThatCreature,
+        ThisPermanent,
         IsEquipped,
       ),
       ActionList([
@@ -1559005,7 +1559005,7 @@ TokenDefinition(
             TriggerI(
               WhenACreatureAttacks(SinglePermanent(ThisPermanent)),
               PermanentPassesFilter(
-                Trigger_ThatCreature,
+                ThisPermanent,
                 ToughnessIs(LessThanOrEqualTo(Integer(3))),
               ),
               ActionList([

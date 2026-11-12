@@ -1,0 +1,74 @@
+{
+  "base_revision": "20ad8d67d53603384a3817855840cc5ebfadffdf",
+  "schema": 190,
+  "resolved_faces": [
+    "Waterspout Warden",
+    "Storm Entity"
+  ],
+  "current_consistency_review": {
+    "original": 36,
+    "completed": 6,
+    "pending": 30
+  },
+  "parser_before": {
+    "parsed": 33570,
+    "refused": 1477
+  },
+  "parser_after": {
+    "parsed": 33570,
+    "refused": 1477
+  },
+  "parse_success_sets_equal": true,
+  "changed_records": 18,
+  "unchanged_cached_records": 33511,
+  "source_fixture_records": 24,
+  "source_families": {
+    "self_attack_condition_records": 17,
+    "entry_spell_count_records": 1,
+    "self_attack_templates": 8,
+    "entry_own_consumers": 3,
+    "entry_other_consumers": 6
+  },
+  "validation": {
+    "rust_workspace_with_cantrip": {
+      "passed": 2022,
+      "ignored": 24,
+      "targets": 198,
+      "exit": 0
+    },
+    "go_full": {
+      "exit": 0,
+      "seconds": 83.027
+    },
+    "raw_ir_tests": 3,
+    "negative_english_composition": true
+  },
+  "historical_58_record_proposal_and_expected_unchanged": true,
+  "current_producer_snapshot_operands_updated": 2,
+  "oracle_grammar_worktree_modified": false,
+  "comparison_only_aliases_added": false,
+  "engine_changes_for_these_reference_cases": false,
+  "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+  "evidence_root": "/mnt/vizier/reference-self-frames-20261112",
+  "sha256": {
+    "grammars/english_grammar.json5": "1612870d9bf237f1c899be9f6a3ad4a0941aba2ab09c11b71a6d5a1c7f76a7d8",
+    "data/grammar_audit_review.json": "eeac6081918b73b8b22c3fba616461af104ce1a4eb633709143b0eec13c310e4",
+    "data/mtgish.lines.ron": "e3224577aa42a8950cd8006543bbbc2c24b64c102445d93c7fdf45bd669368c0",
+    "data/mtgish.lines.json": "7909d61880dd399f73b9e840dfd3c40e536136458ad3c9ec798c4cdd972d5979",
+    "data/mtgish.pretty.ron": "14ab3758826c407ac10d40bdc634bea67d0930405f89b8b13c5f905be3d2f95c",
+    "go_mtg_parser/reference_self_frames_20261112_test.go": "5d38d35392ea191f5a141713801d4b826a322d7526395a6a85f5a3fcff9c7cde",
+    "go_mtg_parser/artifact_animations_test.go": "d7e9ad13036bf75e37ede0b39ad5418d408af369d41f54367a49146981870852",
+    "rust_syntax/normalize/tests/reference_self_frames_20261112.rs": "e8e9607f7bdc298947cbd66950519b1108fc3a64647af5dd09f4856d9479df58",
+    "rust_syntax/normalize/tests/fixtures/reference_self_frames_20261112.ronl": "2001451091b3b7280186ee9cbb9844f11c03915c6b4c810cac4b1a997a1ba94b",
+    "rust_syntax/normalize/tests/support/source_json.rs": "8a7f081796bdadee2f3d4be7cde82b4d13c89ef8861f6aeb6a04156e2baa161a",
+    "rust_syntax/normalize/tests/fixtures/reference_decisions_20261111_expected.json": "e95b5bdc41dbbb4323eaf112f10c31296120d872787a1dbb64ebdfe95ce88791"
+  },
+  "log_sha256": {
+    "parser-before.log": "c45c4eb1232cff2f4fa00e7291e082f6e5edd9356700a7eee4a989e9d6326ccd",
+    "parser-after-final.log": "6b6d8bcbd5ee660296445e04456c506574be910f7d68d8b4ecb9334f8a2af389",
+    "go-full-tests.log": "6173434728a9d56ea92df2ee8f1ee2982b1a56668d46a1af0e9d633fdd2a6393",
+    "rust-workspace-final-tests.log": "15c88a849b8e186864213192b06e47b583a74650f0daec5faa2c0b5fa11075af",
+    "ir-tests.log": "fb36db6bf52c040c34444624e4dc41acaa633aad7e47750a118f79873103cbde",
+    "producer-snapshot-tests.log": "722d3d3aa19d73bfc7f049c5721e409cbe9caf026aef368573c8c69505bc13f9"
+  }
+}

@@ -80,7 +80,7 @@ reviewed changes.
 The four original packet faces completed here are **Bloodroot Apothecary,
 Graven Dominator, Karn's Touch and Korvold, Fae-Cursed King**. The ledger keeps the
 old gameplay-only decisions as history and records these new consistency fixes
-separately. **32 of the reopened 36 remain pending.** Sephiroth and Hei Bai,
+separately. At that checkpoint, 32 of the reopened 36 remained pending. Sephiroth and Hei Bai,
 Spirit of Balance are matching controls, not extra faces in the original count.
 
 The comparison's existing single-self-event proof now also handles an alternative
@@ -104,7 +104,7 @@ folding references across nested event scopes.
 An attempted generic lowering-context Source proof exposed a returning-permanent
 scope regression in the broad gate. It also changed many historical producer
 forms outside this batch. That rewrite was removed before publication. In
-particular, Waterspout Warden and Storm Entity are still pending; this batch does
+particular, Waterspout Warden and Storm Entity were left pending by this first batch; it does
 not claim their raw production is unified. Entry's prospective controller and cast
 history retain their explicit incoming-event references. No AST layout, schema,
 serialized field, runtime object storage or Cantrip interface changes are included.
@@ -135,13 +135,22 @@ only after the final code passes.
 | No Quarter | Use consistent explicit attacker/blocker roles in the mirrored pair events. |
 | Norman Osborn | Make the conniving object's actor explicit; do not justify an inconsistent field because one backend ignores it. |
 | Skeletal Swarming | Preserve text order and rules-defined layers; do not sort arbitrary changes within a layer. |
-| Waterspout Warden, Storm Entity | Resolve the proven self referent locally, while preserving incoming-event and nested event-history scopes. The rejected broader binding experiment is not a ready patch. |
 | Veteran Ghoulcaller | Unify duplicate information/copy forms only with an explicit last-known/post-move view; also audit graveyard ownership versus actual graveyard membership. |
 
-These are consistency work items, not 32 established gameplay defects. The active
+These are consistency work items, not 30 established gameplay defects. The active
 Source evidence for these investigations is retained locally; examples that exist
 only because of our Rust lowering should be fixed here rather than assigned to
 upstream parsing.
+
+### Second completed Source batch
+
+[Waterspout Warden and Storm Entity](reference-self-frames-20261112.md) now have
+narrow producer fixes for their proven self referents. Self-attack intervening
+conditions use ThisPermanent; own entry spell-count exclusions use ThisSpell.
+Other entering-creature contexts keep their distinct subject. Exactly 18 cached
+records change, with no parser success/refusal changes. No generic binding rewrite
+or comparison-only alias is involved. The current reopened review is **6 completed
+and 30 pending**; the earlier receipts describe their own historical checkpoints.
 
 ## Final validation
 

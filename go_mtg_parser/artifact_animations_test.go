@@ -62,8 +62,27 @@ func testSourceReferenceFixtures(t *testing.T, fixtureNames ...string) {
 		fixture = append(fixture, data...)
 	}
 	namePattern := regexp.MustCompile(`Name: "([^"]+)"`)
+	stickerNames := regexp.MustCompile(`NameSticker\(("(?:\\.|[^"\\])*")\)`)
 	for _, expected := range strings.Split(strings.TrimSpace(string(fixture)), "\n") {
-		name := namePattern.FindStringSubmatch(expected)[1]
+		var name string
+		if named := namePattern.FindStringSubmatch(expected); named != nil {
+			name = named[1]
+		} else {
+			// A sticker sheet is named by its three name stickers in Oracle;
+			// Source stores those stickers without a redundant card-name field.
+			var words []string
+			for _, sticker := range stickerNames.FindAllStringSubmatch(expected, -1) {
+				word, err := strconv.Unquote(sticker[1])
+				if err != nil {
+					t.Fatal(err)
+				}
+				words = append(words, word)
+			}
+			name = strings.Join(words, " ")
+			if name == "" {
+				t.Fatalf("fixture has no card or sticker-sheet name: %s", expected)
+			}
+		}
 		if _, ok := cards[name]; !ok {
 			for full, card := range cards {
 				if len(card.Cards) > 0 && card.Cards[0].Name == name {

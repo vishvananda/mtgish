@@ -402,9 +402,11 @@
       "classification": "retained_equivalent_form",
       "decision": "Entry replacement's EventSubject is the entering Source, cast or not. Own-spell exclusion is the same. A global Source/EventSubject rewrite would be unsafe in other events.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_source",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "evidence": "reference-self-frames-20261112.md",
+        "resolution": "Own entry counter templates bind the spell-count exclusion to ThisSpell (IR Source); other entering-creature contexts retain ThatEnteringPermanent."
       }
     },
     {
@@ -459,9 +461,11 @@
       "classification": "retained_equivalent_form",
       "decision": "EventHistory does not rebind the enclosing event frame. Outer EventSubject remains the attacking Warden and equals Source in this own attack trigger. No current rebinding witness; normal-form cleanup is optional.",
       "consistency_review": {
-        "status": "reopened",
+        "status": "fixed_source",
         "reason": "Equivalent gameplay is insufficient to justify template-dependent alternate producer forms. Audit matching wording and select a common generic producer form.",
-        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275"
+        "upstream_tracking": "https://github.com/i5jb/mtgish/issues/275",
+        "evidence": "reference-self-frames-20261112.md",
+        "resolution": "All equivalent self-attack/intervening-condition templates bind ThatPermanent to ThisPermanent. The outer source remains explicit inside the historical query; no nested event frame is rewritten."
       }
     },
     {
