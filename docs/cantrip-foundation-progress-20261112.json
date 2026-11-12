@@ -1526,13 +1526,13 @@
     "focused_explicit_mana_loss": 2,
     "focused_random_discard_costs": 4,
     "full_generator": {
-      "passed": 2046,
+      "passed": 2061,
       "failed": 0,
       "ignored": 24,
-      "targets": 199,
-      "log": "/mnt/vizier/reference-remaining30-20261112/workspace-exact-reference-tests.log",
-      "revision": "e8b29bb",
-      "scope": "entire rust_syntax workspace with cantrip; exact reference checkpoint before the restored revealed-hands adapter"
+      "targets": 200,
+      "log": "/mnt/vizier/reference-other-targets-20261112/workspace-final-tests.log",
+      "revision": "5408607bc4342aa3cdde1e764e2f405e71dccd39",
+      "scope": "entire rust_syntax workspace with cantrip; exit 0"
     },
     "full_native_last_pass": {
       "passed": 22656,
@@ -1556,8 +1556,9 @@
         "Pin": 94,
         "Sleight": 95
       },
-      "log": "generator-combat-groups-ready-compile.log",
-      "revision": "a09922634"
+      "log": "/mnt/vizier/reference-other-targets-20261112/foundation-ready-compile.log",
+      "revision": "a09922634",
+      "generator_revision": "5408607"
     },
     "focused_nonmana_mana_tap": 7,
     "counter_vocabulary": 13,
@@ -1605,7 +1606,7 @@
       "ready": 212,
       "gapped": 74,
       "unchanged_other_gap_lists": true,
-      "log": "combat-groups-final-scope.log"
+      "log": "/mnt/vizier/reference-other-targets-20261112/foundation-scope.log"
     },
     "focused_computed_x": 10,
     "focused_revealed_hands": {
@@ -1750,7 +1751,11 @@
     "combat-groups-vocab.rs": "18f135f0f3d64917ef59e2a62980a86129c200b7d44ecc56afdccdea1a858fc1",
     "full-scope/combat-groups-feature-rows.jsonl": "1acefaa151a0baf41f4f0cc4220bf4ed3a1b58d818afb47e48621927731665c7",
     "combat-groups-counter-overlay-manifest.json": "882f87b10269314473025b3cefd43505370918e0f2a5f725046711314de66d20",
-    "combat-groups-counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49"
+    "combat-groups-counter-prerequisites.patch": "c5c764d9a4039c7d22f8463ed34f51cf81b62a6d2c1f471d3a38b5e23270cd49",
+    "/mnt/vizier/reference-other-targets-20261112/workspace-final-tests.log": "72fd3e8800bab73e0a532e7f0eb69752a4fa75fd5e6e218fbe91e15ed7558a3f",
+    "/mnt/vizier/reference-other-targets-20261112/foundation-runtime.log": "d62ea8552df5ea7e191ebccbaa743c81cb2471441aa7c8a652085b43f68445b0",
+    "/mnt/vizier/reference-other-targets-20261112/foundation-scope-result.json": "a212b1417d210732e919b33fb77b96c812bec58300b7f3dee4eefcf86f18dd37",
+    "/mnt/vizier/reference-other-targets-20261112/foundation-ready-compile.log": "3f9a3e120b93e4e454ae7a306a1622df2e35a8c9adacae6eceaeae520da99996"
   },
   "candidate_api_fingerprint": "00a329f7df14576e2c5297577f999ee4046d8773dca19bee3a8f7ed5144c3888",
   "benchmark_current_batch": {

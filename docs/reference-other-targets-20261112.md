@@ -105,7 +105,12 @@ fully executable in the backend.
 
 The implementation revision, hashes and upstream publication link belong in the
 accompanying proof receipt. Local reproducible evidence is under
-`/mnt/vizier/reference-other-targets-20261112`. Oracle Grammar's worktree, gold,
-reference pin and comparison logic are untouched. Its worker can adopt the
+`/mnt/vizier/reference-other-targets-20261112`. This task does not modify Oracle Grammar's worktree, gold,
+reference pin or comparison logic. Its worker can adopt the
 three Source corrections and refresh new-producer expectations independently;
 no comparison alias should conceal a target-to-source difference.
+
+Published implementation: `5408607bc4342aa3cdde1e764e2f405e71dccd39`.
+Upstream Source corrections: [MTGish #275 follow-up](https://github.com/i5jb/mtgish/issues/275#issuecomment-6832226608).
+The [proof receipt](reference-other-targets-20261112.proof.json) records the
+final checks and preserved historical inputs.

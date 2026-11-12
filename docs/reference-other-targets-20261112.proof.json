@@ -1,0 +1,127 @@
+{
+  "date": "2026-11-12",
+  "implementation_commit": "5408607bc4342aa3cdde1e764e2f405e71dccd39",
+  "upstream_issue": 275,
+  "upstream_comment": "https://github.com/i5jb/mtgish/issues/275#issuecomment-6832226608",
+  "portable_schema": 190,
+  "default_api_pin_advanced": false,
+  "engine_features_added_for_this_reference_pass": false,
+  "source": {
+    "parsed": 33570,
+    "refused": 1477,
+    "names_unchanged": true,
+    "source_changed": [
+      "Amy Rose",
+      "Jaheira, Heroic Harper",
+      "Rhino, Terrible Trampler"
+    ],
+    "cached_records": 33529,
+    "cached_unchanged": 33526,
+    "all_cached_equal_fresh_source": true
+  },
+  "rust_workspace": {
+    "passed": 2061,
+    "failed": 0,
+    "ignored": 24,
+    "targets": 200,
+    "exit": 0
+  },
+  "go_tests": {
+    "exit": 0,
+    "uncached": true,
+    "seconds": 97.632,
+    "final_ten_record_packet_passed": true
+  },
+  "ir_validation": {
+    "records": 33529,
+    "fully_normalized": 33529,
+    "validated_and_roundtripped": true,
+    "unreduced": 0,
+    "primitive_dependent_records": 0,
+    "backend_checked": false
+  },
+  "regressions": {
+    "population_unit_tests": 9,
+    "source_records": 10,
+    "whole_packet_tests": 4,
+    "strict_unified_match": true,
+    "frozen_fixture_card_pairs": 13,
+    "frozen_distinct_faces": 11,
+    "explicit_paths": 15,
+    "historical_files_unchanged": {
+      "reference53_20261112.ronl": "038a9fa2553d11aaa486aa9685a41eefdaee07ac2ff040fbc7d1968fd0c7112c",
+      "reference58_expected_20261110.json": "c9b6d8653a3098bd44d50772793b21281ad575be27841076d601305edf4c2adb",
+      "reference53_20261112_expected.json": "fa3262bc2bc5a03cbcfd4477bc36a198d4569852776f9f99b6a313cad45af627",
+      "reference32_expected_20261110.json": "38be2f45fee8db20a2e1a4915a07c28ce0a07c8b9bd889aee75df4d8179f14dd",
+      "counter_timing_20261110_expected.json": "51c27c587283f799708bfe001865fdd63afc598fe27ece612871045c87e3bfee",
+      "trygon_counter_timing_expected.json": "483ca4b684a919753ce496acade61910526de9cf2c3544929298a125991997f7",
+      "reference_decisions_20261111_expected.json": "95957439f32c58590b2f51a7f92588db11dade1750e1691a58e16c0ec6f2b10c",
+      "api_layouts_v184.jsonl": "3955c3cb5bd618299640213f0b8dbc78d24d9416916ed4c2c3611094ef11338b",
+      "keyword_payloads_v182.jsonl": "d24b6c35ce7363f292bcf91c17cc8365391c46d241b66ecfeb1026dedc0815a7",
+      "mode_policies_v183.jsonl": "8faa943551a617e89a2291e5055477575b975d1560522db0eedf14c0c5fc18cb",
+      "movement_destinations_v185.jsonl": "2346908d5b85b8cfd20bd51a4fbe6cccb20e6ba4d2fc372092f41539ae617270",
+      "nyla_reviewed_proposal_v180.json": "8c1195f29c1ab3d4e45f235eb5aa12e6bde6fd4d5bb52cd182a8e4cf3a1788aa",
+      "reference_remaining30_fresh_changes.json": "36627504ec9be4f26c8bd40e1fe4925f570847c000dc6b03145f55a8b11dc8b2"
+    }
+  },
+  "native_probes": {
+    "foundation_commit": "a099226346f63f903e35b3dfe46cd0715e3074cb",
+    "generated_runtime_scenarios": 62,
+    "target_witness_tests": 2,
+    "target_callback_cards": [
+      "Jaheira, Heroic Harper",
+      "Kinetic Ooze",
+      "Rhino, Terrible Trampler",
+      "Amy Rose"
+    ],
+    "amy_actual_attack_positions": 2,
+    "ready_modules_compiled": 212,
+    "partial_control": [
+      "Reflecting Mirror"
+    ],
+    "frozen_scope_gap_lists_unchanged": true,
+    "counter_prerequisites": {
+      "Pin": 94,
+      "Sleight": 95,
+      "names_only_overlay": true
+    },
+    "not_fully_executable": [
+      "Jaheira: specialize event",
+      "Rhino: divided targets"
+    ]
+  },
+  "oracle_grammar_modified_by_this_task": false,
+  "evidence_root": "/mnt/vizier/reference-other-targets-20261112",
+  "sha256": {
+    "source-scope.json": "b587d1cc5f0cf6bac7f0faad7747e50ada5dfbb8042ca5e04bffd4951361f064",
+    "source-delta.json": "8aeebd9feb73fb318a201280f2547477eaafe8ecc1c850eaf19c6494c5411af8",
+    "fresh-parser-final-tests.log": "ff7015053176f837abf2690a3c26d0baf109fe2ad4e0a39cb9bd83e2202cf86c",
+    "parser-final.jsonl": "7d861a010875882a1ec8d01111e3da1c4f62b5a9a8fa5654ec325ce04d62a1ae",
+    "go-full-tests.log": "f5f4b3f75bb89bbe4349fb15898e9bd8202b36241583372cf24acb350d681c44",
+    "workspace-final-tests.log": "72fd3e8800bab73e0a532e7f0eb69752a4fa75fd5e6e218fbe91e15ed7558a3f",
+    "full-corpus-exact-ir.json": "c1eca4483fbcbffc927f0d9a5d301f1357c21db8239e09afc9c13f60c51562fc",
+    "population-final-unit-tests.log": "ccb9368f916d26d27e5d3c5843fcd46fe40c2f6458104f9a41238e0b4010a169",
+    "regression-suites.log": "5a6cf40068dcc143faf9bca9d0d105c9cec5fc2e2b36d5a801525e438d5848e9",
+    "population-snapshot-review.json": "32f4e825e9f72fbbebb94ee87d586cf66a57063528b4da46fe871791c662a8f0",
+    "producer-snapshots.json": "ca85d989953e72739973ec6226589a7e1839e2d6610b2dc899bc5352d8797c3e",
+    "runtime_witness.py": "3218c3e87b9c0cad28b900bb78e17b0fadc243288b53c0dbf7494bc85ef6ef03",
+    "runtime-witness.log": "792cbd54a8c83c4ab6d516b00f91b3f311385b44f221f4d9174124b3a1726a5c",
+    "candidate-four.jsonl": "2cc40ac78aa3db60d4fe5420b5e2600be339fd215affe568ec0b1f23dad7d0e2",
+    "foundation-runtime.log": "d62ea8552df5ea7e191ebccbaa743c81cb2471441aa7c8a652085b43f68445b0",
+    "foundation-scope-result.json": "a212b1417d210732e919b33fb77b96c812bec58300b7f3dee4eefcf86f18dd37",
+    "foundation-ready-compile.log": "3f9a3e120b93e4e454ae7a306a1622df2e35a8c9adacae6eceaeae520da99996",
+    "rhino-ja.json": "2417e8957bbd82f5969c1f3d609e754be120231424f4dd92a6e9b6b7edc92ac2",
+    "rhino-ja.jpg": "b1b65876e10dd448e1120f61ba1e32e5032c59ebd3460a31b0a412b8af964e14",
+    "worker-note.md": "aef5a4dc288d5a04aa2486feb616931f81a45cd5010ca5d525288ee445d14f00",
+    "data/mtgish.lines.ron": "a49b77ecf1ec4174eeace2abaad990c3b9e9d5d2e8ed730578df68b9c412860c",
+    "data/mtgish.lines.json": "75dea4dd00d1322f3f45124f88711b7debce6e97a438e12586b31d40058ba6ed",
+    "data/mtgish.pretty.ron": "ad27e85302872ad43789b0d2c7ff527c1e1aa4c98332f07dc07c25c54e76a178",
+    "grammars/english_grammar.json5": "a786d404c307ca97caf659ac6606bc8c4d2329c5ae02788374c59d64c281a876",
+    "rust_syntax/ir/src/ir.rs": "20a9822800f20f332db934f6c774e76e3a0ea285f4a56fce73c8d60328a1e04f",
+    "rust_syntax/normalize/src/producer_forms.rs": "81fc8d1079a783321a81644f3015eadef956f33b97c8b2a9dc23d9d98b28da31",
+    "rust_syntax/normalize/src/target_populations.rs": "faa5d5a4160add5bbf2c9a9a24d92d34af6f68092636fe95b53df5f66f485d6e",
+    "rust_syntax/normalize/src/validate.rs": "c6d880ed6b02151fab6ea0c0c248c6f7ef61231ed6887300be554dc1d7b32072",
+    "upstream-comment.md": "bd61408c9d45e1cc8777039606f4ebab8c6d6fdedb140440931e504fb69f73c5",
+    "go-packet-final-tests.log": "70d27a45ad618006b35ee781e6bb00ec14e601f9e785b04151c8febe11b39adc"
+  }
+}

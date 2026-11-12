@@ -212,3 +212,9 @@ The [combat-group checkpoint](cantrip-foundation-combat-groups-20261112.md)
 clears Caverns of Despair, Errantry and Orcish Conscripts. It records the current
 1,479 rules and 84 state unit-test pass, 62 generated runtime scenarios and the
 212-module compilation receipt. Four shared three-card families remain.
+
+The [other-targets reference update](reference-other-targets-20261112.md) at
+`5408607` passes 2,061 complete Rust workspace tests and reruns the 62 native
+runtime scenarios. All 212 ready modules plus the Mirror partial control still
+type-check, and every frozen-scope gap list is unchanged. Four shared foundation
+families remain; this reference pass adds no engine feature.
