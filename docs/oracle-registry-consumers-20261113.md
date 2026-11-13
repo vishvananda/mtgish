@@ -157,3 +157,9 @@ original source snapshot when those data artifacts are available. Publishing
 crates alone does not provide independent per-card expected values. Evidence and
 artifact hashes are recorded in
 [the registry-consumer proof](oracle-registry-consumers-20261113.proof.json).
+
+The producer now pins its original Scryfall snapshot and publishes matching face
+bundles after code releases. Bundles include the original source bytes. Use the
+included `oracle-source.jsonl.gz` as `--oracle` when the manifest declares
+`encoding: "jsonl-gzip"`; older JSON array sources remain supported. The source
+checksum always covers the original compressed bytes, not a rewritten array.

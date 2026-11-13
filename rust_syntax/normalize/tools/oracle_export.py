@@ -73,6 +73,16 @@ def read_gzip(path):
         return [json.loads(line) for line in stream]
 
 
+def original_records(path, source):
+    encoding = source.get('encoding', 'json')
+    if encoding == 'jsonl-gzip':
+        with gzip.open(path, 'rt', encoding='utf-8') as stream:
+            return [json.loads(line) for line in stream if line.strip()]
+    if encoding != 'json':
+        raise ValueError('unsupported original Oracle source encoding')
+    return json.loads(Path(path).read_text())
+
+
 def requests_for(records, outcomes):
     expected = {}
     for i, record in enumerate(records):
@@ -204,7 +214,7 @@ def check(bundle, oracle, manifest_sha256, work):
     for name, package in packages.items():
         if manifest['model']['packages'][name] != package['version']:
             raise ValueError('model version differs from export: '+name)
-    records = selected_records(json.loads(oracle.read_text()), manifest['population'])
+    records = selected_records(original_records(oracle, manifest['source_oracle']), manifest['population'])
     outcomes = read_gzip(bundle/'outcomes.jsonl.gz')
     if read_gzip(bundle/'faces.jsonl.gz') != [r for r in outcomes if r['status'] == 'unique']:
         raise ValueError('accepted faces and outcomes disagree')

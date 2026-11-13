@@ -55,6 +55,17 @@ class ExportGateTests(unittest.TestCase):
                            {'kind':'oracle_ids','policy':'test','oracle_ids':['one','one']}):
             with self.assertRaises(ValueError): gate.selected_records(records,population)
 
+    def test_original_gzip_json_lines_and_legacy_arrays(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'oracle.jsonl.gz'
+            with gzip.open(path,'wt') as stream:
+                for row in self.records(): stream.write(json.dumps(row)+'\n')
+            self.assertEqual(gate.original_records(path,{'encoding':'jsonl-gzip'}),self.records())
+            path=Path(directory)/'oracle.json'; gate.write(path,self.records())
+            self.assertEqual(gate.original_records(path,{}),self.records())
+            with self.assertRaisesRegex(ValueError,'encoding'):
+                gate.original_records(path,{'encoding':'unknown'})
+
     def test_pinned_manifest_and_asset_checksums_are_required(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
