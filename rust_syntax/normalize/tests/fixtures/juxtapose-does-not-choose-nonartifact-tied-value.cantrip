@@ -1,0 +1,36 @@
+# With no creatures, the creature exchange does nothing but the artifact exchange still occurs (CR 701.12a).
+[Bot1 Deck]
+Black Lotus
+Mox Sapphire
+Mox Jet
+Sol Ring
+Mox Pearl
+Savannah Lions
+Juxtapose
+Island x20
+[Bot2 Deck]
+Mox Ruby
+Island x20
+[Actions]
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Savannah Lions.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Hand.Sol Ring.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Mox Ruby.Cast
+[T3 Bot1.Main1]
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Battlefield.Sol Ring.Activate
+Bot1.Hand.Juxtapose.Cast(Bot2)
+Bot1.Choose(Savannah Lions)
+! Bot1.Choose(Savannah Lions)
+? Bot1.Mana =
+[T3 Bot1.Main2]
+[Expect]
+Bot1.Battlefield = Mox Jet; Mox Ruby; Mox Sapphire; Mox Pearl; Savannah Lions
+Bot2.Battlefield = Sol Ring

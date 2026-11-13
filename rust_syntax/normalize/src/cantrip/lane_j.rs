@@ -2958,10 +2958,10 @@ impl Compiler {
                 highest,
             } if !layer => {
                 let value = self.property("o", property)?.code;
-                let mine = self.property(id, property)?.code;
+                let mine = self.property("__extreme_candidate", property)?.code;
                 let pick = if *highest { "max" } else { "min" };
                 format!(
-                    "({}).into_iter().map(|o: ObjectId| {value}).{pick}().is_some_and(|best| {mine} == best)",
+                    "{{ let __extreme_candidate = {id}; let __extreme_pool: Vec<ObjectId> = {}; __extreme_pool.contains(&__extreme_candidate) && __extreme_pool.into_iter().map(|o: ObjectId| {value}).{pick}().is_some_and(|best| {mine} == best) }}",
                     self.objects(among)?
                 )
             }

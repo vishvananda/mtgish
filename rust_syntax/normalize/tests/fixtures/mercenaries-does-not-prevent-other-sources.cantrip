@@ -1,0 +1,38 @@
+# An opponent activates Mercenaries' shield; Shock is a different source and still deals damage (CR 615.1).
+[Bot1 Deck]
+Black Lotus
+Mox Pearl
+Mercenaries
+Plains x20
+[Bot2 Deck]
+Mox Jet
+Mox Sapphire
+Mox Pearl
+Mox Ruby
+Shock
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Mercenaries.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Mox Jet.Cast
+Bot2.Hand.Mox Sapphire.Cast
+Bot2.Hand.Mox Pearl.Cast
+Bot2.Hand.Mox Ruby.Cast
+Bot2.Battlefield.Mox Jet.Activate
+Bot2.Battlefield.Mox Sapphire.Activate
+Bot2.Battlefield.Mox Pearl.Activate
+Bot2.Battlefield.Mercenaries.Activate
+? Bot2.Mana =
+Bot1.Pass
+Bot2.Pass
+Bot2.Battlefield.Mox Ruby.Activate
+Bot2.Hand.Shock.Cast(Bot2)
+Bot1.Pass
+Bot2.Pass
+[Expect]
+Bot2.Life = 18

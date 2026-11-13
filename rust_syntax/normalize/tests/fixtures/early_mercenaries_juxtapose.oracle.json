@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Juxtapose",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Juxtapose",
+        "manaCost": "{3}{U}",
+        "type": "Sorcery",
+        "text": "You and target player exchange control of the creature you each control with the greatest mana value. Then exchange control of artifacts the same way. If two or more permanents a player controls are tied for greatest, their controller chooses one of them."
+      }
+    ]
+  },
+  {
+    "name": "Mercenaries",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mercenaries",
+        "manaCost": "{3}{W}",
+        "type": "Creature \u2014 Human Mercenary",
+        "text": "{3}: The next time this creature would deal damage to you this turn, prevent that damage. Any player may activate this ability.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  }
+]
