@@ -4536,10 +4536,9 @@ impl Compiler {
                 "Duration::UntilNextTurnOf({})",
                 self.fetch(self.certain_player(player)?)
             ),
-            // "Until its controller's next untap step": the untap step is the
-            // first step of a turn (CR 502.1), so it ends as that turn begins.
+            // A skipped untap step never begins, so wait for the next actual step.
             D::UntilNextUntapStep(player) => format!(
-                "Duration::UntilNextTurnOf({})",
+                "Duration::UntilNextStepOf {{ step: Step::Untap, player: Some({}) }}",
                 self.fetch(self.certain_player(player)?)
             ),
             D::UntilEndOfNextTurn(player) => format!(

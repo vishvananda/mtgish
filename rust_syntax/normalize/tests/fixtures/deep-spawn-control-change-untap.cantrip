@@ -1,0 +1,70 @@
+# Bot1 activates Deep Spawn; after Bot2 gains control, Bot1’s next untap step passes and Deep Spawn untaps during Bot2’s turn (CR 109.5).
+[Bot1 Deck]
+Deep Spawn
+Black Lotus
+Mox Pearl
+Mox Sapphire
+Mox Jet
+Mox Ruby
+Mox Emerald
+Island x20
+
+[Bot2 Deck]
+Black Lotus
+Mox Sapphire
+Control Magic
+Island x200
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Pass
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Pass
+Bot1.Hand.Mox Jet.Cast
+Bot1.Pass
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Pass
+Bot1.Hand.Mox Emerald.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Emerald.Activate
+Bot1.Hand.Deep Spawn.Cast
+? Bot1.Mana =
+Bot1.Pass
+
+[T2 Bot2.Main1]
+[T3 Bot1.Upkeep]
+Bot1.Pass
+Bot2.Pass
+Bot1.Accept
+[T3 Bot1.Main1]
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Deep Spawn.Activate
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+? Bot1.Battlefield.Deep Spawn.Tapped = true
+? Bot1.Battlefield.Deep Spawn.Keywords = Shroud; Trample
+[T4 Bot2.Main1]
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Hand.Mox Sapphire.Cast
+Bot2.Pass
+Bot2.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot2.Battlefield.Mox Sapphire.Activate
+Bot2.Hand.Control Magic.Cast(Bot1.Battlefield.Deep Spawn)
+Bot2.Pass
+Bot1.Pass
+[T6 Bot2.Upkeep]
+Bot2.Pass
+Bot1.Pass
+Bot2.Accept
+[T6 Bot2.Main1]
+[Expect]
+Bot2.Battlefield.Deep Spawn.Tapped = false

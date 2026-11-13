@@ -15,7 +15,7 @@ fn discard_is_limited_to_cards_actually_drawn_and_still_in_hand() {
         let face = &rows[name]["faces"][0];
         assert!(face["gaps"].as_array().unwrap().is_empty(), "{name}: {face}");
         let rust = face["rust"].as_str().unwrap();
-        assert!(rust.contains("Event::Drew") && rust.contains("Zone::hand(player)"), "{name}: {rust}");
+        assert!(rust.contains("Event::Drew") && rust.contains("zone(Zone::hand(player)).contains(&card)"), "{name}: {rust}");
         assert!(rust.contains("Purpose::Discard, drawn"), "{name}: {rust}");
     }
 }

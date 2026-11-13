@@ -1,0 +1,27 @@
+# The Farmer can change its controller's own Mountain; the effect lasts through the opponent's turn until its controller's untap step (CR 611.2a).
+[Bot1 Deck]
+Black Lotus
+Orcish Farmer
+Mountain x20
+[Bot2 Deck]
+Island x20
+[Actions]
+Bot1.Hand.Mountain.Play
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Red)
+Bot1.Hand.Orcish Farmer.Cast
+? Bot1.Mana =
+[T3 Bot1.Main1]
+Bot1.Battlefield.Orcish Farmer.Activate(Bot1.Battlefield.Mountain)
+? Bot1.Battlefield.Orcish Farmer.Tapped = true
+Bot1.Pass
+Bot2.Pass
+! Bot1.Battlefield.Orcish Farmer.Activate(Bot1.Battlefield.Mountain)
+? Bot1.Battlefield.Mountain.Subtypes = Swamp
+? Bot1.Battlefield.Mountain.Supertypes = Basic
+[T4 Bot2.Main1]
+? Bot1.Battlefield.Mountain.Subtypes = Swamp
+[T5 Bot1.Main1]
+[Expect]
+Bot1.Battlefield.Mountain.Subtypes = Mountain

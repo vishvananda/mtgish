@@ -1,0 +1,46 @@
+# The activating player's next untap step is skipped even if another player gains control before it (CR 109.5, 611.2a).
+[Bot1 Deck]
+Homarid Warrior
+Black Lotus
+Mox Sapphire
+Mox Pearl
+Island x20
+[Bot2 Deck]
+Control Magic
+Black Lotus
+Mox Sapphire
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Pass
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Homarid Warrior.Cast
+? Bot1.Mana =
+Bot1.Pass
+[T3 Bot1.Main1]
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Homarid Warrior.Activate
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+? Bot1.Battlefield.Homarid Warrior.Tapped = true
+[T4 Bot2.Main1]
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Hand.Mox Sapphire.Cast
+Bot2.Pass
+Bot2.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot2.Battlefield.Mox Sapphire.Activate
+Bot2.Hand.Control Magic.Cast(Bot1.Battlefield.Homarid Warrior)
+Bot2.Pass
+Bot1.Pass
+? Bot2.Battlefield.Homarid Warrior.Tapped = true
+[T6 Bot2.Main1]
+[Expect]
+Bot2.Battlefield.Homarid Warrior.Tapped = false

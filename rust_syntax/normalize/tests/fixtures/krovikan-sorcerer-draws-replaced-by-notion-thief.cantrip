@@ -1,0 +1,45 @@
+# Notion Thief replaces both draws with its controller's draws. The Sorcerer's controller drew
+# neither card, so there is no drawn card for that player to discard (CR 614.1a, 121.6).
+[Bot1 Deck]
+Krovikan Sorcerer
+Mox Sapphire
+Mox Pearl
+Mox Jet
+Dark Ritual
+Plains
+Mountain
+Forest
+Island x20
+[Bot2 Deck]
+Island
+Black Lotus
+Notion Thief
+Swamp x4
+Plains
+Mountain
+Island x20
+[Actions]
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.Krovikan Sorcerer.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Island.Play
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Battlefield.Black Lotus.Activate(Color: Black)
+Bot2.Battlefield.Island.Activate
+Bot2.Hand.Notion Thief.Cast
+[T3 Bot1.Main1]
+Bot1.Battlefield.Krovikan Sorcerer.Activate(Ability: Discard a black card)
+Bot1.Choose(Dark Ritual)
+Bot1.Pass
+Bot2.Pass
+[Expect]
+Bot1.Hand = Forest; Mountain; Plains
+Bot1.Graveyard = Dark Ritual
+Bot2.Hand = Island; Mountain; Plains; Swamp; Swamp; Swamp; Swamp

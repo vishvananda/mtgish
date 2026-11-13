@@ -1,0 +1,250 @@
+[
+  {
+    "name": "Arbalest Elite",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Arbalest Elite",
+        "manaCost": "{2}{W}{W}",
+        "type": "Creature \u2014 Human Archer",
+        "text": "{2}{W}, {T}: This creature deals 3 damage to target attacking or blocking creature. This creature doesn't untap during your next untap step.",
+        "power": "2",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Barl's Cage",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Barl's Cage",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{3}: Target creature doesn't untap during its controller's next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Cinder Marsh",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cinder Marsh",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {B} or {R}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Cloudcrest Lake",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cloudcrest Lake",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {W} or {U}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Deep Spawn",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Deep Spawn",
+        "manaCost": "{5}{U}{U}{U}",
+        "type": "Creature \u2014 Homarid",
+        "text": "Trample\nAt the beginning of your upkeep, sacrifice this creature unless you mill two cards.\n{U}: This creature gains shroud until end of turn and doesn't untap during your next untap step. Tap this creature. (A creature with shroud can't be the target of spells or abilities.)",
+        "power": "6",
+        "toughness": "6"
+      }
+    ]
+  },
+  {
+    "name": "Homarid Warrior",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Homarid Warrior",
+        "manaCost": "{4}{U}",
+        "type": "Creature \u2014 Homarid Warrior",
+        "text": "{U}: This creature gains shroud until end of turn and doesn't untap during your next untap step. Tap it. (A creature with shroud can't be the target of spells or abilities.)",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Krovikan Sorcerer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Krovikan Sorcerer",
+        "manaCost": "{2}{U}",
+        "type": "Creature \u2014 Human Wizard Sorcerer",
+        "text": "{T}, Discard a nonblack card: Draw a card.\n{T}, Discard a black card: Draw two cards, then discard one of them.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Lantern-Lit Graveyard",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Lantern-Lit Graveyard",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {B} or {R}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Mogg Hollows",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mogg Hollows",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {R} or {G}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Orcish Farmer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Orcish Farmer",
+        "manaCost": "{1}{R}{R}",
+        "type": "Creature \u2014 Orc",
+        "text": "{T}: Target land becomes a Swamp until its controller's next untap step.",
+        "power": "2",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Pinecrest Ridge",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Pinecrest Ridge",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {R} or {G}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Reveka, Wizard Savant",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Reveka, Wizard Savant",
+        "manaCost": "{2}{U}{U}",
+        "type": "Legendary Creature \u2014 Dwarf Wizard",
+        "text": "{T}: Reveka deals 2 damage to any target and doesn't untap during your next untap step.",
+        "power": "0",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Rootwater Depths",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Rootwater Depths",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Samite Alchemist",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Samite Alchemist",
+        "manaCost": "{3}{W}",
+        "type": "Creature \u2014 Human Cleric",
+        "text": "{W}{W}, {T}: Prevent the next 4 damage that would be dealt this turn to target creature you control. Tap that creature. It doesn't untap during your next untap step.",
+        "power": "0",
+        "toughness": "2"
+      }
+    ]
+  },
+  {
+    "name": "Spectral Bears",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Spectral Bears",
+        "manaCost": "{1}{G}",
+        "type": "Creature \u2014 Bear Spirit",
+        "text": "Whenever this creature attacks, if defending player controls no black nontoken permanents, it doesn't untap during your next untap step.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Spectral Force",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Spectral Force",
+        "manaCost": "{3}{G}{G}",
+        "type": "Creature \u2014 Elemental Spirit",
+        "text": "Trample\nWhenever this creature attacks, if defending player controls no black permanents, it doesn't untap during your next untap step.",
+        "power": "8",
+        "toughness": "8"
+      }
+    ]
+  },
+  {
+    "name": "Thalakos Lowlands",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Thalakos Lowlands",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {W} or {U}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Tranquil Garden",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Tranquil Garden",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {G} or {W}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Vec Townships",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Vec Townships",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {G} or {W}. This land doesn't untap during your next untap step."
+      }
+    ]
+  },
+  {
+    "name": "Waterveil Cavern",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Waterveil Cavern",
+        "type": "Land",
+        "text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This land doesn't untap during your next untap step."
+      }
+    ]
+  }
+]

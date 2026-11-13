@@ -1,0 +1,28 @@
+# The Farmer turns an opponent's land into a Swamp until that player's next untap step (CR 305.7, 611.2a).
+[Bot1 Deck]
+Black Lotus
+Orcish Farmer
+Mountain x20
+[Bot2 Deck]
+Forest
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Red)
+Bot1.Hand.Orcish Farmer.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Forest.Play
+[T3 Bot1.Main1]
+! Bot1.Battlefield.Orcish Farmer.Activate(Bot1.Battlefield.Orcish Farmer)
+Bot1.Battlefield.Orcish Farmer.Activate(Bot2.Battlefield.Forest)
+? Bot1.Battlefield.Orcish Farmer.Tapped = true
+Bot1.Pass
+Bot2.Pass
+? Bot2.Battlefield.Forest.Subtypes = Swamp
+Bot2.Battlefield.Forest.Activate
+? Bot2.Mana = {B}
+[T4 Bot2.Main1]
+[Expect]
+Bot2.Battlefield.Forest.Subtypes = Forest
