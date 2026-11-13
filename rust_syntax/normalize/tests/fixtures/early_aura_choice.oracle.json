@@ -1,0 +1,40 @@
+[
+  {
+    "name": "Agonizing Remorse",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Agonizing Remorse",
+        "manaCost": "{1}{B}",
+        "type": "Sorcery",
+        "text": "Target opponent reveals their hand. You choose a nonland card from it or a card from their graveyard. Exile that card. You lose 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Dream Coat",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dream Coat",
+        "manaCost": "{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\n{0}: Enchanted creature becomes the color or colors of your choice. Activate only once each turn."
+      }
+    ]
+  },
+  {
+    "name": "Dwarven Armorer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dwarven Armorer",
+        "manaCost": "{R}",
+        "type": "Creature — Dwarf",
+        "text": "{R}, {T}, Discard a card: Put a +0/+1 counter or a +1/+0 counter on target creature.",
+        "power": "0",
+        "toughness": "2"
+      }
+    ]
+  }
+]

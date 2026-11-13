@@ -552,6 +552,15 @@ impl Compiler {
             {
                 self.carried_object(self.frame.object)?
             }
+            // A resolving ability may outlive its Aura or Equipment. The old
+            // source row retains its last attachment, but the attached object
+            // must still be the same live battlefield permanent (CR 113.7a).
+            ObjectRef::AttachedTo(host)
+                if matches!(**host, ObjectRef::Source)
+                    && self.reader == Reader::Resolution && self.stack_item =>
+            {
+                format!("{}.and_then(|o: ObjectId| q.obj(o).attached_to.filter(|&host| cantrip_api::is_live(q, host) && q.obj(host).zone.is(ZoneKind::Battlefield)))", self.object(host)?)
+            }
             ObjectRef::AttachedTo(host) => format!(
                 "{}.and_then(|o: ObjectId| {})",
                 self.object(host)?,

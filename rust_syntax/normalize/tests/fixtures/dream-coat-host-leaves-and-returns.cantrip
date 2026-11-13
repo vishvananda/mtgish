@@ -1,0 +1,30 @@
+# An ability uses the Aura's last known attachment if it leaves before resolution (CR 608.2h).
+[Bot1 Deck]
+Mox Sapphire
+Black Lotus
+Ornithopter
+Dream Coat
+Boomerang
+Island x20
+[Bot2 Deck]
+Island x20
+[Actions]
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Ornithopter.Cast
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Dream Coat.Cast(Bot1.Battlefield.Ornithopter)
+Bot1.Pass
+Bot2.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Dream Coat.Activate
+Bot1.Hand.Boomerang.Cast(Bot1.Battlefield.Ornithopter)
+Bot1.Pass
+Bot2.Pass
+Bot1.Modes(Red)
+Bot1.Hand.Ornithopter.Cast
+Bot1.Pass
+Bot2.Pass
+[Expect]
+Bot1.Graveyard.Dream Coat.Colors = Blue
+Bot1.Battlefield.Ornithopter.Colors = (absent)

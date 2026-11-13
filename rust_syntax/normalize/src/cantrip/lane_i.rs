@@ -2434,6 +2434,16 @@ impl Compiler {
             true => "item.ability.card".to_string(),
             false => "g.card_id(&CARD)".to_string(),
         };
+        // Two options that are always available need no empty/single-option
+        // fallback: the validated answer is one of the two offered labels.
+        if options.len() == 2 && options.iter().all(|option| self.option_possible(option) == "true") {
+            writeln!(out, "let card_{id} = {card}; let picked_{id} = cantrip_mechanics::choose::one_of(g, decider_{id}, asker.source, vec![Label::Card(card_{id}, {base}), Label::Card(card_{id}, {})])?; if picked_{id} == 0 {{", base + 1).unwrap();
+            self.block(&options[0], out, true)?;
+            writeln!(out, "}} else {{").unwrap();
+            self.block(&options[1], out, true)?;
+            writeln!(out, "}}").unwrap();
+            return Ok(());
+        }
         let offered: Vec<String> = options
             .iter()
             .enumerate()

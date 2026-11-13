@@ -1,0 +1,52 @@
+# The Armorer pays red, taps and discards to put either counter on creatures of either player (CR 602.2, 122.1).
+[Bot1 Deck]
+Dwarven Armorer
+Mox Ruby
+Mountain
+Island
+Island
+Island
+Island
+Mountain
+Island x20
+
+[Bot2 Deck]
+Ornithopter
+Island x20
+
+[Actions]
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Pass
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Hand.Dwarven Armorer.Cast
+? Bot1.Mana =
+Bot1.Hand.Mountain.Play
+Bot1.Pass
+[T2 Bot2.Main1]
+Bot2.Hand.Ornithopter.Cast
+Bot2.Pass
+[T3 Bot1.Main1]
+! Bot1.Battlefield.Dwarven Armorer.Activate(Bot1.Battlefield.Mountain)
+Bot1.Battlefield.Mountain.Activate
+Bot1.Battlefield.Dwarven Armorer.Activate(Bot1.Battlefield.Dwarven Armorer)
+! Bot1.Choose()
+Bot1.Choose(Island)
+? Bot1.Mana =
+? Bot1.Battlefield.Dwarven Armorer.Tapped = true
+? Bot1.Graveyard = Island
+Bot1.Modes(1)
+Bot1.Pass
+Bot2.Pass
+? Bot1.Battlefield.Dwarven Armorer.Power = 0
+? Bot1.Battlefield.Dwarven Armorer.Toughness = 3
+[T5 Bot1.Main1]
+Bot1.Battlefield.Mountain.Activate
+Bot1.Battlefield.Dwarven Armorer.Activate(Bot2.Battlefield.Ornithopter)
+Bot1.Choose(Island)
+Bot1.Modes(2)
+Bot1.Pass
+Bot2.Pass
+[Expect]
+Bot2.Battlefield.Ornithopter.Power = 1
+Bot2.Battlefield.Ornithopter.Toughness = 2
+Bot1.Battlefield.Dwarven Armorer.Tapped = true
