@@ -1,7 +1,7 @@
 # Early-set production generator profile
 
 The production Cantrip backend is paired with the rebased shared foundation
-`11237af09f9f3ae9384796017c8a4135d8c2ec72`, based on upstream
+`6b080fb69a8055815d61d192250855500f68f64e`, based on upstream
 `27fffc942f71e8c64854bb68da096a67b9498578`. The native checkout used to refresh
 the snapshot is `/mnt/vizier/card-lane/early-set-foundation-rebase-20261113`.
 Its API fingerprint is
@@ -21,7 +21,14 @@ production profile supports them. Current-profile tests additionally require
 the real upkeep deadlines and Winter's Chill X restriction. Backend capability
 changes do not alter the AST ownership or schema contract.
 
-Validation on this pairing:
+The native Rust implementation is unchanged from `11237af09`; the final commit
+corrects existing client prompts and LLM band selection. The campaign uses the
+validated `6b080fb69` snapshot for new work. Its complete `tools/test.sh` run
+passes 23,665 Rust tests and 1,525 managed tests (15 Rust ignores and one managed
+skip). Five added client regressions fail against the old client implementation.
+No numeric types, prompt kinds or rendering capabilities changed.
+
+Initial production-profile validation at `11237af09`:
 
 - `cargo test --locked --manifest-path rust_syntax/Cargo.toml -p mtgish-ast
   --all-targets --features cantrip --no-fail-fast`: 1,613 passed, 20 ignored,
@@ -56,7 +63,8 @@ records the initial profile adoption. Subsequent targeted checks cover:
   untap-limit callback roles. Production-render checks cover six predicates
   plus an ordinary resolving-effect control.
 - Recognition of the existing full-range u32 conversion by the style gate.
-  Arbitrary rule caps remain rejected; the 169 card-lane tests pass.
+  Full-range i32 conversions are also recognized. Arbitrary rule caps and
+  mismatched casts remain rejected; the 169 card-lane tests pass.
 - Call to Arms now requires a uniquely most common color, including its tie
   branch, and Cleansing identifies the individual land when offering payment.
   Native before/after witnesses prove both corrections.
