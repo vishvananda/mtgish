@@ -137,7 +137,10 @@ def retry_stopped(root, job_id, reason):
                 card['implementation_previous_packet']=str(archive)
             for key in ('failure','failed_gates','finished','started','context_marker'):
                 card.pop(key,None)
-            card.update(status='pending',implementation_retry=attempt,implementation_retry_note=reason)
+            # Bind the retry before releasing the queue lock: another worker may sync/claim
+            # immediately, so updating its generator revision in a later write races that lease.
+            card.update(status='pending',implementation_retry=attempt,implementation_retry_note=reason,
+                        generator_commit=queue['generator_commit'],implementation_generator_revision=queue['generator_commit'])
             review.save(path,queue)
     return row['name']
 

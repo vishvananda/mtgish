@@ -151,6 +151,21 @@ class ImplementationLaneTests(unittest.TestCase):
         with impl.connect(self.tmp_path) as db:
             self.assertEqual(db.execute('SELECT status FROM implementation_jobs WHERE id=?',(old['id'],)).fetchone()[0],'needs_review')
 
+    def test_retry_binds_current_generator_before_another_worker_can_claim_it(self):
+        queue=setup_root(self.tmp_path,[{'name':'A','status':'pending','implementation_generator_revision':'rev'}])
+        impl.sync(self.tmp_path)
+        with impl.connect(self.tmp_path) as db:old=impl.claim(db,'i1')
+        impl.finish(self.tmp_path,old,'generator_bug',{})
+        current=impl.review.read(queue);current['generator_commit']='fixed';impl.review.save(queue,current)
+        impl.retry_stopped(self.tmp_path,old['id'],'Concrete source correction deployed')
+        impl.sync(self.tmp_path)
+        with impl.connect(self.tmp_path) as db:
+            new=impl.claim(db,'i2')
+            self.assertEqual(db.execute('select revision,status from implementation_jobs where id=?',(old['id'],)).fetchone()['revision'],'rev')
+        self.assertEqual(new['revision'],'fixed')
+        self.assertEqual(json.loads(new['card'])['implementation_generator_revision'],'fixed')
+        self.assertEqual(json.loads(new['queue_meta'])['generator_commit'],'fixed')
+
     def test_one_card_can_advance_generator_revision_without_changing_an_active_lease(self):
         queue=setup_root(self.tmp_path,[{'name':'A','status':'pending'},{'name':'B','status':'pending'}])
         impl.sync(self.tmp_path)
