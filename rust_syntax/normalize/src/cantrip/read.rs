@@ -2641,6 +2641,22 @@ impl Compiler {
                 None if self.failed.contains(&result.0) => planned::unreported("false", result),
                 None => return Err(gap("condition Searched")),
             },
+            Condition::AllOf(items)
+                if items.iter().any(|c| matches!(c, Condition::Window(TurnWindow::Combat))) =>
+            {
+                // "During combat before ..." selects a part of any combat
+                // (CR 506.8c), unlike a bare "before ..." turn deadline.
+                let pieces = items.iter().map(|c| Ok(match c {
+                    Condition::Window(TurnWindow::BeforeAttackersDeclared) =>
+                        "q.state().turn.step() < Step::DeclareAttackers".into(),
+                    Condition::Window(TurnWindow::BeforeBlockersDeclared) =>
+                        "q.state().turn.step() < Step::DeclareBlockers".into(),
+                    Condition::Window(TurnWindow::BeforeCombatDamage) =>
+                        "q.state().turn.step() < Step::CombatDamage".into(),
+                    other => self.condition(other)?,
+                })).collect::<Result<Vec<_>>>()?;
+                format!("({})", pieces.join(" && "))
+            }
             Condition::AllOf(items) => combine(items, " && ", "true")?,
             Condition::AnyOf(items) => combine(items, " || ", "false")?,
             Condition::Not(c) => format!("!({})", self.condition(c)?),

@@ -56,6 +56,21 @@ fn before_combat_deadlines_do_not_reopen_in_a_later_combat() {
 }
 
 #[test]
+fn an_explicit_during_combat_window_can_open_in_each_combat() {
+    for name in ["Disharmony", "Winter's Chill"] {
+        let text = module(name);
+        let file = syn::parse_file(&text).unwrap();
+        let condition = file.items.iter().find_map(|item| match item {
+            syn::Item::Fn(f) if f.sig.ident.to_string().ends_with("_if") => Some(&f.block),
+            _ => None,
+        }).unwrap();
+        let code = quote::quote!(#condition).to_string();
+        assert!(code.contains("Step :: DeclareBlockers"), "{name}: {code}");
+        assert!(!code.contains("history"), "a later combat remains legal: {name}: {code}");
+    }
+}
+
+#[test]
 fn loses_control_watches_departures_as_well_as_controller_changes() {
     let text = module("Seraph");
     for required in ["Event::ControlChanged", "Event::ZoneChange { old, from, .. }",
