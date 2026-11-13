@@ -958,7 +958,7 @@ def checks(root):
         record("layers", lambda: lane.shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases", env=lane.full_environment()))
     final_digest = work_digest(tree)
     rows.append(dict(gate="stable source", ok=initial_digest == final_digest, seconds=0))
-    result = dict(at=now(), head=git(tree, "rev-parse", "HEAD"), digest_version=2, diff_digest=final_digest,
+    result = dict(at=now(), head=git(tree, "rev-parse", "HEAD"), digest_version=3, diff_digest=final_digest,
                   initial_digest=initial_digest,
                   ok=bool(rows) and all(r["ok"] for r in rows), seconds=round(time.monotonic()-started, 2), gates=rows)
     result, receipt = review_evidence.freeze_checks(folder, result)
@@ -972,7 +972,7 @@ def source_path(path):
     return path.startswith(('crates/', 'content/', 'scenarios/')) or path in ('Cargo.toml', 'Cargo.lock')
 
 
-def work_digest(tree, *, absent=(), legacy=False):
+def work_digest(tree, *, absent=(), legacy=False, index_markers=True):
     # Hash checked files independently of staging; NUL-delimited Git names also
     # preserve Unicode and whitespace instead of mistaking quoted names for files.
     absent = set(absent)
@@ -985,18 +985,18 @@ def work_digest(tree, *, absent=(), legacy=False):
             file = tree / path
             if file.is_file():
                 h.update(path.encode() + b'\0' + file.read_bytes())
-            elif legacy or path in absent:
+            elif legacy and index_markers or path in absent:
                 h.update(path.encode() + b'\0<deleted>')
     return h.hexdigest()
 
 
 def checked_content_identity(tree, checks):
     current = work_digest(tree)
-    identity = dict(algorithm='working-files-v2', digest=current, checked_diff_digest=checks.get('diff_digest'))
+    identity = dict(algorithm='working-files-v3', digest=current, checked_diff_digest=checks.get('diff_digest'))
     if checks.get('diff_digest') == current:
         return identity
     head = checks.get('head') or ''
-    if checks.get('digest_version') != 2 and re.fullmatch(r'[0-9a-f]{40}', head):
+    if checks.get('digest_version') != 3 and re.fullmatch(r'[0-9a-f]{40}', head):
         old_names = git(tree, 'ls-tree', '-r', '--name-only', head).splitlines()
         actual_old_names = git(tree, 'ls-tree', '-r', '--name-only', '-z', head).split('\0')
         absent = [path for path in old_names if source_path(path) and not (tree/path).is_file()]
@@ -1011,9 +1011,11 @@ def checked_content_identity(tree, checks):
             if not (tree/path).is_file() or git(tree, 'hash-object', '--', path) != git(tree, 'rev-parse', head+':'+path):
                 safe = False
                 break
-        if safe and (absent or unhashed) and checks.get('diff_digest') == work_digest(tree, absent=absent, legacy=True):
-            identity.update(compatibility='legacy-index-v1', checked_head=head,
-                            absent_paths=absent, unhashed_paths_unchanged_from_checked_head=unhashed)
+        markers = checks.get('digest_version') != 2
+        recorded_absent = absent if markers else []
+        if safe and (absent or unhashed) and checks.get('diff_digest') == work_digest(tree, absent=recorded_absent, legacy=True, index_markers=markers):
+            identity.update(compatibility='legacy-index-v1' if markers else 'legacy-quoted-files-v2', checked_head=head,
+                            absent_paths=recorded_absent, unhashed_paths_unchanged_from_checked_head=unhashed)
             return identity
     raise ValueError('confirmation candidate does not match checked source')
 
@@ -1308,7 +1310,7 @@ def worker(root, slot, once=False, resume=None):
                                       usage={k:sum(a['usage'].get(k,0) for a in attempts) for k in ('input','cached','output','turns')})
                         report_path=job_folder(root,job,job['stage'])/'review.json'
                         if report_valid(report,job['name']) and report_path.exists():
-                            detail['completed_review']=dict(report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),source_digest=work_digest(tree),digest_version=2,head=git(tree,'rev-parse','HEAD'))
+                            detail['completed_review']=dict(report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),source_digest=work_digest(tree),digest_version=3,head=git(tree,'rev-parse','HEAD'))
                     save(folder/'live.json',dict(state='infrastructure',worker=slot,card=job['name'],at=now(),error=str(error)))
                     finish(db, job, "infrastructure", detail,branch=branch)
                     raise

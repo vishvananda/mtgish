@@ -705,6 +705,26 @@ class GitTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'does not match checked source'):
             lane.checked_content_identity(self.repo,checks)
 
+    def test_intermediate_receipt_without_deletion_markers_still_protects_unicode(self):
+        old='scenarios/test-card-old.cantrip'
+        unicode='scenarios/test-card-é.cantrip'
+        self.write(old,'old');self.write(unicode,'unchanged unicode')
+        self.git('add',old,unicode);self.git('commit','-qm','Prior scenario files')
+        head=self.git('rev-parse','HEAD')
+        (self.repo/old).unlink()
+        fixture='crates/cantrip-script/tests/fixtures/test-card-new.cantrip'
+        self.write(fixture,'new typed fixture')
+        checks=dict(head=head,digest_version=2,
+                    diff_digest=lane.work_digest(self.repo,legacy=True,index_markers=False))
+        lane.commit_candidate(self.repo,dict(name='Test Card',commit=head),self.base,
+                              lane.allowed_changes(self.repo,'Test Card'))
+        identity=lane.checked_content_identity(self.repo,checks)
+        self.assertEqual(identity['compatibility'],'legacy-quoted-files-v2')
+        self.assertEqual(identity['absent_paths'],[])
+        self.write(unicode,'unverified unicode change')
+        with self.assertRaisesRegex(ValueError,'does not match checked source'):
+            lane.checked_content_identity(self.repo,checks)
+
     def test_candidate_normalizes_title_for_publication_without_changing_content(self):
         import publish_lane
         self.git('commit', '--amend', '-qm', 'Implement Test Card\n\nRetain the reviewed behavior.')
