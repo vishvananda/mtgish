@@ -513,14 +513,16 @@ def prepare(root, tree, job):
     previous = json.loads(job["result"]) if job.get("result") else {}
     if previous.get("retry_requested") and job["stage"] == "review":
         if previous.get('rebase_base') and previous.get('rebase_head'):
+            clean(tree)
             branch = job['branch'] + '-retry-' + str(time.time_ns())
             git(tree, 'checkout', '-b', branch, previous['prepared_parent'])
-            diff = subprocess.run(['git', 'diff', '--binary', previous['rebase_base'], previous['rebase_head']],
-                                  cwd=tree, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout
-            # A conflicting migration stops before changing the new tree. The complete parked work and report remain.
-            if diff:
-                subprocess.run(['git', 'apply', '--index', '--check'], cwd=tree, input=diff, check=True)
-                subprocess.run(['git', 'apply', '--index'], cwd=tree, input=diff, check=True)
+            # A shared fix may already have moved into the new foundation. A three-way merge
+            # retains card work without applying that same helper patch twice. merge-tree never
+            # touches the index/worktree, so a genuine conflict leaves both histories intact.
+            merged = subprocess.run(['git', 'merge-tree', '--write-tree', '--merge-base='+previous['rebase_base'],
+                                     previous['prepared_parent'], previous['rebase_head']], cwd=tree,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True).stdout.splitlines()[0]
+            git(tree, 'read-tree', '-m', '-u', 'HEAD', merged)
             return branch, previous['prepared_parent'], source
         if previous.get("retry_base") and previous.get("retry_candidate"):
             branch = f"review/{Path(root).name}/{job['id']}/review-round-{source['review_round']}"

@@ -738,16 +738,16 @@ class GitTests(unittest.TestCase):
         self.assertEqual((self.repo/path).read_text(),'retained fix')
         self.assertEqual(lane.allowed_changes(self.repo,'Test Card'),[path])
 
-    def migration_job(self, *, conflicting=False):
+    def migration_job(self, *, conflicting=False, shared=False):
         self.git('checkout','-qb','parked',self.source)
         self.write('crates/cantrip-cards/src/cards/test_card.rs','retained fix')
         self.write('scenarios/test-card-original.cantrip','original scenario\n')
-        if conflicting:self.write('base','review helper fix')
+        if conflicting or shared:self.write('base','shared helper fix' if shared else 'review helper fix')
         self.git('add','.');self.git('commit','-qm','Review WIP')
         retained=self.git('rev-parse','HEAD')
         self.git('checkout','-qb','new-engine',self.base)
         self.write('engine','new timing capability')
-        if conflicting:self.write('base','new engine helper')
+        if conflicting or shared:self.write('base','shared helper fix' if shared else 'new engine helper')
         self.git('add','.');self.git('commit','-qm','Engine: new timing')
         head=self.git('rev-parse','HEAD');manifest=self.root/'snapshot.json'
         lane.save(manifest,dict(kind='local_integration',base=self.base,head=head,validation=dict(ok=True,head=head)))
@@ -786,6 +786,19 @@ class GitTests(unittest.TestCase):
         self.assertEqual(row['status'],'blocked')
         self.assertEqual(json.loads(row['result'])['wip_commit'],retained)
         self.assertEqual(self.git('status','--porcelain'),'')
+
+    def test_migration_keeps_card_edits_when_the_shared_fix_is_already_in_foundation(self):
+        job,head,retained=self.migration_job(shared=True)
+        lane.retry_stopped(self.root,job['id'],'Shared fix now validated in foundation',new_base=head)
+        with lane.connect(self.root) as db:retried=dict(db.execute('select * from jobs').fetchone())
+        _,parent,_=lane.prepare(self.root,self.repo,retried)
+        self.assertEqual(parent,head)
+        self.assertEqual(self.git('rev-parse','HEAD'),head)
+        self.assertEqual(self.git('rev-parse','parked'),retained)
+        self.assertEqual((self.repo/'base').read_text(),'shared helper fix')
+        self.assertEqual((self.repo/'engine').read_text(),'new timing capability')
+        self.assertEqual((self.repo/'crates/cantrip-cards/src/cards/test_card.rs').read_text(),'retained fix')
+        self.assertEqual((self.repo/'scenarios/test-card-original.cantrip').read_text(),'original scenario\n')
 
     def test_conflicting_migration_preserves_parked_work_and_leaves_new_tree_clean(self):
         job,head,retained=self.migration_job(conflicting=True)
