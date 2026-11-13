@@ -64,6 +64,31 @@ class ImplementationLaneTests(unittest.TestCase):
         imported = impl.review.read(tmp_path / 'source.json')['cards'][0]
         assert imported['status'] == 'committed' and imported['commit'] == 'abc'
 
+    def test_generator_hold_waits_without_claiming_and_reuses_session_when_resumed(self):
+        root=self.tmp_path;setup_root(root,[{'name':'A','status':'pending'}])
+        cfg=impl.review.config(root);cfg['implementation_enabled']=False;impl.review.save(root/'config.json',cfg)
+        order=[]
+        lane=SimpleNamespace(Codex=lambda *args:object(),Usage=card_lane.Usage,spawn=mock.Mock(),
+                             save_queue=lambda q:None,card_dir=lambda name:root/name)
+        model_spawn=lane.spawn
+        def resume(_):
+            order.append('wait');cfg['implementation_enabled']=True;impl.review.save(root/'config.json',cfg)
+        def run_card(card,*args):
+            order.append('card');card.update(status='committed',commit='abc')
+            cfg['enabled']=False;impl.review.save(root/'config.json',cfg)
+            return 'committed'
+        lane.run_card=run_card
+        with mock.patch.object(impl.review,'clean'),mock.patch.object(impl.review,'git'), \
+             mock.patch.object(impl.review,'load_lane',return_value=lane) as loaded, \
+             mock.patch.object(impl.time,'sleep',side_effect=resume) as wait, \
+             mock.patch.object(impl,'Session',wraps=impl.Session) as sessions:
+            impl.worker(root,'i1')
+        self.assertEqual(order,['wait','card'])
+        wait.assert_called_once();loaded.assert_called_once();sessions.assert_called_once()
+        # Waiting is in the driver; it never starts a model turn.
+        model_spawn.assert_not_called()
+        self.assertEqual(impl.status(root)['counts'],{'committed':1})
+
     def test_finish_preserves_new_intake_and_does_not_clobber_new_revision(self):
         queue = setup_root(self.tmp_path, [{'name':'A','status':'pending'},{'name':'New','status':'pending'}])
         impl.sync(self.tmp_path)

@@ -241,6 +241,13 @@ def worker(root, slot, once=False):
             cfg = review.config(root)
             if not cfg.get('enabled', True):
                 return
+            if not cfg.get('implementation_enabled', True):
+                review.save(folder/'live.json',dict(state='waiting',at=review.now(),context_cards=session.cards,
+                                                   reason='Generator refresh: new implementation claims held'))
+                if once:
+                    return
+                time.sleep(cfg.get('poll_seconds',5))
+                continue
             review.clean(tree)
             review.reload_at_boundary(root, slot, tree, 'implementation_lane.py', stamp)
             sync(root)

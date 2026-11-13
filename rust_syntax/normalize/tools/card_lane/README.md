@@ -8,6 +8,12 @@ campaign with configurable prepared slots; `control.py start --dry-run` prints i
 versioned `status.sh` provides the live pipeline dashboard, and `export_validation/` contains the final
 foundation/sibling validation and aggregation tools. Runtime databases and caches remain outside this checkout.
 
+For a generator refresh, `control.py hold-implementation` stops new implementation claims at card
+boundaries while reviews and current cards continue. Idle implementers wait in the driver and retain
+their sessions without starting model turns. Wait for all implementation leases and post-card handoffs
+to finish before replacing rows and updating pending revisions. Then use `control.py resume-implementation`.
+The ordinary `drain` still stops all new work and lets the worker processes exit.
+
 Only cards with no gap come here. `ast cantrip-files` writes a card from its closed table of recipes
 (`src/cantrip/card_file.rs`), or, for a card no recipe covers, from the whole generated card put in the form a person would
 leave it (`src/cantrip/pr_form.rs`: shared triggers, mana, targets and effects, names and quotes from the printed text,

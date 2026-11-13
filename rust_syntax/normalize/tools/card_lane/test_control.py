@@ -68,6 +68,16 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(after['unrelated'],{'keep':True})
         self.assertFalse(after['enabled'])
 
+    def test_implementation_hold_leaves_reviews_and_global_enablement_unchanged(self):
+        self.configure();control.set_enabled(self.root,True)
+        control.set_implementation_enabled(self.root,False)
+        held=control.review.config(self.root)
+        self.assertTrue(held['enabled'])
+        self.assertFalse(held['implementation_enabled'])
+        self.assertEqual(len(list(control.services(self.root,held))),10)
+        control.set_implementation_enabled(self.root,True)
+        self.assertTrue(control.review.config(self.root)['implementation_enabled'])
+
 
 if __name__=='__main__':
     unittest.main()

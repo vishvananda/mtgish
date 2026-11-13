@@ -104,6 +104,13 @@ def set_enabled(root, enabled):
         cfg=review.config(root);cfg['enabled']=enabled;review.save(root/'config.json',cfg)
 
 
+def set_implementation_enabled(root, enabled):
+    """Hold new implementation claims while reviews and existing cards continue."""
+    with (root/'config.json.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        cfg=review.config(root);cfg['implementation_enabled']=enabled;review.save(root/'config.json',cfg)
+
+
 def start(root, cfg, dry_run=False):
     planned = list(services(root,cfg))
     if dry_run:
@@ -127,7 +134,7 @@ def start(root, cfg, dry_run=False):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--root',required=True,type=Path)
-    p.add_argument('action',choices=['init','start','drain','status'])
+    p.add_argument('action',choices=['init','start','drain','status','hold-implementation','resume-implementation'])
     p.add_argument('--lane-root',type=Path);p.add_argument('--cantrip',type=Path);p.add_argument('--worktrees',type=Path)
     p.add_argument('--base',default='HEAD');p.add_argument('--implementers',type=int,default=6)
     p.add_argument('--reviewers',type=int,default=5);p.add_argument('--verifiers',type=int,default=2)
@@ -143,6 +150,10 @@ def main():
     if a.action=='status':print(json.dumps(review.status(root),indent=2))
     elif a.action=='drain':
         set_enabled(root,False);print('Draining: current cards finish; no new cards are claimed.')
+    elif a.action in ('hold-implementation','resume-implementation'):
+        enabled=a.action=='resume-implementation'
+        set_implementation_enabled(root,enabled)
+        print('Implementation claims enabled.' if enabled else 'Implementation claims held; current cards and reviews continue.')
     else:print(json.dumps(start(root,cfg,a.dry_run),indent=2))
 
 
