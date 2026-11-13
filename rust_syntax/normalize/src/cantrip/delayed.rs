@@ -1597,10 +1597,10 @@ impl Compiler {
                     let code = format!("{open}{{ let about: Vec<ObjectId> = {about}; let subject = {subject_code}; g.delayed_trigger_with({when}, {source}, {controller}, {ability}, subject, &about); }}{close}");
                     self.plan_switched("delayed-subject-members", "step-delayed ability retaining an independent subject and object list", &code, out);
                 } else {
-                    let guard = if matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::Move { destination: MovementDestination::Exile {..} | MovementDestination::OwnersHand(_), .. }, .. }]) {
-                        "if !about.is_empty()"
-                    } else { "" };
-                    writeln!(out, "{open}{{ let about: Vec<ObjectId> = {about}; {guard} {{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}").unwrap();
+                    // Creation is a separate instruction (CR 603.7, 609.3). An empty
+                    // captured set can make its future effect do nothing; it cannot
+                    // suppress the trigger. Explicit IR conditions still enclose this.
+                    writeln!(out, "{open}{{ let about: Vec<ObjectId> = {about}; g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }}{close}").unwrap();
                 }
             }
         }

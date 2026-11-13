@@ -1,0 +1,26 @@
+# Necropotence skips its controller's draw step but not the opponent's (CR 614.10).
+[Bot1 Deck]
+Black Lotus
+Necropotence
+Swamp x5
+Forest
+Island x20
+[Bot2 Deck]
+Mountain x7
+Plains
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Black)
+Bot1.Hand.Necropotence.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+[T3 Bot1.Main1]
+? Bot1.Library.Top = Forest
+? Bot1.Hand.Count = 5
+? Bot2.Graveyard = Plains
+? Bot2.Library.Top = Island
+[Expect]
+Bot1.Battlefield.Necropotence.Types = Enchantment
