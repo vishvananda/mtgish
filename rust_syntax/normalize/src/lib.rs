@@ -20,6 +20,8 @@ pub use oracle_ir_contract::movement;
 pub use oracle_ir_contract::presentation;
 #[cfg(feature = "legacy")]
 pub mod report;
+#[cfg(feature = "legacy")]
+pub mod oracle_export;
 pub use oracle_ir_contract::result_reads;
 use oracle_ir_contract::source_values;
 #[cfg(feature = "legacy")]

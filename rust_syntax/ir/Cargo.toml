@@ -5,4 +5,4 @@ edition = "2021"
 description = "Compatibility re-exports of Oracle Grammar's owned model"
 
 [dependencies]
-oracle-ir = { git = "https://github.com/vishvananda/oracle-grammar.git", rev = "4174f5e4fa73ff569dccb931a61a63004323d22e", default-features = false }
+oracle-ir = { version = "=0.1.0", default-features = false }

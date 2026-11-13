@@ -1,8 +1,10 @@
 # Oracle-owned model and consumer migration
 
 Oracle Grammar owns the portable semantic model. This fork consumes its
-`oracle-ir` and `oracle-ir-contract` packages at one immutable Git revision,
-recorded in Cargo manifests and `rust_syntax/Cargo.lock`. A branch name, local
+`oracle-ir` and `oracle-ir-contract` packages at exact published versions,
+recorded with registry checksums in Cargo manifests and `rust_syntax/Cargo.lock`.
+See [published dependencies and the export-comparison process](oracle-registry-consumers-20261113.md)
+for the subsequent registry migration. A branch name, local
 path patch, copied schema, or independently edited validator is not a model pin.
 
 ## Current migration
@@ -85,9 +87,9 @@ Before moving, freeze a Source/IR/generation comparison: same accepted cards,
 explicit same gaps, output and API fingerprints, and generated runtime results.
 The move does not authorize widening engine numbers or resuming card lanes.
 
-## Verification of this migration
+## Verification of the initial Git-provider migration
 
-The provider is pinned to `4174f5e4fa73ff569dccb931a61a63004323d22e`, an
+The initial migration pinned `4174f5e4fa73ff569dccb931a61a63004323d22e`, an
 ancestor of [the ownership PR](https://github.com/vishvananda/oracle-grammar/pull/1).
 There are no local dependency patches.
 

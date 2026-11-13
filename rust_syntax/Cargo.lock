@@ -403,7 +403,8 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 [[package]]
 name = "oracle-ir"
 version = "0.1.0"
-source = "git+https://github.com/vishvananda/oracle-grammar.git?rev=4174f5e4fa73ff569dccb931a61a63004323d22e#4174f5e4fa73ff569dccb931a61a63004323d22e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c61600c9bb4e8244dbd4d5a73ac5fe32a2aa1eb411636c33ce2f4de9e38db51"
 dependencies = [
  "bincode",
  "proc-macro2",
@@ -416,7 +417,8 @@ dependencies = [
 [[package]]
 name = "oracle-ir-contract"
 version = "0.1.0"
-source = "git+https://github.com/vishvananda/oracle-grammar.git?rev=4174f5e4fa73ff569dccb931a61a63004323d22e#4174f5e4fa73ff569dccb931a61a63004323d22e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42c2140527da439c6e9ec6a7eeaeee0e16bb54ea0e369faeafe7c03e448ed336"
 dependencies = [
  "bincode",
  "oracle-ir",
