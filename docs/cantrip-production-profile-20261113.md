@@ -41,3 +41,29 @@ retaining flavor-banned cards. A fresh intake plan must compare production rows
 with the exact native base and live reservations before claiming missing cards.
 Generator gaps remain unclaimed. Final native workspace and publication gates
 are separate from the generator validation above.
+
+## Repairs discovered by the campaign
+
+The current generated rows use `7d312b98581d38f916a3233b60b177244c5a454a`, with the
+same native base and API fingerprint. The original full-package receipt above
+records the initial profile adoption. Subsequent targeted checks cover:
+
+- Four reversed damage-prevention grammar templates, changing exactly nine
+  Source records without importing new Oracle data. The unchanged Balduvian
+  Hydra scenario fails before the correction and passes afterward. The entire
+  33,529-record parser audit has 182 reviewed findings and none unresolved.
+- Correct citations for the actual banding, activation-player, hand-size and
+  untap-limit callback roles. Production-render checks cover six predicates
+  plus an ordinary resolving-effect control.
+- Recognition of the existing full-range u32 conversion by the style gate.
+  Arbitrary rule caps remain rejected; the 169 card-lane tests pass.
+
+The lane also preserves incomplete author work for independent review through
+an explicitly unapproved WIP commit. The reviewer must finish the full gates,
+and a separate verifier must confirm the final card before collection. The
+Ashen Ghoul pilot completed that entire path. Its historical implementation
+outcome is preserved without counting the approved card as unfinished.
+
+The separate named-turn model proposal in Oracle Grammar PR #3 is not yet a
+published dependency of this generator. Arboria's actor/controller correction
+awaits that registry release and consumer adoption.
