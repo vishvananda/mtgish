@@ -3979,6 +3979,8 @@ enum Role {
     Mana,
     Cost,
     CastCondition,
+    CastAnnouncement,
+    ActivationAnnouncement,
     ActivationCondition,
     ActivationPlayers,
     Banding,
@@ -4053,6 +4055,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
             if call.method == "then" && constructor(&call.receiver).as_deref() == Some("replacement") {
                 if let Some(callback) = call.args.first() { self.mark(callback, Role::Replacement); }
             }
+            if matches!(call.method.to_string().as_str(), "x_is" | "x_at_most") {
+                if let Some(callback) = call.args.first() { self.mark(callback, Role::ActivationAnnouncement); }
+            }
             if call.method == "activated_by" {
                 if let Some(callback) = call.args.first() { self.mark(callback, Role::ActivationPlayers); }
             }
@@ -4074,6 +4079,8 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                     (Some("LastingRule"), "applies") => self.mark(&field.expr, Role::Lasting),
                     (Some("HandSizeRule"), "applies") => self.mark(&field.expr, Role::HandSize),
                     (Some("UntapLimit"), "applies" | "permanents") => self.mark(&field.expr, Role::UntapLimit),
+                    (Some("CardDef"), "x_rule") => self.mark(&field.expr, Role::CastAnnouncement),
+                    (Some("ActivatedDef"), "x_rule") => self.mark(&field.expr, Role::ActivationAnnouncement),
                     (_, "cast_only_if") => self.mark(&field.expr, Role::CastCondition),
                     (_, "enchant") => self.mark(&field.expr, Role::Target),
                     (_, "regeneration_bans") => self.mark(&field.expr, Role::Static),
@@ -4331,6 +4338,8 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Mana => "605.1a",
         Role::Cost => "118.1",
         Role::CastCondition => "601.3",
+        Role::CastAnnouncement => "601.2b",
+        Role::ActivationAnnouncement => "602.2b",
         Role::ActivationCondition => "602.5",
         Role::ActivationPlayers => "602.2",
         Role::Banding => "702.22b",

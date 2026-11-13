@@ -198,3 +198,21 @@ fn replacement_callbacks_and_zone_actions_cite_their_own_rules() {
         assert!(!modules()[name].contains("502.3"), "{name}: {}", modules()[name]);
     }
 }
+
+#[test]
+fn x_announcement_callbacks_follow_casting_and_activation_roles() {
+    let found = docs(&modules()["Winter's Chill"], |name| name.ends_with("_x_max"));
+    assert_eq!(found.len(), 1);
+    assert!(found[0].contains("CR 601.2b"), "{}", found[0]);
+    assert!(!found[0].contains("608.2"), "{}", found[0]);
+    use cantrip::pr_form::{render, Characteristics};
+    // Arbitrary names and identical signatures must still get the API's role.
+    let functions = "fn spell_bound(_: &dyn Query, _: &Asker, _: &[Target]) -> u32 { 2 } fn activation_bound(_: &dyn Query, _: &Asker, _: &[Target]) -> u32 { 2 } fn resolve(_: &mut dyn Game, _: &StackItem) -> Result<(), Suspend> { Ok(()) }";
+    let raw = format!("use cantrip_api::*; {functions} pub static CARD: CardDef = CardDef {{ x_rule: Some(XRule::AtMost(spell_bound)), abilities: &[ability(cost(\"{{X}}\"), resolve, \"Pay X.\").x_at_most(activation_bound)], ..CardDef::BLANK }};");
+    let output = render(&raw, "Fixture", "Do something.", Characteristics::Oracle).unwrap();
+    for (name, rule) in [("spell_bound", "601.2b"), ("activation_bound", "602.2b"), ("resolve", "608.2")] {
+        let found = docs(&output, |candidate| candidate == name);
+        assert_eq!(found.len(), 1, "{output}");
+        assert!(found[0].contains(rule), "{name}: {}", found[0]);
+    }
+}
