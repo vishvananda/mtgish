@@ -2548,6 +2548,7 @@ const ANNOUNCED_SPLICED: &str = "fn announced(g: &dyn Game, item: &StackItem, sp
 
 /// "You may pay": the engine shows the cost, and bots read the verb.
 const PAY_QUESTION: &str = "static PAY_QUESTION: Question = Question::new(\"Pay\", \"pay {cost}?\", \"\", \"Pay {cost}\", \"Decline\");\n";
+const REMOVE_COUNTERS_QUESTION: &str = "static REMOVE_COUNTERS_QUESTION: Question = Question::new(\"RemoveCounters\", \"remove counters from {source}?\", \"Choose how many counters to remove.\", \"Remove counters\", \"Decline\");\n";
 const PAY_FOR_OBJECT_QUESTION: &str = "static PAY_FOR_OBJECT_QUESTION: Question = Question::new(\"PayForObject\", \"pay {cost} for {subject}?\", \"\", \"Pay {cost}\", \"Decline\");\n";
 
 /// What a card's abilities contribute to its `CardDef`.
@@ -2972,6 +2973,7 @@ fn emit_face(
             "announced" => ANNOUNCED,
             "slot_held" => target_counts::SLOT_HELD,
             "pay_question" => PAY_QUESTION,
+            "remove_counters_question" => REMOVE_COUNTERS_QUESTION,
             "pay_for_object_question" => PAY_FOR_OBJECT_QUESTION,
             "most_assigned" => lane_l::MOST_ASSIGNED,
             "about" => delayed::ABOUT,

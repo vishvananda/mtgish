@@ -80,6 +80,8 @@ fn old_set_effects_use_existing_native_payments_and_rules() {
         ready(name);
     }
     assert!(ready("Tetravus").contains("g.may_pay_x"));
+    assert!(ready("Tetravus").contains("remove counters from {source}?"));
+    assert!(ready("Tetravus").contains("&REMOVE_COUNTERS_QUESTION"));
     assert!(ready("Tetravus").contains("counters_paid_1.unwrap_or(0)"));
     assert!(ready("Necropolis").contains("CostPart::GraveyardExile"));
     assert!(ready("Frankenstein's Monster").contains("map(Label::Counter)"));

@@ -66,9 +66,9 @@ Tetravus remains separate: `may_pay_x` exposes a mana-X prompt for an arbitrary
 counter-removal cost. `may_pay_counted` does not announce the variable source
 counter count and is not a correct replacement. A fixed `remove_counters` cost
 holds only `u8`; converting an arbitrary available count into it would truncate.
-A native follow-up is being validated to give the existing X interface a shared
-source-counter bound and no counter-only mana window. Its full validation was
-interrupted by a read-only filesystem; this follow-up has not been published. Storage lands (for example
+The native follow-up now gives the existing X interface a shared source-counter
+bound and no counter-only mana window. After filesystem recovery, the full
+foundation suite passes; see [the payment and display follow-up](early-counter-payments-20261113.md). Storage lands (for example
 Bottomless Vault) are the second printed consumer of that same cost bound.
 Triskelavus uses a fixed one-counter activation, not Tetravus's optional any-number
-removal; it is not evidence for the latter interface. The focused core and retained card scenario pass, but full validation is pending.
+removal; it is not evidence for the latter interface. The focused core, retained card scenario, and full foundation suite pass.

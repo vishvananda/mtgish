@@ -3027,10 +3027,10 @@ impl Compiler {
                         amount: CounterAmount::Count(Count::AnyNumber), ..
                     }])) =>
             {
-                self.helpers.insert("pay_question");
+                self.helpers.insert("remove_counters_question");
                 let payer = self.fetch(self.certain_player(player)?);
                 let cost = self.cost(cost, &format!("pay_{id}"))?;
-                writeln!(out, "let payer_{id} = {payer}; let counters_paid_{id} = g.may_pay_x(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?; let paid_{id} = counters_paid_{id}.is_some();").unwrap();
+                writeln!(out, "let payer_{id} = {payer}; let counters_paid_{id} = g.may_pay_x(payer_{id}, asker.source, asker.source, {cost}, &REMOVE_COUNTERS_QUESTION)?; let paid_{id} = counters_paid_{id}.is_some();").unwrap();
                 self.notes.counters_paid.insert((result.0, vec![0]), format!("counters_paid_{id}"));
                 self.performed.insert(result.0, format!("paid_{id}"));
             }

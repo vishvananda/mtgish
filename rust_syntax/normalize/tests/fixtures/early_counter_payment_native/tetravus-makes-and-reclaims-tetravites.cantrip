@@ -1,0 +1,54 @@
+# Tetravus converts two counters into Tetravites that cannot be enchanted, then reclaims them on a later upkeep (CR 603.2, 303.4).
+
+[Bot1 Deck]
+Tetravus
+Black Lotus
+Black Lotus
+Flight x2
+Island x20
+
+[Bot2 Deck]
+Island x20
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Hand.Tetravus.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+? Bot1.Battlefield.Tetravus.Counters.PlusOnePlusOne = 3
+[T3 Bot1.Upkeep]
+! Bot1.PayCost(X: 4)
+Bot1.PayCost(X: 2)
+[T3 Bot1.Main1]
+? Bot1.Battlefield.Tetravus.Counters.PlusOnePlusOne = 1
+? Bot1.Battlefield.Tetravite Token#1.Power = 1
+? Bot1.Battlefield.Tetravite Token#1.Toughness = 1
+? Bot1.Battlefield.Tetravite Token#1.Keywords = Flying
+? Bot1.Battlefield.Tetravite Token#1.Types = Artifact; Creature
+? Bot1.Battlefield.Tetravite Token#1.Colors = (absent)
+Bot1.Hand.Island.Play
+Bot1.Battlefield.Island.Activate
+Bot1.Hand.Flight.Cast(Bot1.Battlefield.Tetravite Token)
+Bot1.Pass
+Bot2.Pass
+? Bot1.Graveyard.Count = 3
+? Bot1.Battlefield.Flight = (absent)
+? Bot1.Battlefield.Tetravite Token#1.Power = 1
+[T5 Bot1.Upkeep]
+Bot1.Choose(Tetravite Token; Tetravite Token)
+Bot1.Decline
+[T5 Bot1.Main1]
+Bot1.Battlefield.Island.Activate
+Bot1.Hand.Flight.Cast(Bot1.Battlefield.Tetravus)
+Bot1.Pass
+Bot2.Pass
+
+[Expect]
+Bot1.Battlefield.Tetravus.Counters.PlusOnePlusOne = 3
+Bot1.Battlefield.Count = 3
