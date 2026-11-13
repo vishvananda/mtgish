@@ -1,0 +1,29 @@
+# A single opposing white permanent permits paying one life as Nameless Race enters.
+[Bot1 Deck]
+Nameless Race
+Black Lotus
+Mox Jet
+Island x20
+[Bot2 Deck]
+Savannah Lions
+Mox Pearl
+Island x20
+[Actions]
+[T2 Bot2.Main1]
+Bot2.Hand.Mox Pearl.Cast
+Bot2.Battlefield.Mox Pearl.Activate
+Bot2.Hand.Savannah Lions.Cast
+[T3 Bot1.Main1]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Black)
+Bot1.Hand.Mox Jet.Cast
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.Nameless Race.Cast
+! Bot1.Number(2)
+Bot1.Number(1)
+Bot1.PayCost
+[T3 Bot1.Main2]
+[Expect]
+Bot1.Life = 19
+Bot1.Battlefield.Nameless Race.Power = 1
+Bot1.Battlefield.Nameless Race.Toughness = 1

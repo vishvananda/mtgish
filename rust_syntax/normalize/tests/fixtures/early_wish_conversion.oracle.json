@@ -1,0 +1,66 @@
+[
+  {
+    "name": "Death Wish",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Death Wish",
+        "manaCost": "{1}{B}{B}",
+        "type": "Sorcery",
+        "text": "You may put a card you own from outside the game into your hand. You lose half your life, rounded up. Exile Death Wish."
+      }
+    ]
+  },
+  {
+    "name": "Enduring Renewal",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Enduring Renewal",
+        "manaCost": "{2}{W}{W}",
+        "type": "Enchantment",
+        "text": "Play with your hand revealed.\nIf you would draw a card, reveal the top card of your library instead. If it's a creature card, put it into your graveyard. Otherwise, draw a card.\nWhenever a creature is put into your graveyard from the battlefield, return it to your hand."
+      }
+    ]
+  },
+  {
+    "name": "Nameless Race",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Nameless Race",
+        "manaCost": "{3}{B}",
+        "type": "Creature",
+        "text": "Trample\nAs this creature enters, pay any amount of life. The amount you pay can't be more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards.\nNameless Race's power and toughness are each equal to the life paid as it entered.",
+        "power": "*",
+        "toughness": "*"
+      }
+    ]
+  },
+  {
+    "name": "North Wind Avatar",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "North Wind Avatar",
+        "manaCost": "{2}{U}{U}{R}",
+        "type": "Creature — Dragon Spirit Avatar",
+        "text": "Flying\nWhen this creature enters, if you cast it, you may put a card you own from outside the game into your hand.",
+        "power": "5",
+        "toughness": "5"
+      }
+    ]
+  },
+  {
+    "name": "Ring of Ma'rûf",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Ring of Ma'rûf",
+        "manaCost": "{5}",
+        "type": "Artifact",
+        "text": "{5}, {T}, Exile this artifact: The next time you would draw a card this turn, instead put a card you own from outside the game into your hand."
+      }
+    ]
+  }
+]

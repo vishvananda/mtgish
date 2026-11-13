@@ -1578,6 +1578,7 @@ fn optional_expect(call: &syn::ExprMethodCall) -> bool {
             Expr::Group(g) => checked_conversion(&g.expr),
             Expr::Call(call) => matches!(&*call.func, Expr::Path(path)
                 if path.path.segments.last().is_some_and(|s| s.ident == "try_from")),
+            Expr::MethodCall(call) => call.method == "try_into",
             _ => false,
         }
     }
@@ -4029,6 +4030,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                             self.mark(callback, Role::Static);
                         }
                     }
+                    Some("HandRevealed") if path.path.segments.iter().rev().nth(1).is_some_and(|s| s.ident == "PlayRule") => {
+                        if let Some(callback) = call.args.first() { self.mark(callback, Role::Static); }
+                    }
                     Some("with_others") if path.path.segments.iter().rev().nth(1).is_some_and(|s| s.ident == "banding") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::Banding); }
                     }
@@ -4046,6 +4050,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
             visit::visit_expr_call(self, call);
         }
         fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == "then" && constructor(&call.receiver).as_deref() == Some("replacement") {
+                if let Some(callback) = call.args.first() { self.mark(callback, Role::Replacement); }
+            }
             if call.method == "activated_by" {
                 if let Some(callback) = call.args.first() { self.mark(callback, Role::ActivationPlayers); }
             }
@@ -4083,6 +4090,29 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
         found: BTreeMap::new(),
     };
     roles.visit_file(file);
+    if !roles.found.values().any(|role| *role == Role::Replacement) { return roles.found; }
+    // A replacement's private helper has the same role only if every caller
+    // is already a replacement and no card definition references it directly.
+    loop {
+        let mut added = Vec::new();
+        for name in &roles.functions {
+            if roles.found.contains_key(name)
+                || file.items.iter().any(|item| match item {
+                    Item::Fn(f) if f.sig.ident == name.as_str() => !matches!(f.vis, syn::Visibility::Inherited),
+                    Item::Fn(_) => false,
+                    other => mentions(other, name),
+                }) { continue; }
+            let callers: Vec<_> = file.items.iter().filter_map(|item| match item {
+                Item::Fn(f) if f.sig.ident != name.as_str() && mentions(&f.block, name) => Some(f.sig.ident.to_string()),
+                _ => None,
+            }).collect();
+            if !callers.is_empty() && callers.iter().all(|caller| roles.found.get(caller) == Some(&Role::Replacement)) {
+                added.push(name.clone());
+            }
+        }
+        if added.is_empty() { break; }
+        for name in added { roles.found.insert(name, Role::Replacement); }
+    }
     roles.found
 }
 
@@ -5380,3 +5410,38 @@ mod shared_tap_untap_tests {
     }
 }
 
+
+#[cfg(test)]
+mod replacement_role_regression {
+    use super::*;
+
+    #[test]
+    fn replacement_helper_requires_exclusive_private_callers() {
+        let file = syn::parse_file(r#"
+            fn replace_then() { private_step(); shared_step(); publicly_referenced_step(); externally_callable_step(); }
+            fn private_step() { nested_private_step(); }
+            fn nested_private_step() {}
+            fn shared_step() {}
+            fn publicly_referenced_step() {}
+            pub fn externally_callable_step() {}
+            fn resolving_effect() { shared_step(); }
+            fn hand_predicate() {}
+            static CARD: CardDef = CardDef {
+                spell: spell(&[], resolving_effect),
+                replacements: &[replacement(a, b, c, "").then(replace_then)],
+                play_rules: &[PlayRule::HandRevealed(hand_predicate)],
+                ..CardDef::BLANK
+            };
+            static OTHER: fn() = publicly_referenced_step;
+        "#).unwrap();
+        let roles = callback_roles(&file);
+        assert!(roles.get("replace_then") == Some(&Role::Replacement));
+        assert!(roles.get("private_step") == Some(&Role::Replacement));
+        assert!(roles.get("nested_private_step") == Some(&Role::Replacement));
+        assert!(!roles.contains_key("shared_step"));
+        assert!(!roles.contains_key("publicly_referenced_step"));
+        assert!(!roles.contains_key("externally_callable_step"));
+        assert!(roles.get("hand_predicate") == Some(&Role::Static));
+        assert!(!roles.contains_key("resolving_effect"));
+    }
+}

@@ -1,0 +1,49 @@
+# North Wind Avatar's trigger is a "you may" and has an intervening "if you cast it" (CR 603.4). Bot1 casts it and declines -
+# choosing no card - so its sideboard keeps both cards and nothing comes into its hand. Then Ephemerate flickers it: the Avatar
+# that returns is a new object put onto the battlefield, not cast (CR 400.7, 603.6a), so it does not trigger and Bot1 is asked
+# nothing. The sideboard is still whole at the end.
+
+[Bot1 Deck]
+Black Lotus
+Mox Ruby
+Mox Jet
+North Wind Avatar
+Plains
+Ephemerate
+Island
+Island x10
+
+[Bot1 Sideboard]
+Lightning Bolt
+Counterspell
+
+[Bot2 Deck]
+Island x20
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Hand.Plains.Play
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.North Wind Avatar.Cast
+Bot1.Pass
+? Stack.Count = 1
+Bot1.Choose()
+? Bot1.Sideboard = Lightning Bolt; Counterspell
+? Bot1.Hand = Ephemerate; Island
+Bot1.Battlefield.Plains.Activate
+Bot1.Hand.Ephemerate.Cast(Bot1.Battlefield.North Wind Avatar)
+Bot1.Pass
+Bot1.Pass
+! Bot1.Choose
+[T1 Bot1.Main2]
+
+[Expect]
+Bot1.Battlefield.North Wind Avatar.Types = Creature
+Bot1.Sideboard = Lightning Bolt; Counterspell
+Bot1.Hand = Island
+Exile = Ephemerate
+Stack.Count = 0

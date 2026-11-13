@@ -1107,7 +1107,7 @@ impl Compiler {
                 } else {
                     "bring_into_hand"
                 };
-                writeln!(out, "let player_{id} = {player}; let wished_{id} = {wished}; let chosen_{id} = {M}::choose::cards(g, player_{id}, asker.source, Purpose::PutIntoHand, wished_{id}, 1, true)?; let brought_{id} = g.{bring}(&chosen_{id});").unwrap();
+                writeln!(out, "let player_{id} = {player}; let wished_{id} = {wished}; let chosen_{id} = {M}::choose::cards(g, player_{id}, asker.source, Purpose::PutIntoHand, wished_{id}, 1, false)?; let brought_{id} = g.{bring}(&chosen_{id});").unwrap();
                 self.moved.insert(result.0, format!("brought_{id}"));
                 self.left_behind(result, format!("chosen_{id}.clone()"));
             }

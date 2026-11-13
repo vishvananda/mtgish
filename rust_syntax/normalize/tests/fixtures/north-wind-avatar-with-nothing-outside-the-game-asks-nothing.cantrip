@@ -1,0 +1,38 @@
+# North Wind Avatar cast by a player who owns no card outside the game: the trigger resolves and there is nothing to choose, so
+# Bot1 is asked nothing - Bot2's sideboard is Bot2's, not a card Bot1 owns (CR 108.3b, 400.11b) - and Bot2's Shock stays where it
+# is. The positive control is north-wind-avatar-cast-puts-a-card-you-own-from-outside-the-game-into-your-hand.
+
+[Bot1 Deck]
+Black Lotus
+Mox Ruby
+Mox Jet
+North Wind Avatar
+Island x16
+
+[Bot2 Deck]
+Island x20
+
+[Bot2 Sideboard]
+Shock
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.North Wind Avatar.Cast
+Bot1.Pass
+? Stack.Count = 1
+Bot1.Pass
+! Bot1.Choose
+[T1 Bot1.Main2]
+
+[Expect]
+Bot1.Battlefield.North Wind Avatar.Types = Creature
+Bot1.Sideboard.Count = 0
+Bot1.Hand = Island; Island; Island
+Bot2.Sideboard = Shock
+Bot2.Hand.Count = 7
+Stack.Count = 0
