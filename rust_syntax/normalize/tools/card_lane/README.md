@@ -335,6 +335,8 @@ new integration tests (requiring a nonzero pass count) and edited cards' inline 
 tests do not automatically satisfy the scenario mutation gate; unresolved mutants still block the card.
 An infrastructure stop retains completed
 review evidence and usage so an explicit resume can reuse an unchanged report and source.
+Card-specific `.cantrip` data under `crates/<package>/tests/fixtures/` is allowed when its filename starts with the card slug. It travels with that card in independent exports, alongside the Rust integration test that executes it. This lets tests supply typed companion fixtures without depending on another new card.
+
 Script harness implementation edits remain outside review scope. Tests named for their new card stay with that
 card's commit; coordinator-declared `source.card_test_paths` can assign an existing integration fixture file to
 the card too, keeping tests that require an unpublished card out of the shared prerequisite commit.

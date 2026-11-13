@@ -187,6 +187,17 @@ def names(name):
     return file_stem(canonical_typography(name)), content_slug(canonical_typography(name))
 
 
+def card_scenario_fixture(path, name):
+    """Only a card's named scenario data belongs beside its Rust integration tests."""
+    parts = Path(path).parts
+    if (len(parts) != 5 or parts[0] != 'crates'
+            or parts[1] not in ('cantrip-cards', 'cantrip-mechanics', 'cantrip-script')
+            or parts[2:4] != ('tests', 'fixtures')):
+        return False
+    slug = names(name)[1]
+    return parts[4].endswith('.cantrip') and (parts[4] == slug+'.cantrip' or parts[4].startswith(slug+'-'))
+
+
 def canonical_typography(name):
     return unicodedata.normalize('NFKC',name).translate(str.maketrans({'’':"'",'‘':"'",'“':'"','”':'"','–':'-','—':'-'}))
 
@@ -694,7 +705,7 @@ No pass with unresolved blockers or insufficient evidence. If context grows larg
 return; fresh context resumes these same files. Finish the current card and return, never pick the next yourself.
 Optional rust_mutation_tests maps an affected card to changed card/mechanics/script integration test targets. Only
 Rust integration tests in the script crate are allowed; its harness implementation remains out of scope. A new
-card's tests should use its filename prefix; coordinator-declared card_test_paths can retain an existing fixture file.
+card's tests should use its filename prefix; .cantrip data under crates/<package>/tests/fixtures/ must use its card slug prefix. Coordinator-declared card_test_paths can retain an existing Rust test file.
 The driver
 can credit a surviving scenario mutant only if an actual Rust assertion fails under that exact source mutation
 and the test passes after restoration. A compiler failure never counts. Tests must already pass their baseline.
@@ -753,7 +764,8 @@ def allowed_changes(tree, name):
                 path.startswith("crates/cantrip-mechanics/src/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-mechanics/tests/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-script/tests/") and path.endswith(".rs") or
-                path.startswith("scenarios/") and path.endswith(".cantrip")):
+                path.startswith("scenarios/") and path.endswith(".cantrip") or
+                card_scenario_fixture(path, name)):
             raise RuntimeError(f"out-of-scope edit {path}; preserved for inspection")
     return sorted(set(paths))
 
@@ -961,6 +973,7 @@ def commit_candidate(tree, source, parent, paths):
     own, slug = names(source["name"])
     owned = {f"crates/cantrip-cards/src/cards/{own}.rs", f"content/mtg/cards/{slug}.json"}
     owned.update(p for p in original_paths + paths if p.startswith(f"scenarios/{slug}-"))
+    owned.update(p for p in original_paths + paths if card_scenario_fixture(p, source['name']))
     # A test executing the new card cannot compile on the helper-only branch.
     owned.update(p for p in original_paths + paths
                  if any(p.startswith(f'crates/{package}/tests/{own}_') or

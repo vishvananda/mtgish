@@ -709,6 +709,23 @@ class GitTests(unittest.TestCase):
         self.assertEqual(self.git('rev-parse',candidate+'^'),self.base)
         self.assertIn(test,self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
 
+    def test_named_scenario_fixture_is_allowed_and_stays_with_its_card(self):
+        fixture='crates/cantrip-script/tests/fixtures/test-card-positive.cantrip'
+        self.write(fixture, '[Bot1 Deck]\nTest-only Companion\n[Actions]\n')
+        paths=lane.allowed_changes(self.repo, 'Test Card')
+        self.assertEqual(paths, [fixture])
+        candidate=lane.commit_candidate(self.repo, dict(name='Test Card',commit=self.source), self.base, paths)
+        self.assertEqual(self.git('rev-parse',candidate+'^'), self.base)
+        self.assertIn(fixture, self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
+        self.assertEqual(self.git('status','--porcelain'), '')
+        self.write('crates/cantrip-script/tests/fixtures/other-card.cantrip', 'unrelated')
+        with self.assertRaisesRegex(RuntimeError, 'out-of-scope'):
+            lane.allowed_changes(self.repo, 'Test Card')
+        for path in ['crates/cantrip-script/tests/fixtures/../test-card-positive.cantrip',
+                     'crates/cantrip-script/tests/fixtures/test-card-helper.rs',
+                     'crates/cantrip-script/src/test-card.cantrip']:
+            self.assertFalse(lane.card_scenario_fixture(path, 'Test Card'))
+
     def test_script_test_permission_does_not_allow_harness_implementation_edits(self):
         test='crates/cantrip-script/tests/test_card.rs'
         self.write(test,'regression')

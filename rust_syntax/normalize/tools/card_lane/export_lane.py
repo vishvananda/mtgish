@@ -58,6 +58,7 @@ def owns(card, path):
     return (path in (f'content/mtg/cards/{slug}.json', f'crates/cantrip-cards/src/cards/{own}.rs')
             or path == f'scenarios/{slug}.cantrip' or path.startswith(f'scenarios/{slug}-')
             or path in card['extra_tests']
+            or review.card_scenario_fixture(path, card['name'])
             or any(path == f'crates/{package}/tests/{own}.rs'
                    or path.startswith(f'crates/{package}/tests/{own}_')
                    for package in ('cantrip-cards', 'cantrip-mechanics', 'cantrip-script'))

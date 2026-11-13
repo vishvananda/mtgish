@@ -438,6 +438,20 @@ class ExportTests(unittest.TestCase):
                          'refs/heads/publish/collision/cards-002')
         self.assertEqual(self.git('rev-parse', 'publish/collision/cards-002'), self.base)
 
+    def test_card_scenario_data_fixture_is_in_card_group_not_foundation(self):
+        self.card('Alpha', 1)
+        fixture='crates/cantrip-script/tests/fixtures/alpha-positive.cantrip'
+        self.write(fixture, '[Bot1 Deck]\nTest-only Companion\n[Actions]\n')
+        self.finish()
+        plan=lane.plan(self.root,self.head)
+        self.assertEqual(plan['blockers'], [])
+        self.assertIn(fixture, plan['cards'][0]['paths'])
+        self.assertNotIn(fixture, plan['foundation_paths'])
+        built=lane.build(self.root,plan,'publish/card-fixture')
+        self.assertEqual(self.git('show',built['groups'][0]['head']+':'+fixture),
+                         '[Bot1 Deck]\nTest-only Companion\n[Actions]')
+        self.assertNotIn(fixture, lane.files(self.tree, built['foundation']))
+
     def test_complete_card_names_win_over_shorter_scenario_prefixes(self):
         self.card('Desert', 1)
         self.card('Desert Twister', 2)
