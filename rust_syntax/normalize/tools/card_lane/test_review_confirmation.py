@@ -53,6 +53,23 @@ class ConfirmationTests(unittest.TestCase):
         self.assertNotEqual(before["evidence"][0]["sha256"], after["evidence"][0]["sha256"])
         self.assertNotEqual(before["files"]["report"]["sha256"], after["files"]["report"]["sha256"])
 
+    def test_break_and_fixed_logs_are_bound_without_a_filename_convention(self):
+        proof = self.original / "broken-noverify.log"
+        fixed = self.original / "fixed.log"
+        proof.write_text("the original implementation misses the expected token")
+        fixed.write_text("the fixed implementation passes")
+        self.report["fixes"] = [{"proof": "broken-noverify.log and fixed.log"}]
+        self.write_json("review.json", self.report)
+        self.build()
+        manifest = json.loads((self.folder / "confirmation-manifest.json").read_text())
+        by_origin = {item.get("original"): item for item in manifest["evidence"]}
+        for path in [proof, fixed]:
+            item = by_origin[str(path)]
+            expected = path.read_bytes()
+            self.assertEqual(item["sha256"], hashlib.sha256(expected).hexdigest())
+            path.write_text("a later live overwrite")
+            self.assertEqual(Path(item["path"]).read_bytes(), expected)
+
     def test_missing_or_failed_checks_block(self):
         for checks in ({}, {**self.checks, "ok": False},
                        {**self.checks, "gates": [{"gate": "oracle", "ok": False}]},

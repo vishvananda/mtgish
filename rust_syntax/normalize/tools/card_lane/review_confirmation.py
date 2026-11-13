@@ -94,8 +94,13 @@ def build_bundle(folder, original, card_name, candidate, candidate_tree, source_
             else:
                 item["missing"] = True
             evidence.append(item)
+    bound_paths = {Path(item["original"]).resolve() for item in evidence if item.get("original")}
     for path in sorted(original.rglob("*")):
-        if path.is_file() and ("manual" in path.name.lower() or "probe" in path.name.lower() or "manifest" in path.name.lower() or path.is_relative_to(original / 'evidence') or
+        if path.resolve() in bound_paths:
+            continue  # Already immutable gate evidence; retain one binding for that source path.
+        if path.is_file() and (path.suffix.lower() in {".log", ".txt"} or
+                               "manual" in path.name.lower() or "probe" in path.name.lower() or
+                               "manifest" in path.name.lower() or path.is_relative_to(original / 'evidence') or
                                path.is_relative_to(original / "scratch")):
             raw = path.read_bytes()
             evidence.append({"original": str(path), "path": str(freeze(folder / 'evidence/attachments', raw, path.suffix)), "sha256": _sha(raw)})
