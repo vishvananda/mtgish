@@ -2,7 +2,7 @@
 
 Confirmed reference defects now have issues in `vishvananda/oracle-grammar`.
 The repository's MTGish adapter still pins `d4b172343b06f8887f700b425ebf69a67acf8efa`,
-schema 190. I inspected the seven representative faces in the pinned native
+schema 190. I inspected the eight representative faces in the pinned native
 reference as well as the original Source; the reports are not deductions from
 Cantrip output alone. Family populations come from exact before/after frozen
 Source diffs. The Oracle input is still MTGish `20261001.1`.
@@ -16,12 +16,14 @@ Source diffs. The Oracle input is still MTGish `20261001.1`.
 | Named next-untap player (17 Source records) | [#8](https://github.com/vishvananda/oracle-grammar/issues/8) | [#281](https://github.com/i5jb/mtgish/issues/281) | [7fed1a80](https://github.com/vishvananda/mtgish/commit/7fed1a80affa9e6ed5067210333243e3c3ada4b5) |
 | Thermokarst / Extinguish the Light target after destroy | [#9](https://github.com/vishvananda/oracle-grammar/issues/9) | [#282](https://github.com/i5jb/mtgish/issues/282) | [06de9c78](https://github.com/vishvananda/mtgish/commit/06de9c786d700414985cb9cf960402169039b830) |
 | Vexing Arcanix reveal existence | [#10](https://github.com/vishvananda/oracle-grammar/issues/10) | [#283](https://github.com/i5jb/mtgish/issues/283) | [06de9c78](https://github.com/vishvananda/mtgish/commit/06de9c786d700414985cb9cf960402169039b830) |
+| Arboria put actor versus entry controller | [#11](https://github.com/vishvananda/oracle-grammar/issues/11) | Source already correct; reducer/model gap | [Model PR #3](https://github.com/vishvananda/oracle-grammar/pull/3) |
 
 Each issue states the incorrect reference meaning, corrected semantics and
 runtime witness, with controls where tested. The repair commits contain the
 Source/parser changes and scoped regression fixtures. The complete fresh parse
-matches all 33,529 checked-in frozen Source records after the fixes. These
-corrections use existing schema forms.
+matches all 33,529 checked-in frozen Source records after the fixes. The seven parser groups
+use existing schema forms; Arboria awaits the explicit schema-191 model addition
+and published 0.2.0 packages in PR #3. Its final consumer witness remains pending.
 
 ## Follow-up workflow
 
