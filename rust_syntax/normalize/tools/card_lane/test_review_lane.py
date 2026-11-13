@@ -19,6 +19,31 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_packet_handles_moved_scenario_and_includes_owned_rust_fixture(self):
+        tree=self.root/'tree';tree.mkdir()
+        source=dict(name='Test Card',commit='author',issue=42,packet=str(self.root/'author'))
+        author=Path(source['packet']);author.mkdir()
+        (author/'reference.md').write_text('Oracle evidence')
+        (author/'report.json').write_text('{}')
+        current=tree/'card.rs';current.write_text('reviewed card')
+        content=tree/'card.json';content.write_text('{}')
+        ordinary=tree/'scenarios/test-card-kept.cantrip';ordinary.parent.mkdir();ordinary.write_text('ordinary')
+        deleted=tree/'scenarios/test-card-moved.cantrip'
+        fixture=tree/'crates/cantrip-script/tests/fixtures/test-card-moved.cantrip'
+        fixture.parent.mkdir(parents=True);fixture.write_text('typed companion fixture')
+        (fixture.parent/'other-card.cantrip').write_text('not part of this card')
+        lane.save(self.root/'config.json',dict(review_model='test'))
+        backend=SimpleNamespace(card_file=lambda _:current,shared_code=lambda _: 'helpers',
+                                content_file=lambda _:content,card_scenarios=lambda _:[deleted,ordinary])
+        job=dict(id='packet',stage='review',source=json.dumps(source))
+        packet=lane.packet(self.root,tree,job,source,backend)
+        text=(packet/'packet.md').read_text()
+        self.assertIn('ordinary',text)
+        self.assertIn('typed companion fixture',text)
+        self.assertIn(str(fixture.relative_to(tree)),text)
+        self.assertNotIn('not part of this card',text)
+        self.assertNotIn('### scenarios/test-card-moved.cantrip',text)
+
     def test_prepare_applies_nonstandard_card_tip_only_once(self):
         tree = self.root/'tree'
         tree.mkdir()

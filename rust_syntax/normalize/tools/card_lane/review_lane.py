@@ -593,7 +593,11 @@ def packet(root, tree, job, source, lane):
     source_path = lane.card_file(source["name"])
     current = source_path.read_text() if source_path.exists() else "(characteristics only)"
     (folder / "current-shared.md").write_text(lane.shared_code(current) if source_path.exists() else "")
-    scenarios = lane.card_scenarios(source["name"])
+    scenarios = [p for p in lane.card_scenarios(source["name"]) if p.is_file()]
+    slug = names(source["name"])[1]
+    fixtures = sorted(p for package in ('cantrip-cards', 'cantrip-mechanics', 'cantrip-script')
+                      for p in (tree/'crates'/package/'tests/fixtures').glob(slug+'*.cantrip')
+                      if p.is_file() and card_scenario_fixture(str(p.relative_to(tree)), source['name']))
     prior = (Path(source["campaign"]) / "publication" / (source["producer"] + "-review.json")
              if source.get("campaign") and source.get("producer") else None)
     hints = None
@@ -609,6 +613,7 @@ def packet(root, tree, job, source, lane):
             "## Shared definitions in the CURRENT checkout\n" + (folder / "current-shared.md").read_text(),
             "## Author's line-by-line validation and evidence\n" + (folder / "author-report.json").read_text(),
             "## Scenarios\n" + "\n".join(f"### {p.relative_to(tree)}\n```\n{p.read_text()}\n```" for p in scenarios),
+            "## Scenario data executed by Rust integration tests\n" + "\n".join(f"### {p.relative_to(tree)}\n```\n{p.read_text()}\n```" for p in fixtures),
             "## Prior findings (leads to verify; not a verdict)\n" + json.dumps(hints, indent=2)]
     if source.get('provisional'):
         body.append("## Incomplete implementation\nThis is an unapproved Review WIP, not a completed card. The author report is incomplete; independently finish all printed-line validation, scenarios, report and full gates. Do not treat the provisional commit as approval.")

@@ -927,7 +927,8 @@ def owned_paths(name):
 
 
 def card_scenarios(name=None):
-    paths = sorted(CANTRIP / p for s, p in changed_paths() if p.startswith(SCENARIOS_DIR + "/") and p.endswith(".cantrip"))
+    paths = sorted(CANTRIP / p for s, p in changed_paths()
+                   if p.startswith(SCENARIOS_DIR + "/") and p.endswith(".cantrip") and (CANTRIP / p).is_file())
     return [p for p in paths if owner(p.name) == name] if BATCH and name else paths
 
 

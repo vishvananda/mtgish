@@ -28,6 +28,19 @@ class Source(unittest.TestCase):
                                 text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_moved_or_deleted_scenario_is_not_read_from_its_old_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            kept=root/'scenarios/test-card-kept.cantrip'
+            kept.parent.mkdir();kept.write_text('kept')
+            moved=root/'crates/cantrip-script/tests/fixtures/test-card-moved.cantrip'
+            moved.parent.mkdir(parents=True);moved.write_text('moved')
+            changed=[('D','scenarios/test-card-moved.cantrip'),('A','scenarios/test-card-kept.cantrip'),
+                     ('A',str(moved.relative_to(root)))]
+            with mock.patch.object(lane,'CANTRIP',root),mock.patch.object(lane,'BATCH',[]), \
+                 mock.patch.object(lane,'changed_paths',return_value=changed):
+                self.assertEqual(lane.card_scenarios('Test Card'),[kept])
+
     def test_reminder_text_is_not_a_line_to_validate(self):
         self.assertEqual(lane.printed_lines("Flying (This can't be blocked.)\n({T}: Add {U}.)\nWhen this enters, draw a card."),
                          ["Flying", "When this enters, draw a card."])
