@@ -1,0 +1,61 @@
+# Exchanging creatures destroys attached Auras, but an attached Equipment remains (CR 701.12, 301.5).
+[Bot1 Deck]
+Gauntlets of Chaos
+Black Lotus
+Mox Pearl
+Mox Ruby
+Mox Jet
+Ornithopter
+Grafted Wargear
+Plains
+Plains
+Plains x15
+[Bot2 Deck]
+Ornithopter
+Island x20
+[Actions]
+Bot1.Hand.Ornithopter.Cast
+Bot1.Pass
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Pass
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Pass
+Bot1.Hand.Mox Jet.Cast
+Bot1.Pass
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Hand.Gauntlets of Chaos.Cast
+? Bot1.Mana =
+Bot1.Pass
+[T2 Bot2.Main1]
+Bot2.Hand.Ornithopter.Cast
+Bot2.Pass
+[T3 Bot1.Main1]
+Bot1.Hand.Plains.Play
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.Grafted Wargear.Cast
+Bot1.Pass
+Bot1.Battlefield.Grafted Wargear.Activate(Bot1.Battlefield.Ornithopter)
+Bot1.Pass
+[T5 Bot1.Main1]
+Bot1.Hand.Plains.Play
+Bot1.Battlefield.Plains#1.Activate
+Bot1.Battlefield.Plains#2.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Battlefield.Gauntlets of Chaos.Activate
+Bot1.Target(Bot1.Battlefield.Ornithopter)
+Bot1.Target(Bot2.Battlefield.Ornithopter)
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+[Expect]
+Bot1.Battlefield.Grafted Wargear.Types = Artifact
+Bot2.Battlefield.Ornithopter.Power = 3
+Bot1.Battlefield.Ornithopter.Power = 0

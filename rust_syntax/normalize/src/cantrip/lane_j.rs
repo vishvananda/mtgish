@@ -2513,6 +2513,10 @@ impl Compiler {
         id: &str,
     ) -> Result<String> {
         type H = ObjectHistory;
+        // Event patterns bind names such as `attacker` and `card`; capture
+        // the outer candidate before the match so those names cannot shadow it.
+        let candidate = id;
+        let id = "__history_candidate";
         let moved =
             |pattern: &str, test: &str| format!("Event::ZoneChange {{ {pattern}, .. }} if {test}");
         let pattern = match event {
@@ -2543,7 +2547,7 @@ impl Compiler {
             ),
             H::Convoked(object) => {
                 return Ok(format!(
-                    "{}.is_some_and(|o: ObjectId| q.history().convoked(o).any(|c| c == {id}))",
+                    "{{ let {id} = {candidate}; {}.is_some_and(|o: ObjectId| q.history().convoked(o).any(|c| c == {id})) }}",
                     self.object(object)?
                 ));
             }
@@ -2590,10 +2594,10 @@ impl Compiler {
             H::CountersRemovedWith { .. } => {
                 return Err(gap("counters removed from an object, which the history does not record"))
             }
-            other => return self.object_history_p(other, id, window),
+            other => return Ok(format!("{{ let {id} = {candidate}; {} }}", self.object_history_p(other, id, window)?)),
         };
         Ok(format!(
-            "{}.any(|r| matches!(r.event, {pattern}))",
+            "{{ let {id} = {candidate}; {}.any(|r| matches!(r.event, {pattern})) }}",
             self.object_window(window)?
         ))
     }

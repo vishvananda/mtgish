@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Gauntlets of Chaos",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Gauntlets of Chaos",
+        "manaCost": "{5}",
+        "type": "Artifact",
+        "text": "{5}, Sacrifice this artifact: Exchange control of target artifact, creature, or land you control and target permanent an opponent controls that shares one of those types with it. If those permanents are exchanged this way, destroy all Auras attached to them."
+      }
+    ]
+  },
+  {
+    "name": "Halls of Mist",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Halls of Mist",
+        "type": "Land",
+        "text": "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nCreatures that attacked during their controller's last turn can't attack."
+      }
+    ]
+  }
+]

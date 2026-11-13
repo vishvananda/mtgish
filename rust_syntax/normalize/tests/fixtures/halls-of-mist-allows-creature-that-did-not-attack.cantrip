@@ -1,0 +1,22 @@
+# Halls of Mist bars the creature that attacked on its controller's previous turn, not another creature that stayed back (CR 508.1c).
+[Bot1 Deck]
+Halls of Mist
+Plains x20
+[Bot2 Deck]
+Memnite
+Ornithopter
+Island x20
+[Actions]
+[T2 Bot2.Main1]
+Bot2.Hand.Memnite.Cast
+Bot2.Hand.Ornithopter.Cast
+[T4 Bot2.BeginCombat]
+Bot2.Attack(Memnite > Bot1)
+[T5 Bot1.Main1]
+Bot1.Hand.Halls of Mist.Play
+[T6 Bot2.BeginCombat]
+! Bot2.Attack(Memnite > Bot1)
+Bot2.Attack(Ornithopter > Bot1)
+[T6 Bot2.Main2]
+[Expect]
+Bot1.Life = 19
