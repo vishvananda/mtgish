@@ -2618,6 +2618,11 @@ def deck_names(text):
     return names
 
 
+def named_cards(text):
+    """Naming prompts can refer to registered cards that neither player's deck contains."""
+    return [name.strip() for name in re.findall(r'(?m)^\s*[\w.]+\.Name\(\s*([^\r\n)]+)\)',text)]
+
+
 _FOCUS_METADATA = {}
 
 
@@ -2660,7 +2665,7 @@ def files_played(names, extra_decks=()):
     for path in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip") if wanted else ():
         decks = focus_metadata(path, deck_names)
         if wanted & {deck.lower() for deck in decks}:
-            stems |= {names_of(deck)[0] for deck in decks}
+            stems |= {names_of(card)[0] for card in (*decks,*focus_metadata(path,named_cards))}
     folder = CANTRIP / CARDS_DIR
     stems = {stem for stem in stems if (folder / f"{stem}.rs").exists()} | shared_definitions()
     # Initiative enters this dungeon through the rules engine, not a deck or Rust module reference.

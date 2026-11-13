@@ -1504,6 +1504,17 @@ class FocusedBuilds(unittest.TestCase):
             with mock.patch.object(lane,'CANTRIP',root):
                 self.assertIn('undercity',lane.files_played([]))
 
+    def test_focused_registry_keeps_named_cards_without_adding_them_to_decks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);cards=root/lane.CARDS_DIR;cards.mkdir(parents=True)
+            scenarios=root/lane.SCENARIOS_DIR;scenarios.mkdir()
+            for name in ['a','b','wasteland','lightning_bolt','unrelated']:
+                (cards/(name+'.rs')).write_text('pub static CARD: X;')
+            (scenarios/'a.cantrip').write_text('[Bot1 Deck]\nA\n[Actions]\nBot1.Name(Wasteland)\nBot1.Cannot.Name(Lightning Bolt)\nBot1.Name(Unimplemented Card)\n')
+            (scenarios/'b.cantrip').write_text('[Bot1 Deck]\nB\n[Actions]\nBot1.Name(Unrelated)\n')
+            with mock.patch.object(lane,'CANTRIP',root):
+                self.assertEqual(lane.files_played(['A']),{'a','wasteland','lightning_bolt'})
+
     def test_scratch_decks_do_not_expand_unrelated_scenarios(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
