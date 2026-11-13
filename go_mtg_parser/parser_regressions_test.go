@@ -83,11 +83,19 @@ func TestParserSemanticRegressions(t *testing.T) {
 	}
 	wardControl.Cards[0].Text = strings.Replace(wardControl.Cards[0].Text, "next 1 damage", "next 3 damage", 1)
 	cards["Three Point Redirection Control"] = wardControl
+	// The word by identifies the source; it must not become the protected recipient.
+	byArtifact := cards["Feldon's Cane"]
+	byArtifact.Cards = append([]MtgJsonAtomic(nil), byArtifact.Cards...)
+	byArtifact.Cards[0].Text = "{T}: Prevent the next 1 damage that would be dealt by this artifact this turn."
+	cards["Prevention By Artifact Control"] = byArtifact
 	cases := []struct {
 		name     string
 		contains []string
 		excludes []string
 	}{
+		{"Balduvian Hydra", []string{"NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(Integer(1), Permanent(ThisPermanent))"}, []string{"NextAmountOfDamageThatWouldBeDealtThisTurnByPermanent"}},
+		{"Barbed Wire", []string{"NextAmountOfDamageThatWouldBeDealtThisTurnByPermanent(Integer(1), ThisPermanent)"}, []string{"NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient"}},
+		{"Prevention By Artifact Control", []string{"NextAmountOfDamageThatWouldBeDealtThisTurnByPermanent(Integer(1), ThisPermanent)"}, []string{"NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient"}},
 		{"Three Point Redirection Control", []string{"NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(Integer(3), Permanent(HostPermanent))", "DealToAnyTargetInstead(Ref_AnyTarget)"}, []string{"NextTimeDamageWouldBeDealtThisTurnToRecipient", "DealSomeDamageToRecipientInstead"}},
 		{"Sami, Wildcat Captain", []string{"StackSpellsEffect(And([AnySpell, CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])"}, nil},
 		{"Tezzeret, Master of the Bridge", []string{"StackSpellsEffect(And([Or([IsCardtype(Creature), IsCardtype(Planeswalker)]), CastByPlayer(You)]), [Affinity(IsCardtype(Artifact))])", "CreateValueX("}, nil},

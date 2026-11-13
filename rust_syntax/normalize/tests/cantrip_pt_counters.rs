@@ -33,4 +33,8 @@ fn nonstandard_counters_keep_their_distinct_kinds_and_old_targets_keep_the_gap()
         for kind in kinds { assert!(enabled.contains(&format!("CounterKind::{kind}")), "{name}: {enabled}"); }
         assert!(new[name]["faces"][0]["gaps"].as_array().unwrap().is_empty(), "{name}: {}", new[name]);
     }
+    let hydra = new["Balduvian Hydra"]["faces"][0]["rust"].as_str().unwrap();
+    assert!(hydra.contains("Some(asker.source)).map(Target::Object)"), "{hydra}");
+    assert!(hydra.contains("Shield::Next(shield)"), "{hydra}");
+    assert!(!hydra.contains("asker.source == source"), "{hydra}");
 }
