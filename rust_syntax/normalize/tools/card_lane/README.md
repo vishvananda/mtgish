@@ -340,6 +340,10 @@ Card-specific `.cantrip` data under `crates/<package>/tests/fixtures/` is allowe
 Script harness implementation edits remain outside review scope. Tests named for their new card stay with that
 card's commit; coordinator-declared `source.card_test_paths` can assign an existing integration fixture file to
 the card too, keeping tests that require an unpublished card out of the shared prerequisite commit.
+Coverage can include explicitly selected Rust integration tests with the native `card-coverage.py --test package::target` option. The driver supplies a card's own test targets and still requires passing scenarios and mutation evidence. Fixture-only edits also rerun their existing test target.
+
+Checked source digests hash actual file bytes using NUL-delimited Git paths, independently of staging, so moves and deletions stay stable when committed. Legacy receipts remain immutable: confirmation requires exact reproduction of the old digest, and any formerly unprotected quoted paths must match their blobs at the recorded checked head.
+
 An independent review can use a validated snapshot that already includes its source revision; preparation
 recognizes the ancestor and reviews the present code without replaying an empty cherry-pick.
 Drivers reload changed pipeline code at a clean card boundary, after finishing their lease, so later jobs

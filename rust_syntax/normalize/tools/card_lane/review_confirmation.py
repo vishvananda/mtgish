@@ -24,7 +24,7 @@ def _json(path):
         raise ValueError(f"invalid JSON evidence {path}: {exc}") from exc
 
 
-def build_bundle(folder, original, card_name, candidate, candidate_tree, source_commit):
+def build_bundle(folder, original, card_name, candidate, candidate_tree, source_commit, *, content_identity=None):
     """Write confirmation.md and its manifest; return the Markdown path.
 
     `original` is the prior review directory. The caller is responsible for verifying
@@ -104,6 +104,8 @@ def build_bundle(folder, original, card_name, candidate, candidate_tree, source_
                 "checks_diff_digest": checks["diff_digest"],
                 "files": {k: {"path": str(files[k]), "sha256": hashes[k]} for k in files},
                 "evidence": evidence}
+    if content_identity is not None:
+        manifest['checked_content_identity'] = content_identity
     (folder / "confirmation-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     summaries = [{k: v for k, v in gate.items() if k != "tail"} for gate in gates]
     sections = [

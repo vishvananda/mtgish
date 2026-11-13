@@ -627,10 +627,9 @@ def packet(root, tree, job, source, lane):
     if job["stage"] == "confirm":
         # Candidate content must be exactly what passed the original review's machine gates.
         checked = read(original / "checks.json")
-        if checked.get("diff_digest") != work_digest(tree):
-            raise ValueError("confirmation candidate does not match checked source")
+        identity = checked_content_identity(tree, checked)
         from review_confirmation import build_bundle
-        build_bundle(folder, original, source["name"], job["candidate"], git(tree, "rev-parse", "HEAD^{tree}"), source["commit"])
+        build_bundle(folder, original, source["name"], job["candidate"], git(tree, "rev-parse", "HEAD^{tree}"), source["commit"], content_identity=identity)
     return folder
 
 
@@ -864,6 +863,15 @@ def checks(root):
 
     integration_tests = {(p.split('/')[1], Path(p).stem) for p in changed
                          if p.startswith(('crates/cantrip-mechanics/tests/', 'crates/cantrip-cards/tests/', 'crates/cantrip-script/tests/')) and p.endswith('.rs')}
+    # Scenario data may change while the Rust test that includes it is unchanged.
+    for card in edited_cards:
+        if any(card_scenario_fixture(path, card) for path in changed):
+            stem = names(card)[0]
+            for package in ('cantrip-cards', 'cantrip-mechanics', 'cantrip-script'):
+                for path in (tree/'crates'/package/'tests').glob(stem+'*.rs'):
+                    if path.stem == stem or path.stem.startswith(stem+'_'):
+                        integration_tests.add((package, path.stem))
+    declared_tests = set(read(folder/'input.json').get('source', {}).get('card_test_paths', [])) if (folder/'input.json').exists() else set()
     for package, test in sorted(integration_tests):
         record(package.removeprefix('cantrip-')+' test '+test,
                lambda p=package,t=test: lane.shell('cargo','test','--profile','checked','-p',
@@ -886,7 +894,13 @@ def checks(root):
             record(card + " lint", lambda c=card: lane.tool("card-lint.py", c), lambda out: ": NEVER:" not in out)
             files = [*([lane.card_file(card)] if lane.card_file(card).exists() else []), *lane.card_scenarios(card)]
             record(card + " citations", lambda f=files: lane.tool("cr.py", "check", "--show", *f))
-        record(card + " coverage", lambda c=card: lane.tool("card-coverage.py", c))
+        stem = names(card)[0]
+        coverage_tests = [(package, target) for package, target in sorted(integration_tests)
+                          if is_edited and (target == stem or target.startswith(stem+'_')
+                          or card == name and f'crates/{package}/tests/{target}.rs' in declared_tests)]
+        coverage_args = tuple(arg for package, target in coverage_tests
+                              for arg in ('--test', package+'::'+target))
+        record(card + " coverage", lambda c=card,args=coverage_args: lane.tool("card-coverage.py", c, *args))
         if not is_edited:
             # Shared callers still play and measure their scenarios. Their
             # unchanged card decisions do not need another mutation review.
@@ -944,7 +958,7 @@ def checks(root):
         record("layers", lambda: lane.shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases", env=lane.full_environment()))
     final_digest = work_digest(tree)
     rows.append(dict(gate="stable source", ok=initial_digest == final_digest, seconds=0))
-    result = dict(at=now(), head=git(tree, "rev-parse", "HEAD"), diff_digest=final_digest,
+    result = dict(at=now(), head=git(tree, "rev-parse", "HEAD"), digest_version=2, diff_digest=final_digest,
                   initial_digest=initial_digest,
                   ok=bool(rows) and all(r["ok"] for r in rows), seconds=round(time.monotonic()-started, 2), gates=rows)
     result, receipt = review_evidence.freeze_checks(folder, result)
@@ -954,22 +968,67 @@ def checks(root):
     return result
 
 
-def work_digest(tree):
-    # Content includes untracked scenarios, not just the tracked diff.
-    paths = sorted(set(git(tree, "ls-files").splitlines() + git(tree, "ls-files", "--others", "--exclude-standard").splitlines()))
+def source_path(path):
+    return path.startswith(('crates/', 'content/', 'scenarios/')) or path in ('Cargo.toml', 'Cargo.lock')
+
+
+def work_digest(tree, *, absent=(), legacy=False):
+    # Hash checked files independently of staging; NUL-delimited Git names also
+    # preserve Unicode and whitespace instead of mistaking quoted names for files.
+    absent = set(absent)
+    flags = () if legacy else ('-z',)
+    split = str.splitlines if legacy else lambda value: value.split('\0')
+    paths = set(split(git(tree, 'ls-files', *flags))) | set(split(git(tree, 'ls-files', '--others', '--exclude-standard', *flags))) | absent
     h = hashlib.sha256()
-    for path in paths:
-        if path.startswith(("crates/", "content/", "scenarios/")) or path in ("Cargo.toml", "Cargo.lock"):
+    for path in sorted(paths):
+        if source_path(path):
             file = tree / path
-            h.update(path.encode() + b"\0" + (file.read_bytes() if file.exists() else b"<deleted>"))
+            if file.is_file():
+                h.update(path.encode() + b'\0' + file.read_bytes())
+            elif legacy or path in absent:
+                h.update(path.encode() + b'\0<deleted>')
     return h.hexdigest()
+
+
+def checked_content_identity(tree, checks):
+    current = work_digest(tree)
+    identity = dict(algorithm='working-files-v2', digest=current, checked_diff_digest=checks.get('diff_digest'))
+    if checks.get('diff_digest') == current:
+        return identity
+    head = checks.get('head') or ''
+    if checks.get('digest_version') != 2 and re.fullmatch(r'[0-9a-f]{40}', head):
+        old_names = git(tree, 'ls-tree', '-r', '--name-only', head).splitlines()
+        actual_old_names = git(tree, 'ls-tree', '-r', '--name-only', '-z', head).split('\0')
+        absent = [path for path in old_names if source_path(path) and not (tree/path).is_file()]
+        unhashed = [path for path in actual_old_names if source_path(path) and path not in old_names]
+        # Legacy quoted paths were not hashed. Only accept them unchanged from
+        # the recorded checked HEAD; a new or changed unprotected file needs checks.
+        actual_names = git(tree, 'ls-files', '-z').split('\0') + git(tree, 'ls-files', '--others', '--exclude-standard', '-z').split('\0')
+        legacy_names = git(tree, 'ls-files').splitlines() + git(tree, 'ls-files', '--others', '--exclude-standard').splitlines()
+        new_unhashed = [path for path in actual_names if source_path(path) and path not in legacy_names and path not in actual_old_names]
+        safe = not new_unhashed
+        for path in unhashed:
+            if not (tree/path).is_file() or git(tree, 'hash-object', '--', path) != git(tree, 'rev-parse', head+':'+path):
+                safe = False
+                break
+        if safe and (absent or unhashed) and checks.get('diff_digest') == work_digest(tree, absent=absent, legacy=True):
+            identity.update(compatibility='legacy-index-v1', checked_head=head,
+                            absent_paths=absent, unhashed_paths_unchanged_from_checked_head=unhashed)
+            return identity
+    raise ValueError('confirmation candidate does not match checked source')
 
 
 def completed_review_matches(tree, report_path, previous):
     evidence = previous.get("completed_review")
-    return bool(isinstance(evidence, dict) and report_path.is_file() and
-                evidence.get("report_sha256") == hashlib.sha256(report_path.read_bytes()).hexdigest() and
-                evidence.get("source_digest") == work_digest(tree))
+    if not (isinstance(evidence, dict) and report_path.is_file()
+            and evidence.get('report_sha256') == hashlib.sha256(report_path.read_bytes()).hexdigest()):
+        return False
+    try:
+        checked_content_identity(tree, dict(diff_digest=evidence.get('source_digest'),
+            digest_version=evidence.get('digest_version'), head=evidence.get('head') or previous.get('prepared_parent')))
+        return True
+    except ValueError:
+        return False
 
 
 def commit_candidate(tree, source, parent, paths):
@@ -1249,7 +1308,7 @@ def worker(root, slot, once=False, resume=None):
                                       usage={k:sum(a['usage'].get(k,0) for a in attempts) for k in ('input','cached','output','turns')})
                         report_path=job_folder(root,job,job['stage'])/'review.json'
                         if report_valid(report,job['name']) and report_path.exists():
-                            detail['completed_review']=dict(report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),source_digest=work_digest(tree))
+                            detail['completed_review']=dict(report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),source_digest=work_digest(tree),digest_version=2,head=git(tree,'rev-parse','HEAD'))
                     save(folder/'live.json',dict(state='infrastructure',worker=slot,card=job['name'],at=now(),error=str(error)))
                     finish(db, job, "infrastructure", detail,branch=branch)
                     raise

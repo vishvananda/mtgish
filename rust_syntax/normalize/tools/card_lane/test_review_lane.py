@@ -659,6 +659,52 @@ class GitTests(unittest.TestCase):
         self.assertEqual(lane.work_digest(self.repo), digest)
         self.assertEqual(self.git('status', '--porcelain'), '')
 
+    def test_moved_scenario_digest_is_stable_across_commit_and_legacy_receipt_is_exact(self):
+        import hashlib
+        old='scenarios/test-card-positive.cantrip'
+        fixture='crates/cantrip-script/tests/fixtures/test-card-positive.cantrip'
+        self.write(old,'positive scenario')
+        self.git('add',old);self.git('commit','-qm','Original scenario')
+        source=self.git('rev-parse','HEAD')
+        before=lane.work_digest(self.repo)
+        (self.repo/old).unlink();self.write(fixture,'positive scenario')
+        digest=lane.work_digest(self.repo)
+        self.assertNotEqual(before,digest)
+        # Independently compute the prior implementation's receipt before commit.
+        legacy=hashlib.sha256()
+        paths=sorted(set(self.git('ls-files').splitlines()+self.git('ls-files','--others','--exclude-standard').splitlines()))
+        for path in paths:
+            if path.startswith(('crates/','content/','scenarios/')) or path in ('Cargo.toml','Cargo.lock'):
+                file=self.repo/path
+                legacy.update(path.encode()+b'\0'+(file.read_bytes() if file.exists() else b'<deleted>'))
+        checks=dict(head=source,diff_digest=legacy.hexdigest())
+        lane.commit_candidate(self.repo,dict(name='Test Card',commit=source),self.base,
+                              lane.allowed_changes(self.repo,'Test Card'))
+        self.assertEqual(lane.work_digest(self.repo),digest)
+        identity=lane.checked_content_identity(self.repo,checks)
+        self.assertEqual(identity['digest'],digest)
+        self.assertIn(old,identity['absent_paths'])
+        self.write(fixture,'different unverified content')
+        with self.assertRaisesRegex(ValueError,'does not match checked source'):
+            lane.checked_content_identity(self.repo,checks)
+
+    def test_unicode_scenario_bytes_are_hashed_and_legacy_requires_unchanged_baseline(self):
+        path='scenarios/test-card-é.cantrip'
+        self.write(path,'original unicode scenario')
+        self.git('add',path);self.git('commit','-qm','Unicode scenario')
+        checked_head=self.git('rev-parse','HEAD')
+        digest=lane.work_digest(self.repo)
+        legacy=lane.work_digest(self.repo,legacy=True)
+        self.assertNotEqual(digest,legacy)
+        checks=dict(head=checked_head,diff_digest=legacy)
+        identity=lane.checked_content_identity(self.repo,checks)
+        self.assertIn(path,identity['unhashed_paths_unchanged_from_checked_head'])
+        self.write(path,'unverified unicode edit')
+        self.assertNotEqual(lane.work_digest(self.repo),digest)
+        self.assertEqual(lane.work_digest(self.repo,legacy=True),legacy)
+        with self.assertRaisesRegex(ValueError,'does not match checked source'):
+            lane.checked_content_identity(self.repo,checks)
+
     def test_candidate_normalizes_title_for_publication_without_changing_content(self):
         import publish_lane
         self.git('commit', '--amend', '-qm', 'Implement Test Card\n\nRetain the reviewed behavior.')
@@ -1072,6 +1118,32 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(result['ok'],expected)
                 shell.assert_called_once_with('cargo','test','--profile','checked','-p',
                                              'cantrip-cards','--test','boundary',env={})
+
+    def test_scenario_fixture_edits_execute_and_measure_the_owning_rust_test(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);card=root/'a.rs';card.write_text('pub static CARD: X;')
+            fixture='crates/cantrip-script/tests/fixtures/a-positive.cantrip'
+            rust=root/'crates/cantrip-script/tests/a_types.rs'
+            rust.parent.mkdir(parents=True);rust.write_text('existing assertion test')
+            lane.save(root/'review.json',dict(affected_cards=['A','B']))
+            tools=mock.Mock(return_value=(0,'matches Scryfall'))
+            shell=mock.Mock(return_value=(0,'1 passed; 0 failed'))
+            fake=SimpleNamespace(card_dir=lambda _:root/'state',card_file=lambda _:card,
+                card_scenarios=lambda _:[],focus_cards=lambda _:None,full_environment=lambda:{},
+                run_corpus=lambda _:(0,'1 pass, 0 fail, 0 known bugs, 0 need cards'),
+                tool=tools,shell=shell,Gates=lambda *args:SimpleNamespace(failures=lambda:[],results=[]),
+                mutation_gates=lambda *args:{})
+            self.mutation_artifacts(fake.card_dir('A'))
+            with mock.patch.object(lane,'current',return_value=dict(tree=str(root),folder=str(root),name='A')), \
+                 mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
+                 mock.patch.object(lane,'work_digest',return_value='stable'), \
+                 mock.patch.object(lane,'allowed_changes',return_value=[fixture]):
+                result=lane.checks(root)
+            self.assertTrue(result['ok'])
+            shell.assert_called_once_with('cargo','test','--profile','checked','-p','cantrip-script',
+                                          '--test','a_types',env={})
+            self.assertIn(mock.call('card-coverage.py','A','--test','cantrip-script::a_types'),tools.call_args_list)
+            self.assertIn(mock.call('card-coverage.py','B'),tools.call_args_list)
 
     def test_shared_callers_keep_scenario_coverage_without_unrelated_mutation_work(self):
         with tempfile.TemporaryDirectory() as tmp:
