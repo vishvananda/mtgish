@@ -61,9 +61,17 @@ impl Context {
         phase: ObjectPhase,
         filter: Option<ObjectFilter>,
     ) -> Result<Expr> {
-        Ok(Expr::CountObjects(Box::new(
-            self.this_way_set(done, phase, filter)?,
-        )))
+        let after_exile = done == Done::Exiled && matches!(phase, ObjectPhase::After);
+        let mut objects = self.this_way_set(done, phase, filter)?;
+        if after_exile {
+            // Movement receipts retain the arrival object even if a replacement
+            // redirected it, and that ID keeps its arrival zone after later moves.
+            objects = ObjectSet::Matching {
+                objects: Box::new(objects),
+                filter: ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile)),
+            };
+        }
+        Ok(Expr::CountObjects(Box::new(objects)))
     }
 
     fn this_way_total(
