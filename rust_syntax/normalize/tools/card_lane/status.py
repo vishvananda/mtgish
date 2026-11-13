@@ -59,11 +59,19 @@ def pipelines(root, runs, project=None, active_only=False, process_state=None):
         slots = config.get('implementers') if isinstance(config.get('implementers'), dict) else {}
         for slot in sorted(slots, key=natural_key):
             live = read_json(path.parent / 'implementation' / slot / 'live.json') or {}
-            implementers.append({'worker': slot, 'state': live.get('state', 'unknown'),
+            held = live.get('state') != 'running' and (not config.get('enabled',True) or not config.get('implementation_enabled',True))
+            reason = ('Generator refresh: new implementation claims held' if not config.get('implementation_enabled',True)
+                      else 'Campaign draining: new claims held') if held else None
+            implementers.append({'worker': slot, 'state': 'held' if held else live.get('state', 'unknown'), 'reason': reason,
                                  'card': live.get('card'), 'context_cards': live.get('context_cards'),
                                  'model': live.get('model'), 'context': live.get('context'),
                                  'started': timestamp(live.get('at'), 0) if live.get('state') == 'running' else None,
                                  'activity': process_state.get(str(path.parent/'implementation'/slot/'state'), {})})
+        # Disabled historical campaigns retain their receipts, not an active-worker panel. A fresh
+        # snapshot with unfinished work remains visible while a deliberate drain is in progress.
+        fresh = time.time() - timestamp(state.get('at'),0) < 30
+        if config.get('enabled') is False and not (fresh and (active or any(w['state']=='running' for w in implementers))):
+            continue
         if active_only and not active and not any(w['state'] == 'running' for w in implementers):
             continue
         committed = set()
@@ -460,9 +468,9 @@ def render(runs, root, interval=None, event_limit=8, width=120, height=None, col
                         detail = f" · {check.get('card_index')}/{check.get('total_cards')} {check.get('gate','')}"
                     card = worker.get('card') or 'Preparing card'
                 else:
-                    phase = 'READY' if state in ('ready', 'waiting') else 'STALE'
+                    phase = 'HELD' if state == 'held' else 'READY' if state in ('ready', 'waiting') else 'STALE'
                     elapsed, detail = '—', ''
-                    card = 'waiting for confirmation' if role == 'verify' else 'waiting for a card'
+                    card = worker.get('reason') or ('waiting for confirmation' if role == 'verify' else 'waiting for a card')
                     if phase == 'STALE':card = 'no recent heartbeat'
                 amount = ((pipe.get('costs') or {}).get('cards') or {}).get(worker.get('card'), {}).get('usd_api_equivalent')
                 cost = f'${amount:.3f}' if amount is not None else '—'

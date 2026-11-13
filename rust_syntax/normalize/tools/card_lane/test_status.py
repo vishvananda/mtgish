@@ -227,6 +227,36 @@ class StatusTests(unittest.TestCase):
         self.assertIn('waiting for confirmation',text)
         (worker/'live.json').write_text(json.dumps({'state':'waiting','at':time.time()-60}))
         self.assertEqual(status.pipelines(self.root,[])[0]['workers'][1]['state'],'stale')
+
+    def test_retired_campaign_does_not_add_stale_worker_panels(self):
+        for name,enabled,at,active in [('old',False,1,[]),('live',True,time.time(),[])]:
+            folder=self.root/('pipeline-'+name);folder.mkdir()
+            (folder/'config.json').write_text(json.dumps({'enabled':enabled,'display_name':name,'reviewers':{'r1':{'role':'review'}}}))
+            (folder/'status.json').write_text(json.dumps({'at':at,'counts':[],'active':active}))
+        pipes=status.pipelines(self.root,[])
+        self.assertEqual([p['name'] for p in pipes],['live'])
+        old=self.root/'pipeline-old'
+        (old/'status.json').write_text(json.dumps({'at':time.time(),'counts':[],
+            'active':[{'worker':'r1','name':'Finishing a card','stage':'review'}]}))
+        self.assertEqual(len(status.pipelines(self.root,[])),2)
+        (old/'status.json').write_text(json.dumps({'at':1,'counts':[],
+            'active':[{'worker':'r1','name':'Stale old assignment','stage':'review'}]}))
+        self.assertEqual(len(status.pipelines(self.root,[])),1)
+
+    def test_implementation_hold_is_visible_instead_of_waiting_for_a_card(self):
+        folder=self.root/'pipeline-held';folder.mkdir()
+        (folder/'config.json').write_text(json.dumps({'enabled':True,'implementation_enabled':False,
+            'implementers':{'i1':{},'i2':{}}}))
+        (folder/'status.json').write_text(json.dumps({'counts':[]}))
+        for slot,live in [('i1',{'state':'waiting'}),('i2',{'state':'running','card':'Finishing current card'})]:
+            worker=folder/'implementation'/slot;worker.mkdir(parents=True)
+            (worker/'live.json').write_text(json.dumps(live))
+        pipes=status.pipelines(self.root,[])
+        self.assertEqual([w['state'] for w in pipes[0]['implementers']],['held','running'])
+        text=status.render([],self.root,width=180,pipeline=pipes)
+        self.assertRegex(text,r'i1\s+implement\s+HELD')
+        self.assertIn('Generator refresh: new implementation claims held',text)
+        self.assertIn('Finishing current card',text)
     def test_flow_separates_review_fix_rounds_and_shared_workers(self):
         folder=self.root/'pipeline-flow';folder.mkdir()
         def node(cards, workers=0, active=0, rounds=None):
