@@ -19692,7 +19692,7 @@
   },
   "{{StaticEffect[TheChosenNumber](~Permanent)}}": {
     "{{~Permanent}} has protection from each mana value other than the chosen number": "PermanentLayerEffect(ThisPermanent, [AddAbility([Protection(FromManaValue(EqualTo(TheChosenNumber)))])])",
-    "{{~Permanent}}'s power is equal to the last chosen number and its toughness is equal to {{Digits}} minus that number": "PermanentLayerEffect(ThisPermanent, [SetPower(TheChosenNumber), SetToughness(Minus({{Digits[0]}}, TheChosenNumber))])"
+    "{{~Permanent}}'s power is equal to the last chosen number and its toughness is equal to {{Digits}} minus that number": "CDA_PowerToughness(TheChosenNumber, Minus({{Digits[0]}}, TheChosenNumber))"
   },
   "{{StaticEffect[TheChosenNumber]}}": {
     "Noncreature spells with mana value equal to the chosen number can't be cast": "EachPlayerEffect(AnyPlayer, [CantCastSpells(And([IsNonCardtype(Creature), ManaValueIs(EqualTo(TheChosenNumber))]))])",
@@ -21997,7 +21997,7 @@
     "create {{a}} {{PT}} {{CreatureToken}} that's tapped and attacking that player": "ActionList([CreateTokens([TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [])], [EntersTapped, EntersAttackingPlayer({{ThatPlayer}})])])",
     "create {{a}} {{PT}} {{CreatureToken}} with {{Hasable}} that's tapped and attacking that player": "ActionList([CreateTokens([TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [{{Hasable[0]}}])], [EntersTapped, EntersAttackingPlayer({{ThatPlayer}})])])",
     "create {{a}} {{PT}} {{CreatureToken}}. Each opponent attacking that player does the same": "ActionList([CreateTokens([TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [])], []), EachPlayerCreatesTokens(And([Opponent, IsAttackingPlayer({{ThatPlayer}})]), [TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [])], [])])",
-    "destroy all {{Permanents}} that player controls that didn't attack, except for {{Permanents}} the player hasn't controlled continuously since the beginning of the turn": "ActionList([DestroyEachPermanent(And([{{Permanents[0]}}, ControlledByAPlayer(SinglePlayer({{ThatPlayer}})), DidntAttackThisTurn, Not(And([{{Permanents[1]}}, NotControlledSinceBeginningOfTurn]))]))])",
+    "destroy all {{Permanents}} that player controls that didn't attack, except for {{Permanents}} the player hasn't controlled continuously since the beginning of the turn": "ActionList([DestroyEachPermanent(And([{{Permanents[0]}}, ControlledByAPlayer(SinglePlayer({{ThatPlayer}})), Not(AttackedThisCombat), Not(And([{{Permanents[1]}}, NotControlledSinceBeginningOfTurn]))]))])",
     "destroy target nonland permanent of that player's choice that one of your opponents controls": "Targeted([TargetPermanentOfPlayersChoice(And([IsNonCardtype(Land), ControlledByAPlayer(Opponent)]), {{ThatPlayer}})], ActionList([DestroyPermanent(Ref_TargetPermanent)]))",
     "destroy target {{Permanent}} that player controls": "Targeted([TargetPermanent(And([{{Permanent[0]}}, ControlledByAPlayer(SinglePlayer({{ThatPlayer}}))]))], ActionList([DestroyPermanent(Ref_TargetPermanent)]))",
     "destroy target {{Permanent}} that player controls of their choice. It can't be regenerated": "Targeted([TargetPermanentOfPlayersChoice(And([{{Permanent[0]}}, ControlledByAPlayer(SinglePlayer({{ThatPlayer}}))]), {{ThatPlayer}})], ActionList([DestroyPermanentNoRegen(Ref_TargetPermanent)]))",

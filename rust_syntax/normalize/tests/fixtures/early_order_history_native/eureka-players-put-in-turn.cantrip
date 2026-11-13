@@ -1,0 +1,25 @@
+# Eureka puts the first player's permanent onto the battlefield before the next player chooses (CR 608.2c).
+[Bot1 Deck]
+Eureka
+Black Lotus
+Mox Pearl
+Forest x20
+
+[Bot2 Deck]
+Island x20
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Green)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Eureka.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot1.Choose(Forest)
+[Handover Bot2.Choose]
+
+[Expect]
+Bot1.Battlefield = Mox Pearl; Forest

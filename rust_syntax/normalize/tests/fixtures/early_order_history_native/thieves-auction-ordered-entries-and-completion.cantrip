@@ -1,0 +1,37 @@
+# The first card enters tapped before the next player chooses; an empty exile pool ends the process.
+[Bot1 Deck]
+Thieves' Auction
+Black Lotus
+Black Lotus
+Mountain
+Mountain x20
+[Bot2 Deck]
+Forest x20
+[Actions]
+Bot1.Hand.Mountain.Play
+Bot1.Pass
+[T2 Bot2.Main1]
+Bot2.Hand.Forest.Play
+Bot2.Pass
+[T3 Bot1.Main1]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus#1.Activate(Color: Red)
+Bot1.Battlefield.Black Lotus.Activate(Color: Red)
+Bot1.Battlefield.Mountain.Activate
+Bot1.Hand.Thieves' Auction.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot1.Choose(Mountain)
+? Bot1.Battlefield.Mountain.Tapped = True
+? Bot2.Battlefield.Count = 0
+Bot2.Choose(Forest)
+[Expect]
+Bot1.Battlefield = Mountain
+Bot1.Battlefield.Mountain.Tapped = true
+Bot2.Battlefield = Forest
+Bot2.Battlefield.Forest.Tapped = true
+Exile.Count = 0
+Stack.Count = 0

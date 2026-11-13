@@ -1260,6 +1260,10 @@ impl Compiler {
                 format!("{}.into_iter().collect::<Vec<PlayerId>>()", self.player(player)?)
             }
             PlayerSet::All => "q.state().apnap().collect::<Vec<PlayerId>>()".into(),
+            PlayerSet::OpponentsOf(player) if self.history.is_some() => format!(
+                "{}.into_iter().flat_map(|p: PlayerId| (0..q.state().players.len()).map(|i| PlayerId(i as u8)).filter(move |&other| other != p)).collect::<Vec<PlayerId>>()",
+                self.player(player)?
+            ),
             PlayerSet::OpponentsOf(player) => format!(
                 "{}.into_iter().flat_map(|p: PlayerId| q.state().opponents(p)).collect::<Vec<PlayerId>>()",
                 self.player(player)?
@@ -2767,7 +2771,7 @@ impl Compiler {
                     TurnWindow::Upkeep => "q.state().turn.step() == Step::Upkeep".into(),
                     TurnWindow::EndStep => "q.state().turn.step() == Step::End".into(),
                     TurnWindow::BeforeCombatDamage => {
-                        format!("{step} < (Step::CombatDamage as u8)")
+                        format!("({step} < (Step::CombatDamage as u8) && !q.history().this_turn().iter().any(|r| matches!(r.event, Event::StepBegan {{ step: Step::EndOfCombat }})))")
                     }
                     TurnWindow::DeclareAttackers => {
                         "q.state().turn.step() == Step::DeclareAttackers".into()
@@ -2776,7 +2780,7 @@ impl Compiler {
                         "q.state().turn.step() == Step::DeclareBlockers".into()
                     }
                     TurnWindow::BeforeBlockersDeclared => {
-                        format!("{step} < (Step::DeclareBlockers as u8)")
+                        format!("({step} < (Step::DeclareBlockers as u8) && !q.history().this_turn().iter().any(|r| matches!(r.event, Event::StepBegan {{ step: Step::DeclareBlockers | Step::EndOfCombat }})))")
                     }
                     TurnWindow::FirstCombat => format!(
                         "({step} >= (Step::BeginCombat as u8) && {step} <= (Step::EndOfCombat as u8) && q.history().this_turn().iter().filter(|r| matches!(r.event, Event::StepBegan {{ step: Step::BeginCombat }})).count() == 1)"

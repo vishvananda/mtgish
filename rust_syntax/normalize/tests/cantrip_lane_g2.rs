@@ -45,12 +45,14 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Sarpadian Empires, Vol. VII", "(Color::Blue, Subtype::Camarid)", true),
     // Each player puts what they turned face up onto the battlefield.
     ("Pyxis of Pandemonium", "g.turn_face_up(", true),
+    // An explicitly ordered auction takes and moves one card before the next
+    // player chooses; the remaining exiled pool controls repetition.
+    ("Thieves' Auction", "g.put_all_onto_battlefield_as", true),
     // What Cantrip lacks, and what the data says.
     ("Kozilek, the Broken Reality", "per-player-manifest", false),
     ("Leori, Sparktouched Hunter", "a-resolution-s-choice-read-by-the-trigger-it-creates", false),
     ("Zombie Boa", "a-resolution-s-choice-read-by-the-trigger-it-creates", false),
     ("Phyrexian Splicer", "a-value-chosen-as-an-activation-cost-read-by-its-targets", false),
-    ("Thieves' Auction", "auction-of-the-exiled-cards-until-each-is-chosen", false),
     ("Infernal Denizen", "operation-players-do", false),
 ];
 

@@ -1,0 +1,50 @@
+# In an additional combat, Total War destroys Aurelia for not attacking in that combat even though she attacked earlier in the turn (CR 603.2).
+[Bot1 Deck]
+Forest
+Llanowar Elves
+Black Lotus
+Mox Pearl
+Plains
+Aurelia, the Warleader
+Forest x20
+[Bot2 Deck]
+Total War
+Black Lotus
+Mox Ruby
+Island x20
+[Actions]
+Bot1.Hand.Forest.Play
+Bot1.Battlefield.Forest.Activate
+Bot1.Hand.Llanowar Elves.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Hand.Mox Ruby.Cast
+Bot2.Pass
+Bot2.Battlefield.Black Lotus.Activate(Color: Red)
+Bot2.Battlefield.Mox Ruby.Activate
+Bot2.Hand.Total War.Cast
+? Bot2.Mana =
+[T3 Bot1.Main1]
+Bot1.Hand.Plains.Play
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Red)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Plains.Activate
+Bot1.Battlefield.Llanowar Elves.Activate
+Bot1.Hand.Aurelia, the Warleader.Cast
+[T5 Bot1.BeginCombat]
+Bot1.Battlefield.Llanowar Elves.Activate
+[T5 Bot1.DeclareAttackers]
+Bot1.Attack(Aurelia, the Warleader)
+[T5 Bot1.EndCombat]
+? Bot1.Battlefield.Aurelia, the Warleader.Tapped = false
+? Bot1.Battlefield.Llanowar Elves.Tapped = false
+Bot1.Attack(Llanowar Elves)
+? Stack.Count = 1
+Bot1.Pass
+Bot2.Pass
+? Bot1.Graveyard = Aurelia, the Warleader; Black Lotus
+[Expect]
+Bot1.Battlefield.Llanowar Elves.Power = 1

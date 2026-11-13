@@ -1257,6 +1257,24 @@ impl Compiler {
                 out,
             );
         }
+        // An explicitly ordered process completes one player's instruction
+        // before the next player's turn at it (Eureka, Thieves' Auction).
+        // Keep the ordinary per-player receipt views so later repetition and
+        // "who did" conditions read the actual moves, not merely the choices.
+        if each.starting_with.is_some() {
+            let mut instructions = vec![Instruction::Group(each.body.clone())];
+            instructions.extend_from_slice(each.rest);
+            let program = Program { instructions };
+            let mut views = Vec::new();
+            self.bound_players.insert(each.binding.0);
+            self.walk(id, &each, &program, &Step { at: 0, guard: None },
+                      &[], &mut [], &mut views, None, out);
+            self.bound_players.remove(&each.binding.0);
+            self.view_all(&views);
+            self.note_walked(&each.body);
+            self.notes.walking = walking;
+            return Ok(());
+        }
         // "For each opponent, you mill a card, then return that card unless that
         // player pays 3 life" (Sivriss): one opponent's whole process, then the
         // next's, and nothing after reads what it did.
@@ -1690,6 +1708,8 @@ impl Compiler {
         self.view_each(views);
         let before = self.results();
         let guards_around = std::mem::take(&mut self.guard_opened);
+        let local_hoists = each.starting_with.is_some() && self.hoisted.is_some();
+        let outer_hoists = local_hoists.then(|| self.hoisted.replace(Vec::new()));
         let mut body = String::new();
         let mut closing = String::new();
         if let Some(guard) = step.guard {
@@ -1717,6 +1737,15 @@ impl Compiler {
                     }
                     self.plan_instruction(&feature, failed, &mut body);
                 }
+            }
+        }
+        if let Some(outer) = outer_hoists {
+            // Optional actions belong to this player's one iteration. Keeping
+            // these at resolution scope would make a later decline inherit an
+            // earlier successful move, so a repeated process would never stop.
+            let locals = std::mem::replace(&mut self.hoisted, outer).unwrap_or_default();
+            for local in locals {
+                body.insert_str(0, &format!("let mut {local}: Vec<ObjectId> = Vec::new();\n"));
             }
         }
         let mut tail = String::new();

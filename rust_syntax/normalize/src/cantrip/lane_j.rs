@@ -879,6 +879,23 @@ impl Compiler {
             frame,
             phrase,
         );
+        // Leaving the battlefield also ends control (CR 603.6c). A delayed
+        // "when you lose control" watcher must observe that departure, using
+        // the old incarnation and its last-known controller, as well as an
+        // ordinary control change while the permanent stays on the battlefield.
+        if matches!(event, E::LosesControl) {
+            let mut tests = vec!["from.is(ZoneKind::Battlefield)".into()];
+            tests.push(self.matching(frame, |c| c.player_in(players, "player"))?);
+            if let Some(objects) = objects {
+                tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
+            }
+            matched.masks.push("ZONE_CHANGE");
+            matched.arms.push(Arm {
+                pattern: "Event::ZoneChange { old, from, .. }".into(),
+                locals: "let id = *old; let player = q.controller(id); let subject = Target::Object(id); let data = [u32::from(player.0), 0];".into(),
+                tests,
+            });
+        }
         // "One or more", one for each player whose cards they were.
         if matches!(event, E::Mills) {
             matched.batch = Some(true);

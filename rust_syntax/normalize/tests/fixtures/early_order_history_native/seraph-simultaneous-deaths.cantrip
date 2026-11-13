@@ -1,0 +1,52 @@
+# Seraph and two creatures it damaged die together; both cards return at the next end step (CR 603.10a).
+
+[Bot1 Deck]
+Black Lotus
+Black Lotus
+Mox Pearl
+Seraph
+Island x20
+
+[Bot2 Deck]
+Black Lotus
+Black Lotus
+Wind Drake
+Wind Drake
+Island x20
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus#1.Activate(Color: White)
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Seraph.Cast
+? Bot1.Mana =
+Bot1.Pass
+[T2 Bot2.Main1]
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Battlefield.Black Lotus#1.Activate(Color: Blue)
+Bot2.Hand.Wind Drake.Cast
+Bot2.Pass
+Bot2.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot2.Hand.Wind Drake.Cast
+Bot2.Pass
+Bot1.Pass
+[T3 Bot1.DeclareAttackers]
+Bot1.Attack(Seraph > Bot2)
+Bot2.Block(Wind Drake#1 > Seraph; Wind Drake#2 > Seraph)
+Bot1.AssignDamage(Seraph > Wind Drake#1: 2; Seraph > Wind Drake#2: 2)
+[T3 Bot1.End]
+Bot1.Pass
+Bot2.Pass
+[Expect]
+Bot1.Battlefield.Wind Drake#1.Power = 2
+Bot1.Battlefield.Wind Drake#2.Power = 2
+Bot1.Graveyard.Seraph.Power = 4

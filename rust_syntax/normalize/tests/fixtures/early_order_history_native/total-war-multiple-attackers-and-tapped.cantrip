@@ -1,0 +1,41 @@
+# Two attackers produce one trigger; an older creature tapped before attackers is spared (CR 603.2).
+[Bot1 Deck]
+Total War
+Black Lotus
+Mox Ruby
+Mox Pearl
+Llanowar Elves
+Memnite
+Ornithopter
+Island x20
+[Bot2 Deck]
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Pass
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Pass
+Bot1.Hand.Memnite.Cast
+Bot1.Pass
+Bot1.Hand.Ornithopter.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Green)
+Bot1.Hand.Llanowar Elves.Cast
+Bot1.Pass
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Total War.Cast
+? Bot1.Mana =
+[T3 Bot1.BeginCombat]
+Bot1.Battlefield.Llanowar Elves.Activate
+Bot1.Attack(Memnite; Ornithopter)
+? Stack.Count = 1
+Bot1.Pass
+Bot2.Pass
+? Bot1.Battlefield.Llanowar Elves.Tapped = true
+[T3 Bot1.Main2]
+[Expect]
+Bot1.Battlefield.Llanowar Elves.Power = 1
+Bot2.Life = 19

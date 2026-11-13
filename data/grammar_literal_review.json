@@ -9805,6 +9805,17 @@
    "template": "{{ManaCost}}, Sacrifice this creature: It deals X damage divided as you choose among any number of target {{Creatures}}, where X is its power",
    "result": "Activated(And([PayMana({{ManaCost[0]}}), SacrificePermanent(ThisPermanent)]), TargetedDistributed([AnyNumberOfTargetPermanents({{Creatures[0]}})], DistributeNumberAmongTargets(PowerOfTheSacrificedCreature), ActionList([SacrificedPermanentDealsDistributedDamage])))",
    "reason": "Reviewed 2026-11-12: the mined word s comes from possessive creature's in other templates. These self-sacrifice activations say its power; their exact original sacrificed input and last-known power remain explicit. No missing semantic word or token."
+  },
+  {
+   "id": "158922e2a80ac290d7965e9f07b7739fc7facc73034614da30d2604659ec7993",
+   "kind": "mined_token",
+   "rule": "StaticEffect[TheChosenNumber](~Permanent)",
+   "token": "CDA_PowerToughness",
+   "word": "are",
+   "support": "25/29",
+   "template": "{{~Permanent}}'s power is equal to the last chosen number and its toughness is equal to {{Digits}} minus that number",
+   "result": "CDA_PowerToughness(TheChosenNumber, Minus({{Digits[0]}}, TheChosenNumber))",
+   "reason": "Reviewed 2026-11-13: the English defines power and toughness in two singular “is equal to” clauses. That is a CDA (CR 604.3/604.3a/613.4a), despite lacking the plural word “are”. The counterexample proves the old ordinary static fails in hand and the corrected CDA passes. Oracle Grammar #18. Only this exact template/output finding is approved."
   }
  ]
 }
