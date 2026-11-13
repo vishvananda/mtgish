@@ -1427,7 +1427,7 @@ impl Context {
             return match &self.created_tokens {
                 Some(result) => Ok(ObjectSet::Created(result.clone())),
                 None => self
-                    .made_here()
+                    .tokens_made_here()
                     .map(ObjectSet::battlefield)
                     .map_err(|_| invalid("tokens-created reference has no creation in this scope")),
             };
@@ -1477,6 +1477,14 @@ impl Context {
             ));
         }
         Ok(ObjectFilter::MadeBy(ObjectRef::Source))
+    }
+
+    /// A token reference never includes nontokens put onto the battlefield by
+    /// the source. MadeBy remains broader for actual put-onto-battlefield text.
+    /// The separate CR 607 linked-ability identity still needs an IR contract;
+    /// this intersection fixes only the missing token restriction.
+    fn tokens_made_here(&self) -> Result<ObjectFilter> {
+        Ok(ObjectFilter::AllOf(vec![ObjectFilter::Token, self.made_here()?]))
     }
 
     /// A trigger reading its creator's scope, firing at a turn point.
@@ -1702,7 +1710,7 @@ impl Context {
                 return Ok(ObjectFilter::MadeBy(self.object(permanent)?));
             }
             source::Permanents::TheCreatedTokens if self.created_tokens.is_none() => {
-                return self.made_here();
+                return self.tokens_made_here();
             }
             source::Permanents::IsNotACommander => {
                 let commander = self.filter_inner(&source::Permanents::IsACommander)?;

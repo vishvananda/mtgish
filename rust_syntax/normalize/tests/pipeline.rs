@@ -3201,8 +3201,15 @@ fn an_inner_target_is_not_the_outer_one() {
 fn what_a_card_made_is_read_from_its_other_abilities() {
     let text = ability_json("TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([Exile([EachPermanent(TheCreatedTokens)], [])]))");
     assert!(text.contains("MadeBy"), "{text}");
+    assert!(text.contains(r#""kind":"Token""#), "{text}");
+    // The filter path used by Tetravus's optional cost must agree with the set
+    // path above. Neither may admit nontokens entered by a granted ability.
+    let text = ability_json("TriggerA(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)), ActionList([MayCost(Exile([AnyNumberOfPermanents(TheCreatedTokens)], []))]))");
+    assert!(text.contains("MadeBy"), "{text}");
+    assert!(text.contains(r#""kind":"Token""#), "{text}");
     let text = ability_json("TriggerA(WhenAPermanentDies(PutOntoBattlefieldByPermanent(ThisPermanent)), ActionList([PutPermanentIntoItsOwnersHand(ThisPermanent)]))");
     assert!(text.contains("MadeBy"), "{text}");
+    assert!(!text.contains(r#""kind":"Token""#), "{text}");
     let text = ability_json("TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([Exile([Permanent(ThePermanentPutOnTheBattlefieldThisWay)], [])]))");
     assert!(text.contains("MadeHere"), "{text}");
 }

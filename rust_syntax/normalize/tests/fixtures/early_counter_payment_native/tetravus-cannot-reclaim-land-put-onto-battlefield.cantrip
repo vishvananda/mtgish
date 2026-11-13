@@ -1,0 +1,38 @@
+# A land put onto the battlefield by an ability granted to Tetravus is not a token created with it (CR 111.1).
+[Bot1 Deck]
+Tetravus
+Black Lotus x4
+Starfleet Communicator
+Island x20
+[Bot2 Deck]
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Hand.Tetravus.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Hand.Starfleet Communicator.Cast
+? Bot1.Mana =
+[T3 Bot1.Upkeep]
+Bot1.PayCost(X: 1)
+[T3 Bot1.Main1]
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Battlefield.Starfleet Communicator#1.Activate(Bot1.Battlefield.Tetravus; Ability: Equip)
+Bot1.Battlefield.Starfleet Communicator#2.Activate(Bot1.Battlefield.Tetravite Token; Ability: Equip)
+[T3 Bot1.Attackers]
+Bot1.Attack(Tetravus)
+Bot1.Choose(Island)
+[T5 Bot1.Upkeep]
+! Bot1.Choose(Island)
+Bot1.Choose(Tetravite Token)
+Bot1.Decline
+[T5 Bot1.Main1]
+[Expect]
+Bot1.Battlefield.Island.Tapped = false
+Bot1.Battlefield.Tetravus.Counters.PlusOnePlusOne = 3
