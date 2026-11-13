@@ -2813,5 +2813,7 @@
         }
       ]
     }
-  ]
+  ],
+  "implementation_commit": "54abf45e9992e52a49f7569f1d038b393a0fa9b1",
+  "upstream_comment": "https://github.com/i5jb/mtgish/issues/275#issuecomment-6841131391"
 }

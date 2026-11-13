@@ -138,6 +138,9 @@ RUST_MIN_STACK=16777216 CARGO_BUILD_JOBS=8 cargo test \
 
 This batch changes Rust producer/generator behavior, not English grammar or
 Source. No new English parser defect is inferred from the excluded-card probe.
-The canonicalization policy and receipt correction belong in the existing
-upstream consistency discussion (#275). Foundation work and card workers stay
+The canonicalization policy, receipt correction, generator fix, and export-scope
+clarification are reported in the existing
+[upstream consistency discussion](https://github.com/i5jb/mtgish/issues/275#issuecomment-6841131391).
+Implementation **54abf45e9992e52a49f7569f1d038b393a0fa9b1** is pushed to `fork/main`.
+Foundation work and card workers stay
 paused; this batch does not pull upstream updates or publish the Blockly site.
