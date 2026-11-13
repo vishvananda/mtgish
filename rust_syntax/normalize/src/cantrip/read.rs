@@ -865,6 +865,23 @@ impl Compiler {
                 "t_{}.iter().filter_map(|t| t.object()).collect::<Vec<ObjectId>>()",
                 self.slot(slot)?
             ),
+            // A union of explicitly named targets acts only on targets still legal
+            // at resolution. Identity reads elsewhere intentionally use raw targets.
+            crate::battlefield_query!(ObjectFilter::AnyOf(names))
+                if self.reader == Reader::Resolution && self.stack_item
+                    && self.choosing.is_none() && !self.costing_targets
+                    && !names.is_empty()
+                    && names.iter().all(|name| matches!(name, ObjectFilter::SameObject(ObjectRef::Target { .. }))) =>
+            {
+                let mut code = String::from("{ let mut all: Vec<ObjectId> = Vec::new(); ");
+                for name in names {
+                    let ObjectFilter::SameObject(object) = name else { unreachable!() };
+                    let target = self.objects(&ObjectSet::One(object.clone()))?;
+                    write!(code, "for object in {target} {{ if q.state().battlefield().contains(&object) && !all.contains(&object) {{ all.push(object); }} }} ").unwrap();
+                }
+                code.push_str("all }");
+                code
+            }
             crate::battlefield_query!(filter) => {
                 // The same hygiene as a general zone query: an outer candidate
                 // remains available to ownership/player reads inside this filter.
