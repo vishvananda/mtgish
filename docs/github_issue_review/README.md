@@ -150,7 +150,7 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#117](https://github.com/i5jb/mtgish/issues/117): Uldaros Theorix's limit is per spell, not a total.
 - [#118](https://github.com/i5jb/mtgish/issues/118): Zevlor's copies keep the original target's kind.
 - [#119](https://github.com/i5jb/mtgish/issues/119): Baldur's Gate Wilderness's Reithwin Tollhouse rolls one die.
-- [#120](https://github.com/i5jb/mtgish/issues/120): Spikeshell Harrier's speed can drop below 1.
+- [#120](https://github.com/i5jb/mtgish/issues/120): withdrawn after clarification: speed reduction intrinsically floors at 1; the local explicit-floor IR is compatible. See [contract review](../rejected-upstream-contracts-20261113.md).
 - [#121](https://github.com/i5jb/mtgish/issues/121): Galea, Kindler of Hope needs Aura or Equipment.
 - [#122](https://github.com/i5jb/mtgish/issues/122): Alaundo the Seer casts the card with the ability.
 - [#123](https://github.com/i5jb/mtgish/issues/123): Deification keeps "you control". Its cancelled damage stays open.

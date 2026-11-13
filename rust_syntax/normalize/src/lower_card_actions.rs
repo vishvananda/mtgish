@@ -23,7 +23,38 @@ impl Context {
                 else {
                     return Ok(None);
                 };
-                let creatures = self.objects(creatures)?;
+                // This Source form's predicates describe the creature when it
+                // dealt combat damage, not the current battlefield (#125).
+                let source::Permanents::And(filters) = creatures.as_ref() else {
+                    return Err(unsupported(creatures.as_ref()));
+                };
+                let mut participants = Vec::new();
+                let mut recipients = None;
+                for filter in filters {
+                    if let source::Permanents::DealtCombatDamageToAPlayerThisTurn(players) = filter {
+                        if recipients.replace(self.players(players)?).is_some() {
+                            return Err(invalid(
+                                "combat participants have more than one damage-history predicate",
+                            ));
+                        }
+                    } else {
+                        participants.push(filter.clone());
+                    }
+                }
+                let recipients = recipients.ok_or_else(|| {
+                    invalid("combat participants require a damage-history predicate")
+                })?;
+                let creatures = ObjectSet::Union(vec![ObjectSet::FromHistory {
+                    event: Box::new(EventSpec::Damage(DamageEvent {
+                        source_kind: ObjectKind::Permanent,
+                        sources: self.filter(&source::Permanents::And(participants))?,
+                        recipients: DamageRecipients::Players(recipients),
+                        kind: DamageKind::Combat,
+                        grouping: DamageGrouping::Source,
+                        subject: DamageSubject::Source,
+                    })),
+                    window: HistoryWindow::ThisTurn,
+                }]);
                 let actor = actor.clone();
                 self.for_each_object(creatures, |context| {
                     let binding = context
