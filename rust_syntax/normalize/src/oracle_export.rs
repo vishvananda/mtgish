@@ -3,7 +3,12 @@
 use crate::{canonical, corpus, ir, mtg_types::OracleCard, unified, validate};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{
+    collections::BTreeMap,
+    fs,
+    io::{BufRead, BufReader, Read},
+    path::Path,
+};
 
 type Key = (Vec<String>, String);
 
@@ -261,10 +266,34 @@ pub fn compare(sources: &[OracleCard], requests: &[Request]) -> corpus::Result<R
     Ok(finish(&index, sources.len(), requests))
 }
 
+/// JSON Lines keeps the shared per-document bound without bounding the corpus.
+fn read_requests(mut reader: impl BufRead) -> corpus::Result<Vec<Request>> {
+    const MAX_ROW_BYTES: usize = 2 * 1024 * 1024;
+    let mut requests = Vec::new();
+    loop {
+        let mut row = Vec::new();
+        let bytes = reader
+            .by_ref()
+            .take((MAX_ROW_BYTES + 1) as u64)
+            .read_until(b'\n', &mut row)?;
+        if bytes == 0 {
+            return Ok(requests);
+        }
+        if bytes > MAX_ROW_BYTES {
+            return Err("Oracle export request exceeds 2 MiB".into());
+        }
+        let row = std::str::from_utf8(&row)?.trim();
+        if !row.is_empty() {
+            requests.push(serde_json::from_value(crate::json_input::wrapped_value(
+                row,
+            )?)?);
+        }
+    }
+}
+
 /// The wrapper verifies bundle/source hashes and supplies a fresh parser output.
 pub fn run(source: &Path, requests: &Path, destination: &Path) -> corpus::Result<()> {
-    let requests: Vec<Request> =
-        serde_json::from_value(crate::json_input::value(&fs::read_to_string(requests)?)?)?;
+    let requests = read_requests(BufReader::new(fs::File::open(requests)?))?;
     let mut index: BTreeMap<Key, Vec<LoweredFace>> = BTreeMap::new();
     let mut records = 0;
     corpus::map_cards(
@@ -286,4 +315,36 @@ pub fn run(source: &Path, requests: &Path, destination: &Path) -> corpus::Result
         return Err("Oracle export comparison failed; inspect the comparison report".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod request_tests {
+    use super::*;
+
+    #[test]
+    fn a_large_corpus_uses_bounded_individual_documents() {
+        let row = format!(
+            "{}\n",
+            json!({"identity": {"provider_id": "fixture"},
+            "record_names": ["Fixture"], "name": "Fixture", "grammar_status": "refused",
+            "expected": null})
+        );
+        let count = 2 * 1024 * 1024 / row.len() + 1;
+        let input = row.repeat(count);
+        assert!(input.len() > 2 * 1024 * 1024);
+        assert_eq!(
+            read_requests(std::io::Cursor::new(input)).unwrap().len(),
+            count
+        );
+    }
+
+    #[test]
+    fn oversized_rows_and_malformed_tail_do_not_get_partial_success() {
+        let oversized = vec![b' '; 2 * 1024 * 1024 + 1];
+        let error = read_requests(std::io::Cursor::new(oversized))
+            .err()
+            .unwrap();
+        assert!(error.to_string().contains("exceeds 2 MiB"));
+        assert!(read_requests(std::io::Cursor::new(b"{}\nmalformed\n")).is_err());
+    }
 }

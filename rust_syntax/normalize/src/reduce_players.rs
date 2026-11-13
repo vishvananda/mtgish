@@ -26,10 +26,10 @@ fn did(player: &PlayerRef, event: PlayerHistory, window: ObjectWindow) -> Condit
         _ => None,
     };
     if let (PlayerHistory::CastSpell(spells), Some(window)) = (&event, history_window) {
-        return compared(Expr::EventHistory {
+        return at_least(Expr::EventHistory {
             event: Box::new(EventSpec::Spell {event:SpellEvent::Cast,players:PlayerSet::One(player.clone()),spells:(**spells).clone()}),
             window,measure:HistoryMeasure::Occurrences,
-        }, &Comparison::Greater, &Expr::Constant(0));
+        }, 1);
     }
     Condition::PlayerDid {
         player: player.clone(),

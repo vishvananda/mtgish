@@ -57,6 +57,14 @@ class ExportGateTests(unittest.TestCase):
                            {'kind':'oracle_ids','policy':'test','oracle_ids':['one','one']}):
             with self.assertRaises(ValueError): gate.selected_records(records,population)
 
+    def test_requests_are_independent_json_lines(self):
+        rows=[{'name':'A\nB','expected':{'nested':[1,2]}},{'name':'Other','expected':None}]
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'requests.jsonl';gate.write_requests(path,rows)
+            lines=path.read_text().splitlines()
+            self.assertEqual(len(lines),2)
+            self.assertEqual([json.loads(line) for line in lines],rows)
+
     def test_unsupported_source_layout_does_not_corrupt_preprocessed_json(self):
         values=[{'name':'Synthetic known', 'layout':'normal', 'type_line':'Instant',
                  'mana_cost':'{U}', 'oracle_text':'Draw a card.'},

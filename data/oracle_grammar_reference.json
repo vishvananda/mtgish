@@ -1,0 +1,57 @@
+{
+  "format_version": 1,
+  "release": {
+    "repository": "vishvananda/oracle-grammar",
+    "tag": "faces-oracle-20261112220158-s190-g0.1.0-r1",
+    "url": "https://github.com/vishvananda/oracle-grammar/releases/tag/faces-oracle-20261112220158-s190-g0.1.0-r1",
+    "manifest_url": "https://github.com/vishvananda/oracle-grammar/releases/download/faces-oracle-20261112220158-s190-g0.1.0-r1/manifest.json",
+    "manifest_sha256": "6c97e5d8767460b96c9074ce6d39056511825d9b76d963d055e0410951bf59ce",
+    "published_at": "2026-11-13T08:48:08Z"
+  },
+  "grammar": {
+    "commit": "0edb7f52a83b1fae15ddd369aad33a7a5c18a763",
+    "crate": "oracle-ir-grammar",
+    "inputs_sha256": "18b49b0c630343d0f541d7be5c4f714ebedf433b50cde1b443fcdc30d35ab2d6",
+    "version": "0.1.0"
+  },
+  "model": {
+    "packages": {
+      "oracle-ir": "0.1.0",
+      "oracle-ir-contract": "0.1.0",
+      "oracle-ir-grammar": "0.1.0"
+    },
+    "schema_version": 190
+  },
+  "source_oracle": {
+    "encoding": "jsonl-gzip",
+    "provider": "scryfall",
+    "sha256": "a44b7e9a00570d2c627188fcdf740921caa60c14b16d90fc4bc2302cf99a8ee7",
+    "snapshot_id": "20261112220158",
+    "url": "https://data.scryfall.io/oracle-cards/oracle-cards-20261112220158.jsonl.gz"
+  },
+  "population": {
+    "kind": "all",
+    "policy": "Complete original Scryfall Oracle bulk snapshot for release export; no rule authoring or held-out diagnostics.",
+    "sha256": "e3a0545f8b4377670692c96e33a397363ae35310f95859bb0a70a6cd04ef02cf"
+  },
+  "exporter": {
+    "commit": "3288e6d62e5219e14c2a747a048351af862b7bb7",
+    "revision": 1
+  },
+  "counts": {
+    "counts": {
+      "ambiguous": 984,
+      "limit": 0,
+      "refused": 16970,
+      "unique": 24725
+    },
+    "gates": {
+      "exact_wording": "not_run",
+      "print_reparse": "not_run",
+      "reference_agreement": "not_run",
+      "typed_validation": true,
+      "whole_input_native_parse": true
+    },
+    "input_faces": 42679
+  }
+}

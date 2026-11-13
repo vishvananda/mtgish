@@ -26,6 +26,12 @@ def write(path, value):
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2)+'\n')
 
 
+def write_requests(path, rows):
+    with Path(path).open('w', encoding='utf-8') as stream:
+        for row in rows:
+            stream.write(json.dumps(row, ensure_ascii=False, separators=(',', ':'))+'\n')
+
+
 def verify_bundle(directory, manifest_sha256):
     directory = Path(directory)
     if digest(directory/'manifest.json') != manifest_sha256:
@@ -231,11 +237,11 @@ def check(bundle, oracle, manifest_sha256, work):
     if not requests: raise ValueError('comparison population is empty')
     before = fingerprints()
     work.mkdir(parents=True, exist_ok=False)
-    write(work/'requests.json', requests)
+    write_requests(work/'requests.jsonl', requests)
     source, parser_status = parse_source(records, work, work.parent/'parser-cache')
     binary = build_ast(work)
     comparison = work/'comparison.json'
-    result = subprocess.run([str(binary), 'compare-oracle-export', str(source), str(work/'requests.json'), str(comparison)], cwd=ROOT)
+    result = subprocess.run([str(binary), 'compare-oracle-export', str(source), str(work/'requests.jsonl'), str(comparison)], cwd=ROOT)
     if not comparison.exists(): raise ValueError('AST comparison failed before producing a report')
     report = json.loads(comparison.read_text())
     if before != fingerprints(): raise ValueError('MTGish inputs changed during comparison')
