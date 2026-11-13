@@ -1488,6 +1488,13 @@ class FocusedBuilds(unittest.TestCase):
                 self.assertIn("c", path.read_text().splitlines())
                 self.assertNotIn("b", path.read_text().splitlines())
 
+    def test_focused_registry_keeps_implicit_undercity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); cards=root/lane.CARDS_DIR; cards.mkdir(parents=True)
+            (cards/'undercity.rs').write_text('pub static CARD: X;')
+            with mock.patch.object(lane,'CANTRIP',root):
+                self.assertIn('undercity',lane.files_played([]))
+
     def test_scratch_decks_do_not_expand_unrelated_scenarios(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -2657,6 +2657,9 @@ def files_played(names, extra_decks=()):
             stems |= {names_of(deck)[0] for deck in decks}
     folder = CANTRIP / CARDS_DIR
     stems = {stem for stem in stems if (folder / f"{stem}.rs").exists()} | shared_definitions()
+    # Initiative enters this dungeon through the rules engine, not a deck or Rust module reference.
+    if (folder / "undercity.rs").exists():
+        stems.add("undercity")
     todo = list(stems)
     while todo:
         for stem in focus_metadata(folder / f"{todo.pop()}.rs", rust_dependencies):
