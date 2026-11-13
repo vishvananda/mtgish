@@ -3979,6 +3979,10 @@ enum Role {
     Cost,
     CastCondition,
     ActivationCondition,
+    ActivationPlayers,
+    Banding,
+    HandSize,
+    UntapLimit,
     TriggerCondition,
     StateTriggerCondition,
     Replacement,
@@ -4020,6 +4024,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                     Some("granted_regeneration_ban") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::Static); }
                     }
+                    Some("with_others") if path.path.segments.iter().rev().nth(1).is_some_and(|s| s.ident == "banding") => {
+                        if let Some(callback) = call.args.first() { self.mark(callback, Role::Banding); }
+                    }
                     Some("state_triggered") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::StateTriggerCondition); }
                     }
@@ -4034,6 +4041,9 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
             visit::visit_expr_call(self, call);
         }
         fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if call.method == "activated_by" {
+                if let Some(callback) = call.args.first() { self.mark(callback, Role::ActivationPlayers); }
+            }
             if call.method == "condition" {
                 let role = match constructor(&call.receiver).as_deref() {
                     Some("triggered" | "chapter") => Some(Role::TriggerCondition),
@@ -4050,6 +4060,8 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                 match (kind.as_deref(), text_of(&field.member).as_str()) {
                     (Some("Lasting"), "holds") => self.mark(&field.expr, Role::Duration),
                     (Some("LastingRule"), "applies") => self.mark(&field.expr, Role::Lasting),
+                    (Some("HandSizeRule"), "applies") => self.mark(&field.expr, Role::HandSize),
+                    (Some("UntapLimit"), "applies" | "permanents") => self.mark(&field.expr, Role::UntapLimit),
                     (_, "cast_only_if") => self.mark(&field.expr, Role::CastCondition),
                     (_, "enchant") => self.mark(&field.expr, Role::Target),
                     (_, "regeneration_bans") => self.mark(&field.expr, Role::Static),
@@ -4285,6 +4297,10 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Cost => "118.1",
         Role::CastCondition => "601.3",
         Role::ActivationCondition => "602.5",
+        Role::ActivationPlayers => "602.2",
+        Role::Banding => "702.22b",
+        Role::HandSize => "402.2",
+        Role::UntapLimit => "502.3",
         Role::TriggerCondition => "603.4",
         Role::StateTriggerCondition => "603.8",
         Role::Replacement => "614.1a",
