@@ -763,6 +763,10 @@ class Usage(unittest.TestCase):
         with mock.patch.object(lane,'card_text',return_value='A test'):
             for expression, allowed in [('n.clamp(-32768, 32767) as i16',True),
                                          ('n.clamp(0, 65535) as u16',True),
+                                         ('n.clamp(0, i64::from(u32::MAX)) as u32',True),
+                                         ('n.clamp(0, i64::from(u32::MAX)) as i32',False),
+                                         ('n.clamp(0, i64::from(u32::MAX))',False),
+                                         ('n.clamp(0, 20) as u32',False),
                                          ('n.clamp(0, 20) as u16',False),
                                          ('n.clamp(-32768, 32767) as u16',False),
                                          ('n.clamp(-32768, 32767)',False)]:

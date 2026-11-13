@@ -1010,6 +1010,10 @@ def style_problems(name, source):
     for kind, low, high in [('i16', '-32768', '32767'), ('u16', '0', '65535')]:
         bounded_source = re.sub(r'\.clamp\(\s*'+low+r'\s*,\s*'+high+r'\s*\)\s+as\s+'+kind+r'\b',
                                 ' as '+kind, bounded_source)
+    # The production X interface is u32; preserve its full range at the
+    # i64-expression boundary, just as for the older fixed-width interfaces.
+    bounded_source = re.sub(r'\.clamp\(\s*0\s*,\s*i64::from\(u32::MAX\)\s*\)\s+as\s+u32\b',
+                            ' as u32', bounded_source)
     for text, line in called_texts(source):
         if not printed(text):
             problems.append(f"line {line}: ability text {text!r} is not the card's printed text")
