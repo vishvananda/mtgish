@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Deep Spawn",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Deep Spawn",
+        "manaCost": "{5}{U}{U}{U}",
+        "type": "Creature — Homarid",
+        "text": "Trample\nAt the beginning of your upkeep, sacrifice this creature unless you mill two cards.\n{U}: This creature gains shroud until end of turn and doesn't untap during your next untap step. Tap this creature. (A creature with shroud can't be the target of spells or abilities.)",
+        "power": "6",
+        "toughness": "6"
+      }
+    ]
+  },
+  {
+    "name": "Dream Coat",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dream Coat",
+        "manaCost": "{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\n{0}: Enchanted creature becomes the color or colors of your choice. Activate only once each turn."
+      }
+    ]
+  }
+]

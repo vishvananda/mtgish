@@ -185,13 +185,27 @@ impl Compiler {
         if self.chosen_words(id, actor, kind, count, out)? {
             return Ok(());
         }
-        // "The color or colors of your choice": every color asked for, a repeat
-        // being no color more, is any of them or all (106.1b's question).
+        // The color request takes an exact count; a labelled choice supports
+        // the nonempty subset in one interaction without changing color words.
         if let (ValueKind::Color, 0, PlayerSet::One(player)) = (kind, count, actor) {
             if !self.chosen.iter().any(|(k, _)| *k == kind) {
+                if !self.line_text().is_some_and(|text| text.to_ascii_lowercase().contains("color or colors")) {
+                    return Err(gap("choice of an unspecified number of colors"));
+                }
                 let player = self.fetch(self.certain_player(player)?);
                 let local = format!("colors_{id}");
-                writeln!(out, "let player_{id} = {player}; let Answer::Colors(picked_{id}) = g.ask(player_{id}, RequestKind::ChooseColors {{ source: asker.source, choices: ColorSet(0b11111), count: 5, purpose: ColorUse::Any }})? else {{ unreachable!(\"the core answers a color choice with colors\") }}; let {local} = picked_{id}.into_iter().fold(ColorSet::NONE, |set, color| set.with(color));").unwrap();
+                if self.entering_labels.is_some() && self.choice_labels.is_empty() {
+                    return Err(gap("a color-set choice beside other labels"));
+                }
+                let labels: Vec<String> = ["White", "Blue", "Black", "Red", "Green"].into_iter().map(str::to_string).collect();
+                let base = (0..=self.choice_labels.len().saturating_sub(labels.len()))
+                    .find(|&at| self.choice_labels[at..].starts_with(&labels))
+                    .unwrap_or_else(|| { let at = self.choice_labels.len(); self.choice_labels.extend(labels); at });
+                if base + 5 > 256 { return Err(gap("too many labels for a color-set choice")); }
+                self.option_labels = true;
+                self.entering_labels = Some(format!("&[{}]", self.choice_labels.iter().map(|label| quoted(label)).collect::<Vec<_>>().join(", ")));
+                let card = if self.stack_item { "item.ability.card" } else { "g.card_id(&CARD)" };
+                writeln!(out, "let player_{id} = {player}; let card_{id} = {card}; let Answer::Modes(picked_{id}) = g.ask(player_{id}, RequestKind::ChooseModes {{ source: asker.source, modes: (0..5u8).map(|n| Label::Card(card_{id}, n + {base})).collect(), eligible: (0..5u8).collect(), count: 1, at_most: 5, affordable: Vec::new(), additional_cost: false, repeat: false }})? else {{ unreachable!(\"the core answers a color-set choice with modes\") }}; let {local} = picked_{id}.into_iter().fold(ColorSet::NONE, |set, index| set.with(Color::ALL[usize::from(index)]));").unwrap();
                 self.chosen.push((kind, local));
                 return Ok(());
             }

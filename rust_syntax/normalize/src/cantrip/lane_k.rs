@@ -1610,6 +1610,9 @@ impl Compiler {
             [CostPart::Draw {
                 count: Expr::Constant(n),
             }] => format!("!{} && ", planned::cant_draw(&format!("payer_{id}"), n)),
+            [CostPart::Mill { count: Expr::Constant(n) }] => {
+                format!("g.state().zone(Zone::library(payer_{id})).len() >= {} && ", n.max(&0))
+            }
             [CostPart::Energy(Expr::Constant(n))] => {
                 format!("g.state().player(payer_{id}).energy() >= {n} && ")
             }

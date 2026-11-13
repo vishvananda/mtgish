@@ -3108,6 +3108,9 @@ impl Compiler {
                         || lane_n::moves_named_objects(cost))
                         && self.read_later(result))) =>
             {
+                if matches!(cost.parts.as_slice(), [CostPart::Mill { count }] if !matches!(count, Expr::Constant(_))) {
+                    return Err(gap("dynamic mill payment needs a payability check"));
+                }
                 let mandatory = Operation::PayCost {
                     player: player.clone(),
                     cost: cost.clone(),

@@ -16,7 +16,7 @@ const CARDS: &[(&str, &str)] = &[
     // Setting land types also removes their old printed abilities (CR 305.7).
     ("Tundra Kavu", "EffectKind::SetLandType(chosen_"),
     // Repeats of a color are no color more: any set of them, or all.
-    ("Dream Coat", "RequestKind::ChooseColors"),
+    ("Dream Coat", "RequestKind::ChooseModes"),
     ("Dream Coat", "EffectKind::SetColors(colors_"),
     // The defending player is who it would be of each attack.
     ("Orgg", "defending_player_of(q.state(), at)"),
