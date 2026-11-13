@@ -206,6 +206,22 @@ impl Context {
                     let instruction = lower(self, &players);
                     self.iterated = outer;
                     instruction?
+                } else if (matches!(
+                    body.as_ref(),
+                    R::Effect(crate::pipeline::ExpandedRecipe::PlayerAmount {
+                        operation: crate::pipeline::PlayerOperation::Draw,
+                        amount: crate::pipeline::Quantity::Source(source::GameNumber::NumCardsShuffledIntoLibraryThisWay),
+                    })
+                ) || matches!(
+                    body.as_ref(),
+                    R::Source(ProgramSource::Action(source::Action::DrawNumberCards(number)))
+                        if matches!(number.as_ref(), source::GameNumber::NumCardsShuffledIntoLibraryThisWay)
+                )) && self.done(Done::Library).is_ok_and(|result| self.looped.contains(&result.0)) {
+                    // The preceding shuffle has one receipt per player. Bind
+                    // that player before reading the amount, instead of using
+                    // one global amount for the whole drawing batch.
+                    self.offered = Some(players.clone());
+                    self.for_each_player(players, lower)?
                 } else {
                     self.offered = Some(players.clone());
                     let before = self.clone();

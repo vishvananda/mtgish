@@ -186,7 +186,20 @@ impl Context {
                     Some(ObjectFilter::OwnedBy(owner)),
                 )
             }
-            S::NumCardsShuffledIntoLibraryThisWay | S::NumCardsPutIntoLibraryThisWay => {
+            S::NumCardsShuffledIntoLibraryThisWay => {
+                let result = self.done(Done::Library)?;
+                match &self.iterated {
+                    Some(player @ PlayerRef::Bound(_)) if self.looped.contains(&result.0) => {
+                        Ok(Expr::CountObjects(Box::new(ObjectSet::MovedBy {
+                            result,
+                            phase: Before,
+                            player: player.clone(),
+                        })))
+                    }
+                    _ => self.this_way_count(Done::Library, Before, None),
+                }
+            }
+            S::NumCardsPutIntoLibraryThisWay => {
                 self.this_way_count(Done::Library, Before, None)
             }
             S::TheNumberOfPermanentsReturnedToHandThisWay | S::NumCardsReturnedToHandThisWay => {
