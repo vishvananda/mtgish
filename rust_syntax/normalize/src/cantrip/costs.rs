@@ -650,7 +650,14 @@ impl Compiler {
         if life_total > 255 {
             return Err(gap("aggregate life cost exceeds u8"));
         }
-        let mut parts = vec![format!("Cost::mana({})", mana(&symbols)?)];
+        let price = if label == lane_g::PAID
+            && symbols.iter().any(|symbol| matches!(symbol, ManaSymbol::X))
+        {
+            self.resolving_mana(&symbols, &Expr::AnnouncedX)?
+        } else {
+            mana(&symbols)?
+        };
+        let mut parts = vec![format!("Cost::mana({price})")];
         if sacrifice_this {
             parts.push("SACRIFICE_THIS".into());
         }

@@ -1,0 +1,40 @@
+[
+  {
+    "name": "Condescend",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Condescend",
+        "manaCost": "{X}{U}",
+        "type": "Instant",
+        "text": "Counter target spell unless its controller pays {X}. Scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)"
+      }
+    ]
+  },
+  {
+    "name": "Musician",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Musician",
+        "manaCost": "{2}{U}",
+        "type": "Creature — Human Wizard",
+        "text": "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\n{T}: Put a music counter on target creature. If it doesn't have \"At the beginning of your upkeep, destroy this creature unless you pay {1} for each music counter on it,\" it gains that ability.",
+        "power": "1",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Power Sink",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Power Sink",
+        "manaCost": "{X}{U}",
+        "type": "Instant",
+        "text": "Counter target spell unless its controller pays {X}. If that player doesn't, they tap all lands with mana abilities they control and lose all unspent mana."
+      }
+    ]
+  }
+]

@@ -1,0 +1,33 @@
+# With X = 2, one available mana cannot pay the required two (CR 107.3a, 118.12).
+[Bot1 Deck]
+Black Lotus
+Mox Sapphire
+Power Sink
+Lightning Bolt
+Mountain
+Island x20
+[Bot2 Deck]
+Forest
+Island x20
+[Actions]
+Bot1.Hand.Mountain.Play
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Sapphire.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Forest.Play
+[T3 Bot1.Main1]
+Bot1.Battlefield.Mountain.Activate
+Bot1.Hand.Lightning Bolt.Cast(Bot2)
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Hand.Power Sink.Cast(Stack.Lightning Bolt; X: 2)
+Bot1.Pass
+? Bot1.Mana =
+Bot1.Battlefield.Mox Sapphire.Activate
+! Bot1.PayCost
+Bot1.Decline
+[Expect]
+Bot1.Graveyard.Lightning Bolt.Colors = Red
+Bot1.Battlefield.Mountain.Tapped = true
+Bot2.Battlefield.Forest.Tapped = false
+Bot1.Mana =
+Bot2.Life = 20

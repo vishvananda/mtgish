@@ -1859,6 +1859,15 @@ impl Compiler {
             _ => return Err(gap(SHAPE)),
         })
     }
+    /// Resolve a printed X before offering a payment; it is not a fresh X announcement (CR 107.3).
+    pub(super) fn resolving_mana(&mut self, symbols: &[ManaSymbol], x: &Expr) -> Result<String> {
+        let owed = self.fetch(self.number(x)?.amount(u32::MAX.into(), "u32")?);
+        Ok(format!(
+            "{{ let base = {}; let owed: u32 = {owed}; ManaCost {{ generic: base.generic.saturating_add(owed.saturating_mul(u32::from(base.x))), x: 0, ..base }} }}",
+            mana(symbols)?
+        ))
+    }
+
     /// The parts of a cost `cost_part` does not read: the engine's field where
     /// it has one, and otherwise the field the cost will have.
     pub(super) fn cost_part_beyond(&mut self, part: &CostPart, label: &str) -> Result<String> {
@@ -2070,11 +2079,7 @@ impl Compiler {
                 mana: symbols,
                 x: Some(x),
             } if resolving => {
-                let owed = self.fetch(self.number(x)?.amount(u32::MAX.into(), "u32")?);
-                format!(
-                    "{{ let base = {}; let owed: u32 = {owed}; Cost::mana(ManaCost {{ generic: base.generic.saturating_add(owed.saturating_mul(u32::from(base.x))), x: 0, ..base }}) }}",
-                    mana(symbols)?
-                )
+                format!("Cost::mana({})", self.resolving_mana(symbols, x)?)
             }
             CostPart::Choice(_) if self.activation_cost.is_some() => {
                 return Err(gap(super::costs::ACTIVATED_COST_CHOICE));
@@ -2105,6 +2110,16 @@ impl Compiler {
                     parts: vec![(**part).clone()],
                 };
                 match (&**part, times) {
+                    (CostPart::Mana(symbols), _)
+                        if resolving
+                            && matches!(symbols.as_slice(), [ManaSymbol::Generic(1)])
+                            && planned::switched_on(quantity::BOUNDED_32) =>
+                    {
+                        // One generic mana repeated N times is exactly N generic mana; no product
+                        // can overflow the existing u32 field and no historical u8 cap applies.
+                        let n = self.fetch(self.number(times)?.amount(u32::MAX.into(), "u32")?);
+                        format!("Cost::mana(ManaCost {{ generic: {n}, ..ManaCost::ZERO }})")
+                    }
                     (CostPart::Mana(symbols), _) if resolving => {
                         let n = self.fetch(self.number(times)?.code);
                         format!(
