@@ -44,7 +44,7 @@ are separate from the generator validation above.
 
 ## Repairs discovered by the campaign
 
-The current generated rows use `7d312b98581d38f916a3233b60b177244c5a454a`, with the
+The current generated rows use `8390186911cea152032d1f15a8f8455fbbc5f1ad`, with the
 same native base and API fingerprint. The original full-package receipt above
 records the initial profile adoption. Subsequent targeted checks cover:
 
@@ -57,6 +57,27 @@ records the initial profile adoption. Subsequent targeted checks cover:
   plus an ordinary resolving-effect control.
 - Recognition of the existing full-range u32 conversion by the style gate.
   Arbitrary rule caps remain rejected; the 169 card-lane tests pass.
+- Call to Arms now requires a uniquely most common color, including its tie
+  branch, and Cleansing identifies the individual land when offering payment.
+  Native before/after witnesses prove both corrections.
+- Optional mill costs require the full payment to be possible. Deep Spawn's
+  one-card library refuses mill-two, while its two-card control can pay.
+- Choosing colors accepts a nonempty subset instead of requiring all five.
+  Dream Coat's single, multiple and all-color native controls pass; zero and
+  duplicate colors are refused. A Mind Bend control preserves the actual colors
+  in the choice rather than changing its labels with the card's text.
+- Draw-and-discard choices are restricted to the cards actually drawn and
+  still in hand. Krovikan Sorcerer's original witness fails before and passes
+  after; generator controls also cover Casting of Bones and Soldevi Sage.
+  Native draw history excludes replaced/prevented draws; a replacement-specific
+  runtime witness has not yet been run.
+
+The second rollout preserved the previous rows by generator revision, waited
+for all implementation processes to finish, and retried those five stopped
+cards. Existing reviews continue against their immutable candidates. Blood of
+the Martyr now reports the missing optional granted-replacement interface
+instead of silently generating a mandatory replacement; its scope decision is
+pending. No engine quantity types were widened.
 
 The lane also preserves incomplete author work for independent review through
 an explicitly unapproved WIP commit. The reviewer must finish the full gates,
