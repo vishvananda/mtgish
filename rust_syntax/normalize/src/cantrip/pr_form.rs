@@ -2745,6 +2745,51 @@ impl VisitMut for LifeLostTogether {
     }
 }
 
+/// Remove writes to a generated result collector when nothing ever reads it.
+/// Only side-effect-free clones of locals are eligible; an unknown call,
+/// alias, shadow, or macro reference leaves the collector intact.
+fn drop_unused_hoists(block: &mut Block) {
+    fn clone_of_local(expr: &Expr) -> bool {
+        matches!(expr, Expr::MethodCall(call) if call.method == "clone" && call.args.is_empty() && ident_of(&call.receiver).is_some())
+    }
+    struct Extends<'a> { name: &'a str, count: usize, safe: bool }
+    impl<'ast> Visit<'ast> for Extends<'_> {
+        fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+            if ident_of(&call.receiver).as_deref() == Some(self.name) && call.method == "extend" {
+                self.count += 1;
+                self.safe &= call.args.len() == 1 && call.args.first().is_some_and(clone_of_local);
+            }
+            visit::visit_expr_method_call(self, call);
+        }
+    }
+    struct Drop<'a>(&'a str);
+    impl VisitMut for Drop<'_> {
+        fn visit_block_mut(&mut self, block: &mut Block) {
+            block.stmts.retain(|stmt| !matches!(stmt, Stmt::Expr(Expr::MethodCall(call), Some(_))
+                if call.method == "extend" && ident_of(&call.receiver).as_deref() == Some(self.0)));
+            visit_mut::visit_block_mut(self, block);
+        }
+    }
+    let names: Vec<(usize, String)> = block.stmts.iter().enumerate().filter_map(|(i, stmt)| {
+        let Stmt::Local(local) = stmt else { return None };
+        let pat = match &local.pat { Pat::Type(typed) => &*typed.pat, other => other };
+        let Pat::Ident(ident) = pat else { return None };
+        let name = ident.ident.to_string();
+        (ident.mutability.is_some() && name.starts_with("hoisted_")
+            && local.init.as_ref().is_some_and(|init| text_of(&init.expr).starts_with("Vec :: new")))
+            .then_some((i, name))
+    }).collect();
+    for (at, name) in names.into_iter().rev() {
+        let later = &block.stmts[at + 1..];
+        let uses = uses_in_stmts(later, &name);
+        let mut writes = Extends { name: &name, count: 0, safe: true };
+        later.iter().for_each(|stmt| writes.visit_stmt(stmt));
+        if writes.count > 0 && writes.safe && !uses.rebound && uses.in_macros == 0 && uses.reads == writes.count {
+            Drop(&name).visit_block_mut(block);
+        }
+    }
+}
+
 fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
     let item_asker = function
         .block
@@ -2756,6 +2801,7 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
         reads_data,
     };
     for _ in 0..12 {
+        drop_unused_hoists(&mut function.block);
         tidy.visit_item_fn_mut(function);
         let mut blocks = Blocks {
             changed: false,

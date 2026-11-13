@@ -559,7 +559,7 @@ impl Compiler {
                 if matches!(**host, ObjectRef::Source)
                     && self.reader == Reader::Resolution && self.stack_item =>
             {
-                format!("{}.and_then(|o: ObjectId| q.attached_to(o).or_else(|| {{ let source = q.obj(o); if source.became.is_some() || !source.zone.is(ZoneKind::Battlefield) {{ source.attached_to.filter(|&host| cantrip_api::is_live(q, host) && q.obj(host).zone.is(ZoneKind::Battlefield)) }} else {{ None }} }}))", self.object(host)?)
+                format!("{}.and_then(|o: ObjectId| q.attached_to(o).or_else(|| q.obj(o).attached_to.filter(|&host| cantrip_api::is_live(q, host) && q.obj(host).zone.is(ZoneKind::Battlefield))))", self.object(host)?)
             }
             ObjectRef::AttachedTo(host) => format!(
                 "{}.and_then(|o: ObjectId| {})",

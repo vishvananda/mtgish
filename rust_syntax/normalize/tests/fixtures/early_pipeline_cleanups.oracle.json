@@ -1,0 +1,40 @@
+[
+  {
+    "name": "Dream Coat",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Dream Coat",
+        "manaCost": "{U}",
+        "type": "Enchantment — Aura",
+        "text": "Enchant creature\n{0}: Enchanted creature becomes the color or colors of your choice. Activate only once each turn."
+      }
+    ]
+  },
+  {
+    "name": "Nameless Race",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Nameless Race",
+        "manaCost": "{3}{B}",
+        "type": "Creature",
+        "text": "Trample\nAs this creature enters, pay any amount of life. The amount you pay can't be more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards.\nNameless Race's power and toughness are each equal to the life paid as it entered.",
+        "power": "*",
+        "toughness": "*"
+      }
+    ]
+  },
+  {
+    "name": "Power Sink",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Power Sink",
+        "manaCost": "{X}{U}",
+        "type": "Instant",
+        "text": "Counter target spell unless its controller pays {X}. If that player doesn't, they tap all lands with mana abilities they control and lose all unspent mana."
+      }
+    ]
+  }
+]

@@ -11,7 +11,7 @@ fn numeric_result_conversion_and_mandatory_wish_are_preserved() {
     let race=rows["Nameless Race"]["faces"][0]["rust"].as_str().unwrap();
     let rendered=render(race, "Nameless Race", "As this creature enters, pay any amount of life.", Characteristics::Oracle).unwrap();
     std::fs::write(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("nameless-rendered.rs"), &rendered).unwrap();
-    assert!(rendered.contains(".try_into()") && rendered.contains(".expect(\"payable life fits the native life total\")") && !rendered.contains("let Some(named_"), "{rendered}");
+    assert!(rendered.contains("life: selected_0") && !rendered.contains(".expect("), "{rendered}");
     let ring=rows["Ring of Ma'rûf"]["faces"][0]["rust"].as_str().unwrap();
     let ring_rendered=render(ring, "Ring of Ma'rûf", "The next time you would draw a card this turn, instead put a card you own from outside the game into your hand.", Characteristics::Oracle).unwrap();
     std::fs::write(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("ring-rendered.rs"), &ring_rendered).unwrap();
@@ -29,4 +29,20 @@ fn numeric_result_conversion_and_mandatory_wish_are_preserved() {
     assert!(docs("if_would_draw_card_reveal_then_steps").contains("614.1a") && !docs("if_would_draw_card_reveal_then_steps").contains("608.2"));
     assert!(docs("if_would_draw_card_reveal").contains("608.2"));
     for name in ["Death Wish","North Wind Avatar"] {let rust=rows[name]["faces"][0]["rust"].as_str().unwrap();assert!(rust.contains("Count::UpTo"),"{name}: {rust}");}
+}
+
+#[test]
+fn formatter_does_not_treat_a_checked_conversion_as_an_option() {
+    let raw = r#"
+use cantrip_api::*;
+fn ability(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    let amount: u32 = 1;
+    let converted: i32 = amount.try_into().expect("bounded amount");
+    g.gain_life(item.controller, converted);
+    Ok(())
+}
+pub static CARD: CardDef = CardDef { spell: spell(&[], ability), ..CardDef::BLANK };
+"#;
+    let rendered=render(raw, "Conversion Probe", "You gain 1 life.", Characteristics::Oracle).unwrap();
+    assert!(rendered.contains("try_into()") && !rendered.contains("let Some(named_"), "{rendered}");
 }

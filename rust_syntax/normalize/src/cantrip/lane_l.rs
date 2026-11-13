@@ -2633,7 +2633,7 @@ impl Compiler {
                 self.helpers.insert("pay_question");
                 let payer = self.fetch(self.certain_player(player)?);
                 let most = self.fetch(self.number(at_most)?.amount(u32::MAX.into(), "u32")?);
-                writeln!(out, "let payer_{id} = {payer}; let most_{id}: u32 = ({most}).min(if g.can_lose_life(payer_{id}) {{ g.state().player(payer_{id}).life.max(0) as u32 }} else {{ 0 }}); let selected_{id} = cantrip_mechanics::choose::number(g, payer_{id}, entering.object, 0, most_{id}, \"Pay life\")?; let paid_{id} = selected_{id} == 0 || g.may_pay(payer_{id}, entering.object, entering.object, Cost {{ life: selected_{id}.try_into().expect(\"payable life fits the native life total\"), ..Cost::NONE }}, &PAY_QUESTION)?; let bound_{id}: i64 = if paid_{id} {{ i64::from(selected_{id}) }} else {{ 0 }}; let done_{id}: i64 = bound_{id}; entering.chosen_number = Some(bound_{id} as u32);").unwrap();
+                writeln!(out, "let payer_{id} = {payer}; let most_{id}: u32 = ({most}).min(if g.can_lose_life(payer_{id}) {{ g.state().player(payer_{id}).life.max(0) as u32 }} else {{ 0 }}); let selected_{id} = cantrip_mechanics::choose::number(g, payer_{id}, entering.object, 0, most_{id}, \"Pay life\")?; let paid_{id} = selected_{id} == 0 || g.may_pay(payer_{id}, entering.object, entering.object, Cost {{ life: selected_{id}, ..Cost::NONE }}, &PAY_QUESTION)?; let bound_{id}: i64 = if paid_{id} {{ i64::from(selected_{id}) }} else {{ 0 }}; let done_{id}: i64 = bound_{id}; entering.chosen_number = Some(bound_{id} as u32);").unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.values.insert(result.0, format!("bound_{id}"));
             }

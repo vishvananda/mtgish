@@ -205,7 +205,7 @@ impl Compiler {
                 self.option_labels = true;
                 self.entering_labels = Some(format!("&[{}]", self.choice_labels.iter().map(|label| quoted(label)).collect::<Vec<_>>().join(", ")));
                 let card = if self.stack_item { "item.ability.card" } else { "g.card_id(&CARD)" };
-                writeln!(out, "let player_{id} = {player}; let card_{id} = {card}; let Answer::Modes(picked_{id}) = g.ask(player_{id}, RequestKind::ChooseModes {{ source: asker.source, modes: (0..5u8).map(|n| Label::Card(card_{id}, n + {base})).collect(), eligible: (0..5u8).collect(), count: 1, at_most: 5, affordable: Vec::new(), additional_cost: false, repeat: false }})? else {{ unreachable!(\"the core answers a color-set choice with modes\") }}; let {local} = picked_{id}.into_iter().fold(ColorSet::NONE, |set, index| set.with(Color::ALL[usize::from(index)]));").unwrap();
+                writeln!(out, "let player_{id} = {player}; let card_{id} = {card}; let Answer::Modes(picked_{id}) = g.ask(player_{id}, RequestKind::ChooseModes {{ source: asker.source, modes: (0..5u8).map(|n| Label::Card(card_{id}, n + {base})).collect(), eligible: (0..5u8).collect(), count: 1, at_most: 5, affordable: Vec::new(), additional_cost: false, repeat: false }})? else {{ return Ok(()) }}; let {local} = picked_{id}.into_iter().fold(ColorSet::NONE, |set, index| set.with(Color::ALL[usize::from(index)]));").unwrap();
                 self.chosen.push((kind, local));
                 return Ok(());
             }
