@@ -8,7 +8,7 @@ members = ["normalize", "ir", "blockly-wasm"]
 resolver = "2"
 
 [dependencies]
-oracle-ir = { version = "=0.1.0", default-features = false, features = ["typescript"] }
+oracle-ir = { version = "=0.2.0", default-features = false, features = ["typescript"] }
 # Serialize/Deserialize, needed for RON
 serde = { version = "1.0.217", features = ["derive"] }
 

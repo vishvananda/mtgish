@@ -2464,12 +2464,17 @@ impl Compiler {
             ObjectWindow::ThisCombat if self.reader != Reader::Layer => {
                 "cantrip_mechanics::history::this_combat(q).iter()".into()
             }
-            ObjectWindow::LastTurnOf(player) => format!(
-                "{{ let of = {}; let turn = q.history().all().iter().rev().find(|r| Some(r.active) == of && r.turn < q.state().turn.number).map(|r| r.turn); q.history().all().iter().filter(move |r| Some(r.turn) == turn) }}",
-                self.player(player)?
-            ),
+            ObjectWindow::LastTurnOf(player) => self.last_turn_of(player)?,
             other => return self.object_window_p(other),
         })
+    }
+    /// A player's most recent completed turn, excluding the current one and
+    /// empty before they have had a turn. Shared by object and event history.
+    pub(super) fn last_turn_of(&self, player: &PlayerRef) -> Result<String> {
+        Ok(format!(
+            "{{ let of = {}; let turn = q.history().all().iter().rev().find(|r| Some(r.active) == of && r.turn < q.state().turn.number).map(|r| r.turn); q.history().all().iter().filter(move |r| Some(r.turn) == turn) }}",
+            self.player(player)?
+        ))
     }
     /// `Condition::PlayerDid`: the event it stands for, asked of the history.
     fn player_did(

@@ -144,8 +144,18 @@ fn player_check(form: &str, player: &PlayerRef, operands: &[Operand]) -> Option<
         ("DidntPlayACardFromExileThisTurn", [Filter(cards)]) => {
             negated(did(player, H::PlayedFromExile(set(cards)), W::ThisTurn))
         }
-        ("PutAPermanentOnBattleDuringTheirLastTurn", [Objects(objects)])
-        | ("HadAPermanentEnterTheBattlefieldUnderTheirControlLastTurn", [Objects(objects)]) => {
+        ("PutAPermanentOnBattleDuringTheirLastTurn", [Objects(objects)]) => {
+            at_least(Expr::EventHistory {
+                event: Box::new(EventSpec::Player {
+                    event: PlayerEvent::PutsOntoBattlefield,
+                    players: PlayerSet::One(player.clone()),
+                    objects: Some(filter_of(objects)?),
+                }),
+                window: HistoryWindow::LastTurnOf(player.clone()),
+                measure: HistoryMeasure::Occurrences,
+            }, 1)
+        }
+        ("HadAPermanentEnterTheBattlefieldUnderTheirControlLastTurn", [Objects(objects)]) => {
             did(player, H::PermanentEntered(Box::new(filter_of(objects)?)), last_turn())
         }
         ("HasActivatedAnAbilityOfAGraveyardCardThisTurn", [Players(_)]) => {

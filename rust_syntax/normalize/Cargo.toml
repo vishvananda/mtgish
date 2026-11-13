@@ -10,7 +10,7 @@ legacy = []
 cantrip = ["legacy", "dep:prettyplease"]
 
 [dependencies]
-oracle-ir-contract = { version = "=0.1.0", default-features = false }
+oracle-ir-contract = { version = "=0.2.0", default-features = false }
 rust_syntax = { path = ".." }
 mtgish-ir = { path = "../ir" }
 serde = { version = "1", features = ["derive"] }
@@ -23,8 +23,8 @@ proc-macro2 = "1"
 prettyplease = { version = "0.2", optional = true }
 
 [build-dependencies]
-oracle-ir-contract = { version = "=0.1.0", default-features = false }
-oracle-ir = { version = "=0.1.0", default-features = false }
+oracle-ir-contract = { version = "=0.2.0", default-features = false }
+oracle-ir = { version = "=0.2.0", default-features = false }
 quote = "1"
 proc-macro2 = "1"
 serde = { version = "1", features = ["derive"] }

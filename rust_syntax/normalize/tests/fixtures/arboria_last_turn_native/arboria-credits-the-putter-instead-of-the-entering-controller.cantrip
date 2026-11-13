@@ -1,0 +1,57 @@
+# Bot1 uses Flash to put Flickerwisp onto the battlefield during Bot2's inactive turn.
+# Its delayed ability returns Bot2's old Memnite that turn. Bot1 put it there,
+# so Arboria must still protect Bot2 next turn (CR110.2a,608.2c).
+[Bot1 Deck]
+Arboria
+Memnite
+Black Lotus x2
+Mox Sapphire
+Flash
+Flickerwisp
+Mox Pearl
+Island x20
+[Bot2 Deck]
+Memnite
+Island x20
+[Bot3 Deck]
+Island x24
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Green)
+Bot1.Battlefield.Black Lotus.Activate(Color: Green)
+Bot1.Hand.Arboria.Cast
+Bot1.Hand.Memnite.Cast
+Bot1.Hand.Mox Sapphire.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Memnite.Cast
+[T3 Bot3.Main1]
+Bot3.Hand.Island.Play
+[T4 Bot1.Main1]
+Bot1.Hand.Mox Pearl.Cast
+[T5 Bot2.Main1]
+Bot2.Pass
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Flash.Cast
+Bot1.Choose(Flickerwisp)
+Bot1.Decline
+Bot1.Target(Bot2.Battlefield.Memnite)
+[T6 Bot3.Main1]
+Bot3.Hand.Island.Play
+[T7 Bot1.Attackers]
+? Bot2.Battlefield.Memnite.Power = 1
+! Bot1.Attack(Memnite > Bot2)
+Bot1.Attack(Memnite > Bot3)
+[T7 Bot1.Main2]
+? Bot2.Life = 20
+? Bot3.Life = 19
+[T8 Bot2.Main1]
+Bot2.Hand.Island.Play
+[T10 Bot1.Attackers]
+Bot1.Attack(Memnite > Bot2)
+Bot2.Block()
+[T10 Bot1.Main2]
+[Expect]
+Bot2.Life = 19
+Bot3.Life = 19

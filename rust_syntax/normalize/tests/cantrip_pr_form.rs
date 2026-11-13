@@ -68,6 +68,26 @@ fn countering_a_spell_cites_the_counter_action() {
     assert!(!file.contains("701.5a"), "{file}");
 }
 
+#[test]
+fn a_resolved_blocking_rule_is_distinguished_from_a_static_blocking_rule() {
+    let raw = r#"
+use cantrip_api::*;
+fn block_rule(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {
+    source != attacker || !q.chars(blocker).has_subtype(Subtype::Wall)
+}
+pub static CARD: CardDef = CardDef {
+    lasting_block_rules: &[LastingBlockRule { text: "Can't be blocked by Walls", allows: block_rule }],
+    ..CardDef::BLANK
+};
+"#;
+    let rendered = render(raw, "Sample", "{T}: Target creature can't be blocked by Walls this turn.", Characteristics::Oracle).unwrap();
+    assert!(rendered.contains("CR 611.2c"), "{rendered}");
+    assert!(!rendered.contains("CR 604.1"), "{rendered}");
+    let raw = raw.replace("lasting_block_rules: &[LastingBlockRule { text: \"Can't be blocked by Walls\", allows: block_rule }]", "block_rules: &[block_rule]");
+    let rendered = render(&raw, "Sample", "This creature can't be blocked by Walls.", Characteristics::Oracle).unwrap();
+    assert!(rendered.contains("CR 604.1"), "{rendered}");
+}
+
 const ONE_TARGET: &str = r#"
 #[allow(unused_imports)] use cantrip_api::*;
 static ABILITY_0_TARGETS: &[cantrip_api::TargetSpec] = &[cantrip_mechanics::targets::CREATURE];

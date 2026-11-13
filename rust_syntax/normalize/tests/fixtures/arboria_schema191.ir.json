@@ -1,0 +1,162 @@
+{
+  "abilities": [
+    {
+      "args": {
+        "affected": {
+          "Objects": {
+            "args": {
+              "filter": {
+                "args": "Creature",
+                "kind": "CardType"
+              },
+              "kind": "Permanent",
+              "scope": {
+                "Shared": "Battlefield"
+              }
+            },
+            "kind": "Zone"
+          }
+        },
+        "changes": [
+          {
+            "args": {
+              "Prohibit": {
+                "Attack": {
+                  "Players": {
+                    "args": {
+                      "binding": 0,
+                      "condition": {
+                        "args": {
+                          "args": {
+                            "player": {
+                              "args": 0,
+                              "kind": "Bound"
+                            },
+                            "players": {
+                              "args": [
+                                {
+                                  "args": {
+                                    "binding": 1,
+                                    "condition": {
+                                      "args": {
+                                        "event": {
+                                          "CastSpell": {
+                                            "kind": "Any"
+                                          }
+                                        },
+                                        "player": {
+                                          "args": 1,
+                                          "kind": "Bound"
+                                        },
+                                        "window": {
+                                          "LastTurnOf": {
+                                            "args": 1,
+                                            "kind": "Bound"
+                                          }
+                                        }
+                                      },
+                                      "kind": "PlayerDid"
+                                    }
+                                  },
+                                  "kind": "Matching"
+                                },
+                                {
+                                  "args": {
+                                    "binding": 1,
+                                    "condition": {
+                                      "args": {
+                                        "left": {
+                                          "args": {
+                                            "event": {
+                                              "Player": {
+                                                "event": "PutsOntoBattlefield",
+                                                "objects": {
+                                                  "args": {
+                                                    "kind": "Token"
+                                                  },
+                                                  "kind": "Not"
+                                                },
+                                                "players": {
+                                                  "args": {
+                                                    "args": 1,
+                                                    "kind": "Bound"
+                                                  },
+                                                  "kind": "One"
+                                                }
+                                              }
+                                            },
+                                            "measure": "Occurrences",
+                                            "window": {
+                                              "LastTurnOf": {
+                                                "args": 1,
+                                                "kind": "Bound"
+                                              }
+                                            }
+                                          },
+                                          "kind": "EventHistory"
+                                        },
+                                        "test": {
+                                          "args": {
+                                            "comparison": "GreaterOrEqual",
+                                            "value": {
+                                              "args": 1,
+                                              "kind": "Constant"
+                                            }
+                                          },
+                                          "kind": "Compare"
+                                        }
+                                      },
+                                      "kind": "Compare"
+                                    }
+                                  },
+                                  "kind": "Matching"
+                                }
+                              ],
+                              "kind": "Union"
+                            }
+                          },
+                          "kind": "PlayerIn"
+                        },
+                        "kind": "Not"
+                      }
+                    },
+                    "kind": "Matching"
+                  }
+                }
+              }
+            },
+            "kind": "Rule"
+          }
+        ],
+        "kind": "Ordinary"
+      },
+      "kind": "Static"
+    }
+  ],
+  "characteristics": {
+    "card_types": [
+      "Enchantment"
+    ],
+    "color_indicator": [],
+    "defense": null,
+    "loyalty": null,
+    "mana_cost": [
+      {
+        "Generic": 2
+      },
+      {
+        "Color": "Green"
+      },
+      {
+        "Color": "Green"
+      }
+    ],
+    "power_toughness": null,
+    "subtypes": [],
+    "supertypes": [
+      "World"
+    ]
+  },
+  "name": "Arboria",
+  "schema_version": 191
+}

@@ -1,0 +1,1 @@
+Card(Name: "Arboria", Typeline: (Supertypes: [World], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostG, ManaCostG], Rules: [EachPermanentRuleEffect(IsCardtype(Creature), [CantAttackAPlayer(ExceptFor(Or([CastASpellDuringTheirLastTurn(AnySpell), PutAPermanentOnBattleDuringTheirLastTurn(IsNonToken)])))])])

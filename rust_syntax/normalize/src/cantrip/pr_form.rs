@@ -4123,6 +4123,7 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                 match (kind.as_deref(), text_of(&field.member).as_str()) {
                     (Some("Lasting"), "holds") => self.mark(&field.expr, Role::Duration),
                     (Some("LastingRule"), "applies") => self.mark(&field.expr, Role::Lasting),
+                    (Some("LastingBlockRule"), "allows") => self.mark(&field.expr, Role::Lasting),
                     (Some("HandSizeRule"), "applies") => self.mark(&field.expr, Role::HandSize),
                     (Some("UntapLimit"), "applies" | "permanents") => self.mark(&field.expr, Role::UntapLimit),
                     (Some("CardDef"), "x_rule") => self.mark(&field.expr, Role::CastAnnouncement),

@@ -2342,6 +2342,9 @@ impl Compiler {
     }
     /// A window of the history no read names.
     pub(super) fn history_window_to_come(&self, window: &HistoryWindow) -> Result<String> {
+        if let HistoryWindow::LastTurnOf(player) = window {
+            return self.last_turn_of(player);
+        }
         let feature = format!("history window {}", form(window));
         let HistoryWindow::SinceLastTurnOf(player) = window else {
             return Err(gap(feature.as_str()));

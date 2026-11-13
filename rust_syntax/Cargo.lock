@@ -402,9 +402,9 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "oracle-ir"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c61600c9bb4e8244dbd4d5a73ac5fe32a2aa1eb411636c33ce2f4de9e38db51"
+checksum = "4ae0762de9308614cefb952e56583e7830534def65116339e20c036f927b92e1"
 dependencies = [
  "bincode",
  "proc-macro2",
@@ -416,9 +416,9 @@ dependencies = [
 
 [[package]]
 name = "oracle-ir-contract"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42c2140527da439c6e9ec6a7eeaeee0e16bb54ea0e369faeafe7c03e448ed336"
+checksum = "315c6e01334e46e584e17b5e078ff99b6b53de8c426953ea309343b89f83e0e3"
 dependencies = [
  "bincode",
  "oracle-ir",
