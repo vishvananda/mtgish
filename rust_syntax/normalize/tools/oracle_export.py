@@ -163,8 +163,9 @@ def build_parser(cache):
 def parse_source(records, work, cache):
     original, prepared = work/'selected-oracle.json', work/'preprocessed.json'
     write(original, records)
-    with prepared.open('w') as output:
-        subprocess.run([sys.executable, str(ROOT/'preprocess_scryfall'), str(original)], stdout=output, check=True)
+    with prepared.open('w') as output, (work/'preprocessor-stderr.log').open('w') as stderr:
+        subprocess.run([sys.executable, str(ROOT/'preprocess_scryfall'), str(original)],
+                       stdout=output, stderr=stderr, check=True)
     subset = work/'subset.json'
     write(subset, [r['name'] for r in json.loads(prepared.read_text())])
     command = [str(build_parser(cache)), '--ignore-list-file', str(ROOT/'grammars/ignore.json5'),

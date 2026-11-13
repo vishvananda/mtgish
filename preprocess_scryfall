@@ -143,7 +143,7 @@ for scryfall_card in scryfall_cards:
     continue
 
   if layout in {"art_series", "emblem", "token", "double_faced_token", "flip_token", "front_card"}: continue
-  print(layout, scryfall_card["name"])
+  print(layout, scryfall_card["name"], file=sys.stderr)
 
 cards_by_name = {}
 for card in cards:

@@ -4,6 +4,8 @@ import gzip
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import sys
 import unittest
 
 import oracle_export as gate
@@ -54,6 +56,17 @@ class ExportGateTests(unittest.TestCase):
         for population in ({}, {'kind':'oracle_ids','policy':'test','oracle_ids':['missing']},
                            {'kind':'oracle_ids','policy':'test','oracle_ids':['one','one']}):
             with self.assertRaises(ValueError): gate.selected_records(records,population)
+
+    def test_unsupported_source_layout_does_not_corrupt_preprocessed_json(self):
+        values=[{'name':'Synthetic known', 'layout':'normal', 'type_line':'Instant',
+                 'mana_cost':'{U}', 'oracle_text':'Draw a card.'},
+                {'name':'Synthetic future layout', 'layout':'future_layout', 'type_line':'Instant'}]
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory)/'oracle.json'; gate.write(source,values)
+            result=subprocess.run([sys.executable,str(gate.ROOT/'preprocess_scryfall'),str(source)],
+                                  capture_output=True,text=True,check=True)
+        self.assertEqual([r['name'] for r in json.loads(result.stdout)],['Synthetic known'])
+        self.assertIn('future_layout Synthetic future layout',result.stderr)
 
     def test_original_gzip_json_lines_and_legacy_arrays(self):
         with tempfile.TemporaryDirectory() as directory:
