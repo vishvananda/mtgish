@@ -111,6 +111,21 @@ class ImplementationLaneTests(unittest.TestCase):
         self.assertEqual(impl.review.read(queue)['cards'][0]['commit'],'new')
         with self.assertRaises(ValueError):impl.retry_stopped(self.tmp_path,new['id'],'No duplicate')
 
+    def test_handed_off_work_cannot_be_retried_as_a_new_implementation(self):
+        queue=setup_root(self.tmp_path,[{'name':'A','status':'pending'}]);impl.sync(self.tmp_path)
+        with impl.connect(self.tmp_path) as db: old=impl.claim(db,'i1')
+        impl.finish(self.tmp_path,old,'needs_review',{'card':{'name':'A','failure':'incomplete'}})
+        with impl.review.connect(self.tmp_path) as db:
+            impl.review.enqueue(db,{'name':'A','commit':'provisional','implementation_job':old['id']})
+        before=queue.read_bytes()
+        for status in ('queued','running','blocked','passed'):
+            with impl.review.connect(self.tmp_path) as db: db.execute('UPDATE jobs SET status=?',(status,))
+            with self.assertRaisesRegex(ValueError,'review handoff'):
+                impl.retry_stopped(self.tmp_path,old['id'],'retry')
+            self.assertEqual(queue.read_bytes(),before)
+        with impl.connect(self.tmp_path) as db:
+            self.assertEqual(db.execute('SELECT status FROM implementation_jobs WHERE id=?',(old['id'],)).fetchone()[0],'needs_review')
+
     def test_one_card_can_advance_generator_revision_without_changing_an_active_lease(self):
         queue=setup_root(self.tmp_path,[{'name':'A','status':'pending'},{'name':'B','status':'pending'}])
         impl.sync(self.tmp_path)

@@ -103,6 +103,17 @@ class QueueTests(unittest.TestCase):
             self.assertEqual(flow['review']['cards'],1)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM jobs WHERE status='blocked'").fetchone()[0],1)
 
+    def test_approved_handoff_is_counted_once_in_flow(self):
+        with lane.connect(self.root) as db:
+            db.execute("CREATE TABLE implementation_jobs(name TEXT,revision TEXT,status TEXT,worker TEXT)")
+            db.execute("INSERT INTO implementation_jobs VALUES('A','old','needs_review','i1')")
+            db.execute("INSERT INTO jobs(id,name,source_commit,source,status,stage,enqueued,candidate) VALUES(?,?,?,?,?,?,?,?)",
+                       ('review-a','A','wip',json.dumps({'implementation_job':'impl-a'}),'passed','confirm','now','card-a'))
+            flow=lane.pipeline_flow(db,{})
+            self.assertEqual(flow['ready']['cards'],1)
+            self.assertEqual(flow['implementation']['cards'],0)
+            self.assertEqual(flow['blocked']['cards'],0)
+
     def test_lane_creates_state_directory_before_constructing_sandbox_roots(self):
         tree=self.root/'tree';tree.mkdir()
         state=self.root/'packet/state'

@@ -92,6 +92,14 @@ class ExportTests(unittest.TestCase):
             db.execute('INSERT INTO implementation_jobs VALUES(?,?,?)', ('impl-'+name, name, status))
             db.commit()
 
+    def test_reviewed_provisional_implementation_is_counted_once_and_exportable(self):
+        self.ready()
+        self.unfinished('Alpha', 'needs_review')
+        plan=lane.plan(self.root,self.head)
+        self.assertEqual(plan['blockers'], [])
+        self.assertEqual(sorted(c['name'] for c in plan['cards']), ['Alpha','Beta'])
+        self.assertEqual(sum(len(group) for group in plan['groups']),2)
+
     def test_explicit_backlog_deferral_preserves_work_and_binds_its_identity(self):
         self.ready()
         self.unfinished('Gamma')

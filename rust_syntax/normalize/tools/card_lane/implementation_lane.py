@@ -120,6 +120,8 @@ def retry_stopped(root, job_id, reason):
             row = db.execute('SELECT * FROM implementation_jobs WHERE id=?',(job_id,)).fetchone()
             if not row or row['status'] in ('committed','running','queued','unavailable'):
                 raise ValueError('only stopped unsuccessful implementations can be retried')
+            if db.execute("SELECT 1 FROM jobs WHERE status!='superseded' AND json_extract(source,'$.implementation_job')=? LIMIT 1", (job_id,)).fetchone():
+                raise ValueError('implementation has a review handoff; resolve or retry that review instead')
             queue=review.read(path)
             card=next(c for c in queue['cards'] if c['name']==row['name'])
             if card['status'] in ('pending','working','committed') or db.execute(
