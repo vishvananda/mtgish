@@ -120,3 +120,21 @@ fn equivalent_alternate_encodings_remain_visible_and_require_review() {
     assert_eq!(report.counts["canonical_only"], 1);
     assert_eq!(report.findings[0]["canonical_equal"], true);
 }
+
+#[test]
+fn presentation_is_not_a_meaning_mismatch_or_an_exact_agreement() {
+    let source: OracleCard = ron::from_str(r#"Card(Name:"Synthetic body",Typeline:(Supertypes:[],Cardtypes:[Creature],Subtypes:[]),CardPT:(Power:1,Toughness:1),Rules:[Flying])"#).unwrap();
+    let mut expected = serde_json::to_value(&unified::lower(&source).card.faces[0]).unwrap();
+    expected["abilities"][0] = json!({"kind":"WithPresentation","args":{
+        "label":"Example", "reminder":false,
+        "ability":{"kind":"Keyword","args":{"kind":"WithReminder","args":{
+            "keyword":{"kind":"Flying"},"reminder":true}}}}});
+    let report = compare(&[source], &[request("unique", Some(expected))]).unwrap();
+    assert_eq!(report.counts["presentation_only"], 1);
+    assert_eq!(report.findings[0]["semantic_equal"], true);
+    assert_eq!(report.findings[0]["exact_equal"], false);
+    assert!(
+        !report.passed,
+        "presentation loss cannot pass the exact gate"
+    );
+}

@@ -168,3 +168,9 @@ The first real published-data run is complete; see
 [face adoption and audit](oracle-face-adoption-20261113.md). Its strict structural
 comparison remains failed and is retained as triage evidence. The approved five
 history thresholds are adopted without rewriting the published expected values.
+
+Adoption uses the frozen 20261001.1 inputs. The first broader Scryfall audit was
+not a migration gate. Its 4,044 raw mismatches included 3,944 presentation-only
+cases because it omitted the published shared `semantic_abilities` projection.
+The tool now reports `semantic_equal` and `presentation_only` explicitly; strict
+raw equality remains separate and presentation loss never passes an exact gate.

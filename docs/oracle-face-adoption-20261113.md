@@ -24,7 +24,22 @@ Reap and Talara's Battalion as existing controls. Historical saved IR and old
 snapshot files are preserved. The two old Dream Thief expectations have explicit,
 input-checked test-only transitions after their earlier reviewed migration.
 
-## Published-data audit
+## Correct adoption baseline
+
+The AST ownership migration and model adoption are validated on the **same frozen
+MTGish inputs**, version 20261001.1. Both `data/oracle.json` and
+`data/mtgish.lines.ron` retain exactly the Oracle Grammar reference's hashes.
+The full fresh 33,529-record export changes only the five approved U0001 thresholds.
+This is the like-for-like adoption gate; it passes. No new Oracle snapshot was
+adopted into MTGish.
+
+## Extra snapshot audit (not an adoption gate)
+
+The following broader audit was an unnecessary scope expansion during release
+bootstrapping. It uses a newer raw Scryfall snapshot and compares more than the
+previous scorer did. Its raw counts must not be described as migration
+regressions or a new card-defect backlog.
+
 
 Fresh MTGish parsing and lowering used the release's original 39,288-record,
 42,679-face Scryfall snapshot, without overwriting MTGish's existing source data.
@@ -39,13 +54,29 @@ The strict comparison remains **failed**, with every outcome visible:
 | Native ambiguous | 984 |
 | Native refused | 16,970 |
 
+The initial comparison omitted the shared `canonical::semantic_abilities`
+projection used by the grammar's previous scorer. Applying that exact published
+API explains **3,944 of the 4,044** as presentation-only differences. Of the
+remaining 100, **52 differ only in color-indicator ordering**; their abilities
+already agree. The other 48 differ in raw-mode ability structure and need their
+own parser/exporter review. For example Sphinx's Insight is one spell program
+with two instructions in MTGish, but two labeled spell programs in the raw native
+export. The old scorer stripped presentation from input before parsing; the
+exporter retains it. Satya's known batch-receipt disagreement is still separate.
+
+Of the 100, 83 were in the previous allowed cohort: 82 previously scored equal
+and one was already different. This further shows that switching input mode and
+comparison contract created a misleading result. They are not 100 demonstrated
+new semantic defects. The comparison tool now labels presentation-only cases
+separately while retaining strict raw equality and its failing status.
+
 These are not 4,044 confirmed rules bugs. For example Storm Crow retains Flying
 inside the native `WithReminder` wrapper, while MTGish omits that presentation;
 Nissa, Worldsoul Speaker retains an ability-word `WithPresentation` wrapper.
 Unused result IDs and ordering account for many canonical-only differences.
 The raw expected values are not rewritten, no reading is selected from ambiguity,
 and neither missing records nor refusals count as agreement. The remaining
-structural differences need separate producer/presentation/input-policy triage.
+structural differences belong to this optional audit, not the frozen adoption gate.
 Three comparable U0001 faces now canonically agree; I Bask in Your Silent Awe and
 Spider-Man 2099 are native refusals, so their correctness is covered by the
 independent full-card/whole-corpus regressions, not a false exported agreement.

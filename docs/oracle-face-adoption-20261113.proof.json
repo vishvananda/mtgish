@@ -183,5 +183,23 @@
     "Full published comparison is intentionally failing, with raw/canonical differences, ambiguity, refusals and input-policy omissions retained.",
     "Counts are structural comparisons, not a count of confirmed semantic defects.",
     "Historical saved expectations remain unchanged; checked test-only before/after transitions cover the two older Dream Thief snapshots."
-  ]
+  ],
+  "adoption_gate": {
+    "scope": "same frozen MTGish source and Oracle data used before ownership transfer",
+    "passed": true,
+    "records": 33529,
+    "approved_threshold_changes": 5,
+    "all_other_records_byte_identical": 33524,
+    "new_oracle_snapshot_adopted": false
+  },
+  "extra_snapshot_audit_correction": {
+    "purpose": "optional broader raw export audit, not an adoption gate",
+    "original_structural_mismatches": 4044,
+    "presentation_only_using_published_semantic_api": 3944,
+    "color_indicator_order_only": 52,
+    "remaining_ability_structure_differences": 48,
+    "old_cohort_occurrences": 83,
+    "old_cohort_previously_equal": 82,
+    "old_cohort_already_different": 1
+  }
 }

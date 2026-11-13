@@ -205,18 +205,30 @@ fn compare_face(request: &Request, index: &BTreeMap<Key, Vec<LoweredFace>>) -> V
         validate::card(&b)?;
         let a = serde_json::to_value(a).map_err(|e| e.to_string())?;
         let b = serde_json::to_value(b).map_err(|e| e.to_string())?;
-        Ok((raw_local, raw_expected, a, b))
+        let semantic_equal = if a == b {
+            true
+        } else {
+            let mut a = a.clone();
+            let mut b = b.clone();
+            canonical::semantic_abilities(&mut a["abilities"])?;
+            canonical::semantic_abilities(&mut b["abilities"])?;
+            a == b
+        };
+        Ok((raw_local, raw_expected, a, b, semantic_equal))
     })();
-    let (raw_local, raw_expected, local, expected) = match result {
+    let (raw_local, raw_expected, local, expected, semantic_equal) = match result {
         Ok(values) => values,
         Err(why) => return fail(row, "canonicalization_error", why),
     };
     row["canonical_equal"] = json!(local == expected);
     row["exact_equal"] = json!(raw_local == raw_expected);
+    row["semantic_equal"] = json!(semantic_equal);
     let status = if raw_local == raw_expected {
         "equal"
     } else if local == expected {
         "canonical_only"
+    } else if semantic_equal {
+        "presentation_only"
     } else {
         "mismatch"
     };

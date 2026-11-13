@@ -53,5 +53,13 @@
       "whole_input_native_parse": true
     },
     "input_faces": 42679
+  },
+  "purpose": "Optional native-export audit; this bundle does not replace the frozen MTGish Oracle input.",
+  "active_mtgish_source": {
+    "version": "20261001.1",
+    "oracle_json_sha256": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
+    "source_ron_sha256": "6e59a5f782285a0eae2f2a5b2a0664223746324f03ab32f6472b3b243e64157b",
+    "adoption_records": 33529,
+    "approved_changed_records": 5
   }
 }
