@@ -23,8 +23,13 @@ and nested mana-ability interval tests remain part of validation. Three interlea
 29.34 KB per decision. Median engine-answer timing is 58.36 us before and 54.43 us
 after on this busy shared host; these measurements do not establish a speedup.
 
-Naked Singularity and Reality Twist already match and replace mana correctly.
-Their generated replacement arms previously reused the same complete sentence as
+Naked Singularity and Reality Twist have a further unresolved single-effect
+grouping error, reported after this batch as [Oracle Grammar #19](https://github.com/vishvananda/oracle-grammar/issues/19).
+The independent reviewer correctly rejected the sequential replacements: choosing
+an arm can yield the other arm's color. This batch fixes only the labels, and
+its unchanged-outcome controls do not prove the complete mana-replacement rule.
+Both cards remain blocked. Their generated replacement arms previously reused
+the same complete sentence as
 the choice label. A dual land therefore presented indistinguishable choices. The
 backend now identifies each arm's single basic land type and fixed mana color,
 and uses its verbatim printed clause (for example, `Plains produce {R}`). The
@@ -36,7 +41,9 @@ shared question said “creature” even when the actual selection required land
 The question now says “permanent”; its filter still determines the eligible
 sacrifices. This is presentation only.
 
-These corrections require no Source/IR/schema changes or reference reports.
+The control and upkeep-caption fixes require no Source/IR/schema changes. The
+compound-mana reference grouping needs the separate #19 investigation; distinct
+labels alone do not complete those two cards.
 The conclusions on rejected MTGish reports #120/#125 remain in
 [the contract review](rejected-upstream-contracts-20261113.md).
 
@@ -59,4 +66,9 @@ Tetravus remains separate: `may_pay_x` exposes a mana-X prompt for an arbitrary
 counter-removal cost. `may_pay_counted` does not announce the variable source
 counter count and is not a correct replacement. A fixed `remove_counters` cost
 holds only `u8`; converting an arbitrary available count into it would truncate.
-Resolve the payment interface with full bounds and cost timing before retrying.
+A native follow-up is being validated to give the existing X interface a shared
+source-counter bound and no counter-only mana window. Its full validation was
+interrupted by a read-only filesystem; this follow-up has not been published. Storage lands (for example
+Bottomless Vault) are the second printed consumer of that same cost bound.
+Triskelavus uses a fixed one-counter activation, not Tetravus's optional any-number
+removal; it is not evidence for the latter interface. The focused core and retained card scenario pass, but full validation is pending.
