@@ -372,7 +372,10 @@ fn reduce_game_number(form: &str, operands: &[Operand]) -> Option<Expr> {
             Expr::SurveilKeptOnTop(result.clone())
         }
         ("NumberOfCardsOfTypeExiledThisWay", [Filter(filter), Run(result)]) => {
-            count(matching_results(result, filter.clone()))
+            count(matching_results(result, ObjectFilter::AllOf(vec![
+                filter.clone(),
+                ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile)),
+            ])))
         }
         ("TheNumberOfPermanentsDealtDamageThisWay", [Objects(objects), Run(result)]) => {
             count(matching_results(result, event_filter(objects)?))

@@ -1,0 +1,25 @@
+# A revealed nonland must be discarded when its controller declines to pay its mana value (CR 701.9a).
+[Bot1 Deck]
+Black Lotus x2
+Mox Pearl
+Wand of Ith
+Island x20
+[Bot2 Deck]
+Lightning Bolt x7
+Island x20
+[Dice]
+1
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Wand of Ith.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Wand of Ith.Activate(Bot2)
+[T1 Bot1.End]
+[Expect]
+Bot2.Graveyard = Lightning Bolt

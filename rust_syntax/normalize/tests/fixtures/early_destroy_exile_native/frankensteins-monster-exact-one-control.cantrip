@@ -1,0 +1,35 @@
+# Exiling exactly X creature cards permits the Monster to enter.
+[Bot1 Deck]
+Swamp
+Entomb
+Black Lotus
+Mox Jet
+Frankenstein's Monster
+Swamp
+Swamp
+Grizzly Bears
+Swamp x12
+
+[Bot2 Deck]
+Island x20
+
+[Actions]
+Bot1.Hand.Swamp.Play
+Bot1.Battlefield.Swamp.Activate
+Bot1.Hand.Entomb.Cast
+Bot1.Search(Grizzly Bears)
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Black)
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.Frankenstein's Monster.Cast(X: 1)
+Bot1.Choose(Confirm X)
+? Bot1.Mana = {B}
+Bot1.Pass
+
+[Expect]
+Exile = Grizzly Bears
+Bot1.Graveyard = Black Lotus; Entomb
+Bot1.Battlefield.Count = 3
+Bot1.Battlefield.Frankenstein's Monster.Power = 2
+Bot1.Battlefield.Frankenstein's Monster.Toughness = 1

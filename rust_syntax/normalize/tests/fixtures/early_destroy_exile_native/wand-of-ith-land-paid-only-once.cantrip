@@ -1,0 +1,28 @@
+# A revealed land paid for once does not enter the nonland branch.
+[Bot1 Deck]
+Black Lotus x2
+Mox Pearl
+Wand of Ith
+Island x20
+[Bot2 Deck]
+Island x7
+Island x20
+[Dice]
+1
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Wand of Ith.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Wand of Ith.Activate(Bot2)
+Bot2.Accept
+! Bot2.Accept
+[T1 Bot1.End]
+[Expect]
+Bot2.Life = 19
+Bot2.Graveyard =

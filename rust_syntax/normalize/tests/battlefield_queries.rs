@@ -184,6 +184,18 @@ fn complete_producer_records_change_only_query_aliases_and_schema_stamps() {
             face["schema_version"] = json!(SCHEMA_VERSION);
         }
         query_aliases::movement_defaults(&mut expected);
+        // The direct destroy choice filters indestructible after forming the
+        // printed pool; the least-power calculation remains inside that pool.
+        if expected["faces"][0]["name"] == "Drop of Honey" {
+            let path = "/faces/0/abilities/0/args/body/instructions/0/args/instructions/0/args/operation/args/objects";
+            let pool = expected.pointer_mut(path).unwrap();
+            assert_eq!(pool["kind"], "Zone");
+            let printed_pool = pool.take();
+            *pool = json!({"kind":"Matching","args":{
+                "objects":printed_pool,
+                "filter":{"kind":"Not","args":{"kind":"HasKeyword","args":{"kind":"Indestructible"}}}
+            }});
+        }
         assert_eq!(
             serde_json::to_value(unified::lower(&source).card).unwrap(),
             expected,

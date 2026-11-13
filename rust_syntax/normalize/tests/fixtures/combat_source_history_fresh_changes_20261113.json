@@ -1,0 +1,242 @@
+{
+  "movement_selections_before.ronl": {
+    "Maelstrom Archangel Avatar": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/objects",
+        "before": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Battlefield"
+            },
+            "kind": "Permanent",
+            "filter": {
+              "kind": "AllOf",
+              "args": [
+                {
+                  "kind": "CardType",
+                  "args": "Creature"
+                },
+                {
+                  "kind": "ControlledBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                },
+                {
+                  "kind": "Condition",
+                  "args": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Damage": {
+                              "source_kind": "Permanent",
+                              "sources": {
+                                "kind": "SameObject",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              },
+                              "recipients": {
+                                "Players": {
+                                  "kind": "All"
+                                }
+                              },
+                              "kind": "Combat",
+                              "grouping": "SourceRecipient",
+                              "subject": "Source"
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "after": {
+          "kind": "Union",
+          "args": [
+            {
+              "kind": "FromHistory",
+              "args": {
+                "event": {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "Players": {
+                        "kind": "All"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "Source",
+                    "subject": "Source"
+                  }
+                },
+                "window": "ThisTurn"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "keyword_payloads_v182.jsonl": {
+    "Maelstrom Archangel Avatar": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/objects",
+        "before": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Battlefield"
+            },
+            "kind": "Permanent",
+            "filter": {
+              "kind": "AllOf",
+              "args": [
+                {
+                  "kind": "CardType",
+                  "args": "Creature"
+                },
+                {
+                  "kind": "ControlledBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                },
+                {
+                  "kind": "Condition",
+                  "args": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Damage": {
+                              "source_kind": "Permanent",
+                              "sources": {
+                                "kind": "SameObject",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              },
+                              "recipients": {
+                                "Players": {
+                                  "kind": "All"
+                                }
+                              },
+                              "kind": "Combat",
+                              "grouping": "SourceRecipient",
+                              "subject": "Source"
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "after": {
+          "kind": "Union",
+          "args": [
+            {
+              "kind": "FromHistory",
+              "args": {
+                "event": {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "Players": {
+                        "kind": "All"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "Source",
+                    "subject": "Source"
+                  }
+                },
+                "window": "ThisTurn"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -5393,6 +5393,7 @@
     "[MayCost(RevealAnyNumberOfCardsOfTypeFromHand({{CARDS}})), If({{CONDITION}}, [EntersWithNumberCounters({{NUMBER}}, {{COUNTER_TYPE}})])]": "",
     "[MillNumberCardsForEach({{NUMBER}}, {{NUMBER}})]": "",
     "[MustCost(Exile([NumberCardsInGraveyards({{NUMBER}}, {{CARDS_IN_GRAVEYARDS}})], [])), IfElse(CostWasPaid, [EntersWithNumberCombinationCountersOfChoice({{NUMBER}}, [{{COUNTER_TYPE}}, {{COUNTER_TYPE}}, {{COUNTER_TYPE}}])], [PutIntoGraveyardInstead])]": "",
+    "[Exile([NumberCardsInGraveyards({{NUMBER}}, {{CARDS_IN_GRAVEYARDS}})], []), IfElse(DifferenceIs({{NUMBER}}, {{NUMBER}}, {{COMPARISON}}), [EntersWithNumberCombinationCountersOfChoice({{NUMBER}}, [{{COUNTER_TYPE}}, {{COUNTER_TYPE}}, {{COUNTER_TYPE}}])], [PutIntoGraveyardInstead])]": "",
     "[MustCost(SacrificeAPermanent({{PERMANENTS}})), IfElse(CostWasPaid, [EntersNormally], [PutIntoGraveyardInstead])]": "",
     "[MustCost(SacrificeNumberPermanents({{NUMBER}}, {{PERMANENTS}})), IfElse(CostWasPaid, [EntersNormally], [PutIntoGraveyardInstead])]": "",
     "[NoteTheMostPrevalentCreaturTypeInAPlayersLibrary({{PLAYERS}})]": "",

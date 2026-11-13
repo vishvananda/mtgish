@@ -1,0 +1,33 @@
+# If X exceeds the creature cards in the graveyard, exile as many as possible and put the Monster in its owner's graveyard (CR 609.3).
+[Bot1 Deck]
+Swamp
+Entomb
+Black Lotus
+Mox Jet
+Frankenstein's Monster
+Swamp
+Swamp
+Grizzly Bears
+Swamp x12
+
+[Bot2 Deck]
+Island x20
+
+[Actions]
+Bot1.Hand.Swamp.Play
+Bot1.Battlefield.Swamp.Activate
+Bot1.Hand.Entomb.Cast
+Bot1.Search(Grizzly Bears)
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Black)
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.Frankenstein's Monster.Cast(X: 2)
+Bot1.Choose(Confirm X)
+? Bot1.Mana =
+Bot1.Pass
+
+[Expect]
+Exile = Grizzly Bears
+Bot1.Graveyard = Frankenstein's Monster; Black Lotus; Entomb
+Bot1.Battlefield.Count = 2

@@ -1,0 +1,29 @@
+# No creature is destroyed when the only least-power creature is indestructible (CR 609.3).
+[Bot1 Deck]
+Black Lotus
+Darksteel Myr
+Mox Emerald
+Drop of Honey
+Forest
+Island
+Island x13
+
+[Bot2 Deck]
+Island x20
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Green)
+Bot1.Hand.Darksteel Myr.Cast
+Bot1.Hand.Mox Emerald.Cast
+Bot1.Hand.Forest.Play
+Bot1.Battlefield.Forest.Activate
+Bot1.Hand.Drop of Honey.Cast
+? Bot1.Mana =
+[T3 Bot1.Upkeep]
+[T3 Bot1.Main1]
+
+[Expect]
+Bot1.Battlefield = Darksteel Myr; Mox Emerald; Forest; Drop of Honey
+Bot1.Graveyard = Black Lotus

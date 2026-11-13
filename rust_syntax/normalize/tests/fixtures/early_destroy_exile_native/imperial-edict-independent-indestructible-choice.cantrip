@@ -1,0 +1,28 @@
+# An independently chosen indestructible creature is a legal choice (CR 701.8a).
+[Bot1 Deck]
+Black Lotus
+Imperial Edict
+Island x18
+[Bot2 Deck]
+Black Lotus
+Mox Emerald
+Darksteel Myr
+Wall of Wood
+Island x16
+[Actions]
+[T2 Bot2.Main1]
+Bot2.Hand.Black Lotus.Cast
+Bot2.Battlefield.Black Lotus.Activate(Color: Green)
+Bot2.Hand.Darksteel Myr.Cast
+Bot2.Hand.Mox Emerald.Cast
+Bot2.Battlefield.Mox Emerald.Activate
+Bot2.Hand.Wall of Wood.Cast
+[T3 Bot1.Main1]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: Black)
+Bot1.Hand.Imperial Edict.Cast(Bot2)
+Bot2.Choose(Darksteel Myr)
+[T3 Bot1.Main2]
+[Expect]
+Bot2.Battlefield.Darksteel Myr.Power = 0
+Bot2.Battlefield.Wall of Wood.Power = 0

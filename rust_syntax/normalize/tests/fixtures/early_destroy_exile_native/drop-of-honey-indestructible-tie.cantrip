@@ -1,0 +1,34 @@
+# A destructible creature tied for least power must be destroyed instead of an indestructible one.
+[Bot1 Deck]
+Black Lotus
+Darksteel Myr
+Mox Emerald
+Wall of Wood
+Drop of Honey
+Forest
+Island
+Island x13
+
+[Bot2 Deck]
+Island x20
+
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Green)
+Bot1.Hand.Darksteel Myr.Cast
+Bot1.Hand.Mox Emerald.Cast
+Bot1.Battlefield.Mox Emerald.Activate
+Bot1.Hand.Wall of Wood.Cast
+Bot1.Hand.Forest.Play
+Bot1.Battlefield.Forest.Activate
+Bot1.Hand.Drop of Honey.Cast
+? Bot1.Mana =
+[T3 Bot1.Upkeep]
+! Bot1.Choose(Darksteel Myr)
+Bot1.Choose(Wall of Wood)
+[T3 Bot1.Main1]
+
+[Expect]
+Bot1.Battlefield = Darksteel Myr; Mox Emerald; Forest; Drop of Honey
+Bot1.Graveyard = Wall of Wood; Black Lotus

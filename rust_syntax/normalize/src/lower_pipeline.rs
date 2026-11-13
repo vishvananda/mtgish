@@ -165,6 +165,27 @@ impl Context {
             None
         };
         let mut instructions = vec![];
+        // A choice made as part of a destroy instruction must do as much as
+        // possible (CR 609.3). Filter only after evaluating the printed set:
+        // e.g. "least power" still includes indestructible creatures when
+        // determining which power is least. Independent choices and targets
+        // are not selections created by this direct destroy recipe.
+        if selection.is_some()
+            && matches!(
+                &recipe,
+                R::ObjectEffect {
+                    operation: O::Destroy { .. },
+                    ..
+                }
+            )
+        {
+            objects = ObjectSet::Matching {
+                objects: Box::new(objects),
+                filter: ObjectFilter::Not(Box::new(ObjectFilter::HasKeyword(
+                    Keyword::Indestructible,
+                ))),
+            };
+        }
         if let Some(count) = selection {
             let PlayerSet::One(player) = actor else {
                 return Err(invalid("resolution selection requires one actor"));

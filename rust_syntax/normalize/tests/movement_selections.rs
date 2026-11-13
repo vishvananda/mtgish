@@ -328,6 +328,17 @@ fn complete_captured_old_records_keep_all_operands_except_reviewed_domain_correc
             );
             *old_filter = serde_json::json!({"kind":"Any"});
         }
+        // The historical participant correction is retained as an exact
+        // before/after record, without normalizing away live/history changes.
+        let reviewed: serde_json::Value = serde_json::from_str(include_str!("fixtures/combat_source_history_fresh_changes_20261113.json")).unwrap();
+        let name = expected["faces"][0]["name"].as_str().unwrap();
+        if let Some(changes) = reviewed["movement_selections_before.ronl"][name].as_array() {
+            for change in changes {
+                let path = change["path"].as_str().unwrap();
+                assert_eq!(expected.pointer(path), Some(&change["before"]));
+                *expected.pointer_mut(path).unwrap() = change["after"].clone();
+            }
+        }
         let source: OracleCard = ron::from_str(line).unwrap();
         let actual = mtgish_ast::unified::lower(&source);
         assert!(actual.diagnostics.is_empty());
