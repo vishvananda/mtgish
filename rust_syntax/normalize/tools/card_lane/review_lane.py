@@ -235,7 +235,8 @@ def load_lane(root, tree, state):
     tempfile.tempdir = str(scratch)
     os.environ.update(CARD_LANE=cfg["lane_root"], CARD_LANE_CANTRIP=str(tree),
                       CARD_LANE_STATE=str(state), CARD_LANE_TARGET=str(tree / "target"),
-                      CARD_LANE_BRANCH=git(tree, "branch", "--show-current"), CARGO_BUILD_JOBS="8",
+                      CARD_LANE_BRANCH=git(tree, "branch", "--show-current"),
+                      CARGO_BUILD_JOBS=str(cfg.get("cargo_build_jobs", 8)), RUST_MIN_STACK=str(cfg.get("rust_min_stack", 16777216)),
                       CARD_LANE_FOCUSED="1" if cfg.get("focused_builds", True) else "0", TMPDIR=str(scratch))
     spec = importlib.util.spec_from_file_location("review_card_lane", HERE / "card_lane.py")
     lane = importlib.util.module_from_spec(spec)
@@ -1082,7 +1083,7 @@ def worker(root, slot, once=False, resume=None):
                     save(folder / "current.json", assignment)
                     os.environ["REVIEW_LANE_CURRENT"] = str(folder / "current.json")
                     original_environment = lane.environment
-                    lane.environment = lambda: dict(original_environment(), REVIEW_LANE_CURRENT=str(folder / "current.json"), CARGO_BUILD_JOBS="8")
+                    lane.environment = lambda: dict(original_environment(), REVIEW_LANE_CURRENT=str(folder / "current.json"))
                     dedicated_verifier = cfg["reviewers"][slot].get("role") == "confirm"
                     if job["stage"] == "confirm" and not dedicated_verifier:
                         session, context_cards, previous_usage = None, 0, None

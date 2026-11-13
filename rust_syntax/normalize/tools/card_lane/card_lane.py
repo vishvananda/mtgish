@@ -95,6 +95,7 @@ def environment():
     env.update(PATH=os.pathsep.join([str(BIN), str(Path.home() / ".cargo" / "bin"), "/usr/local/bin", "/usr/bin", "/bin"]),
                CARGO_TARGET_DIR=str(TARGET), CARGO_NET_OFFLINE="true", LLVM_COV=shutil.which("llvm-cov") or "llvm-cov",
                LLVM_PROFDATA=shutil.which("llvm-profdata") or "llvm-profdata", PYTHONDONTWRITEBYTECODE="1", CANTRIP_VERIFY="1",
+               CARGO_BUILD_JOBS=os.environ.get("CARGO_BUILD_JOBS", "8"), RUST_MIN_STACK=os.environ.get("RUST_MIN_STACK", "16777216"),
                CARD_LANE=str(LANE), CARD_LANE_CANTRIP=str(CANTRIP), CARD_LANE_STATE=str(STATE), CARD_LANE_BRANCH=BRANCH, CARD_LANE_TARGET=str(TARGET))
     if os.environ.get("CARD_LANE_FOCUSED") == "1":
         env["CARD_LANE_FOCUSED"] = "1"

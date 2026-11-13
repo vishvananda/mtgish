@@ -37,6 +37,7 @@ def initialize(root, lane_root, cantrip, worktrees, base, implementers, reviewer
     cfg = dict(enabled=False, display_name=root.name, lane_root=str(lane_root), producer_manifests=[],
                base=base, producer_model=model, producer_effort='medium', review_model=model, effort='medium',
                implementation_cards_per_context=20, cards_per_context=20, context_tokens=300000,
+               cargo_build_jobs=8, rust_min_stack=16777216,
                poll_seconds=5, repairs=3, timeout_seconds=3600, max_verifier_rejections=3,
                keep_verifier=True, focused_builds=True, implementation_queue=str(root/'implementation-queue.json'),
                implementers={f'i{i}':dict(tree=str(worktrees/f'i{i}')) for i in range(1,implementers+1)},

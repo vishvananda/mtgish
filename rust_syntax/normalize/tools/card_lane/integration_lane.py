@@ -263,7 +263,8 @@ def checkpoint(root):
     with (root/'integration/integration.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX | fcntl.LOCK_NB);clean_branch(tree,integration)
         head=publication.git(tree,'rev-parse','HEAD');scratch=tree/'target/tmp';scratch.mkdir(parents=True,exist_ok=True)
-        env=dict(os.environ,CANTRIP_VERIFY='1',CARGO_BUILD_JOBS='8',CARGO_TARGET_DIR=str(tree/'target'),TMPDIR=str(scratch))
+        env=dict(os.environ,CANTRIP_VERIFY='1',CARGO_BUILD_JOBS=str(cfg.get('cargo_build_jobs',8)),
+                 RUST_MIN_STACK=str(cfg.get('rust_min_stack',16777216)),CARGO_TARGET_DIR=str(tree/'target'),TMPDIR=str(scratch))
         env.pop('CANTRIP_CARDS_ONLY',None);env.pop('CARD_LANE_FOCUSED',None)
         code,out=publication.command(tree,'cargo','test','--profile','checked','--workspace',env=env,check=False)
         log=root/'integration'/f'checkpoint-{head}.log';log.write_text(out+'\n')

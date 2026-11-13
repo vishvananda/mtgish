@@ -115,6 +115,17 @@ class QueueTests(unittest.TestCase):
             roots=json.loads(next(x.split('=',1)[1] for x in command if x.startswith('sandbox_workspace_write.writable_roots=')))
             self.assertTrue(all(Path(p).is_dir() for p in roots))
 
+    def test_configured_compiler_limits_reach_child_process(self):
+        tree=self.root/'tree';tree.mkdir()
+        lane.save(self.root/'config.json',{'lane_root':str(self.root/'campaign'),
+                                          'cargo_build_jobs':2,'rust_min_stack':33554432})
+        with mock.patch.object(lane,'git',return_value='test'), mock.patch.dict(os.environ), \
+             mock.patch.object(tempfile,'tempdir',str(self.root)):
+            loaded=lane.load_lane(self.root,tree,self.root/'state')
+            result=subprocess.run(['python3','-c','import os; print(os.environ["CARGO_BUILD_JOBS"], os.environ["RUST_MIN_STACK"])'],
+                                  env=loaded.environment(),capture_output=True,text=True,check=True)
+            self.assertEqual(result.stdout.strip(),'2 33554432')
+
     def test_native_mutation_requires_a_real_assertion_failure_and_restoration(self):
         path=self.root/'card.rs';original='const COST: bool = false;\n';path.write_text(original)
         calls=[]

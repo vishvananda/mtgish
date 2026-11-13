@@ -50,6 +50,8 @@ python3 "$T/control.py" --root "$P" init \
 
 This writes absolute local paths, an empty implementation queue, and a campaign-specific service prefix.
 It preserves existing state by refusing to overwrite a campaign. It does not start workers or reserve cards.
+`cargo_build_jobs` defaults to 8 and `rust_min_stack` to 16777216 bytes; set them in the campaign configuration
+before starting to control compiler parallelism and stack size for workers and integration checkpoints.
 Set `publisher.fork_owner` to your GitHub account before later publication. Keep `publisher.enabled: false`
 for local consolidation and final export.
 
