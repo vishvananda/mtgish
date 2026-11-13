@@ -32,6 +32,7 @@ fn normalize_value<T: Walk + WalkMut>(card: &mut T) {
         next_result: results.0.checked_add(1).expect("result id overflow"),
         populations: Default::default(),
     });
+    positions::normalize(card);
     card.walk_mut(&mut single_cards::Normalize::default());
 }
 
@@ -96,7 +97,7 @@ fn same_object(a: &ObjectRef, b: &ObjectRef) -> bool {
 
 /// Sufficient identity proofs for scoped pools, without serializing recursive
 /// expressions or treating different ways of choosing a player as identical.
-fn same_player_binding(a: &PlayerRef, b: &PlayerRef) -> bool {
+pub(crate) fn same_player_binding(a: &PlayerRef, b: &PlayerRef) -> bool {
     match (a, b) {
         (PlayerRef::AbilityController, PlayerRef::AbilityController)
         | (PlayerRef::Active, PlayerRef::Active)
@@ -601,3 +602,6 @@ mod target_populations_tests;
 
 #[path = "producer_single_cards.rs"]
 mod single_cards;
+
+#[path = "producer_positions.rs"]
+mod positions;

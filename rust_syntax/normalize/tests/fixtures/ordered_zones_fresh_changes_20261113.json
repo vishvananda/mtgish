@@ -1,0 +1,239 @@
+{
+  "reference53_20261112_expected.json": {
+    "Wandering Graybeard": [
+      {
+        "path": "/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+        "before": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Players": {
+                "zone": "Library",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        },
+        "reason": "one canonical fresh ordered-zone selector; original saved IR unchanged"
+      }
+    ]
+  },
+  "movement_destinations_v185.jsonl": {
+    "Agent of Raffine": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/card/Duplicate",
+        "before": {
+          "kind": "LibraryTops",
+          "args": {
+            "kind": "One",
+            "args": {
+              "kind": "Target",
+              "args": {
+                "slot": 0,
+                "index": 0
+              }
+            }
+          }
+        },
+        "after": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Target",
+                        "args": {
+                          "slot": 0,
+                          "index": 0
+                        }
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        },
+        "reason": "one canonical fresh ordered-zone selector; original saved IR unchanged"
+      }
+    ],
+    "Bison Whistle": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/condition/args/object/args/objects",
+        "before": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Players": {
+                "zone": "Library",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "optional_delayed_scope_20261111_expected.json": {
+    "Shallow Grave": [
+      {
+        "path": "/0/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "One",
+          "args": {
+            "kind": "Query",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "index": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Graveyard",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "CardType",
+                  "args": "Creature"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        },
+        "reason": "one canonical fresh ordered-zone selector; original saved IR unchanged"
+      }
+    ]
+  }
+}

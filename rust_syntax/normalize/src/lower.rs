@@ -160,6 +160,8 @@ struct Context {
     search_outside: bool,
     /// The cards just looked at, for a later step that names them.
     looked: Option<ResultId>,
+    /// The last definite look at one particular player's actual top card.
+    looked_top: Option<(PlayerRef, ResultId)>,
     /// Who exiled which cards when players take turns, by exile.
     exile_turns: Vec<(PlayerRef, ResultId)>,
     value_x: Option<ResultId>,
@@ -586,8 +588,26 @@ impl Context {
             self.tapped = Some(objects.clone());
         }
         self.note_acted(&operation, &ResultId(self.result));
-        if matches!(operation, Operation::LookAt { .. }) {
+        if let Operation::LookAt { objects, .. } = &operation {
             self.looked = Some(ResultId(self.result));
+            self.looked_top = match objects {
+                ObjectSet::Take {
+                    objects,
+                    count: Expr::Constant(1),
+                    from: SequenceEnd::Top,
+                } => match objects.as_ref() {
+                    ObjectSet::Zone {
+                        scope: ZoneScope::Players {
+                            zone: EventZone::Library,
+                            players: PlayerSet::One(player),
+                        },
+                        kind: ObjectKind::Card,
+                        filter: ObjectFilter::Any,
+                    } => Some((player.clone(), ResultId(self.result))),
+                    _ => None,
+                },
+                _ => None,
+            };
         }
         if matches!(
             operation,
@@ -668,6 +688,11 @@ impl Context {
     }
 
     fn invalidate_child_bindings(&mut self, child: &Self) {
+        if self.looked_top.as_ref().map(|(_, r)| r.0)
+            != child.looked_top.as_ref().map(|(_, r)| r.0)
+        {
+            self.looked_top = None;
+        }
         if serde_json::to_value(&self.coin_players).unwrap()
             != serde_json::to_value(&child.coin_players).unwrap()
         {

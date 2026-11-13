@@ -1,5 +1,7 @@
 //! Guard placement is observable: a declined choice must not register a cleanup
 //! trigger. This locks the accepted representation, not a full engine scenario.
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{canonical, corpus, mtg_types::OracleCard, unified, validate};
 use serde_json::{Map, Value};
 
@@ -51,7 +53,7 @@ fn optional_dependent_delays_are_guarded_and_unconditional_controls_remain_indep
             let mut wanted = expected[&card.name].clone();
             canonical::abilities(&mut actual).unwrap();
             canonical::abilities(&mut wanted).unwrap();
-            assert_eq!(actual, wanted, "{}", card.name);
+            fresh_producer::assert_named("optional_delayed_scope_20261111_expected.json", &card.name, &wanted, &actual);
             let mut guards = Vec::new();
             registrations(&actual, false, &mut guards);
             let optional = !matches!(

@@ -1268,19 +1268,6 @@ pub(super) fn keyword_mask(keyword: &str, source: &str) -> String {
 }
 
 /// Whether `objects` are read out of a graveyard, whose first card is its top.
-pub(super) fn from_a_graveyard(objects: &ObjectSet) -> bool {
-    matches!(
-        objects,
-        ObjectSet::Zone {
-            scope: ZoneScope::Players {
-                zone: EventZone::Graveyard,
-                ..
-            },
-            ..
-        }
-    )
-}
-
 /// Whether this Oracle text reads the order of a graveyard (404.2): a sentence
 /// about a graveyard that places something in it ("the top creature card of your
 /// graveyard", "with a creature card directly above it"), not a "top" whose place

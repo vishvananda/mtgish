@@ -1,0 +1,2817 @@
+{
+  "date": "2026-11-13",
+  "baseline_commit": "19e317a",
+  "schema_version": 190,
+  "source_or_parser_changes": false,
+  "schema_or_runtime_layout_changes": false,
+  "scope": {
+    "raw_records": 35047,
+    "ignored_records": 1518,
+    "normal_export_records": 33529,
+    "catalog": {
+      "face_occurrences": 2494,
+      "unique_names": 2491,
+      "with_cached_ir": 2394,
+      "excluded": 100,
+      "unexpected_missing": 0,
+      "followup_tests": 229
+    },
+    "excluded_probe": {
+      "english_no_match": 97,
+      "parsed_lowered_validated_roundtripped": 3,
+      "normal_export_failures": 0,
+      "categories": {
+        "Unhinged": 6,
+        "Mystery Booster Playtest Cards 2024": 8,
+        "Unsanctioned": 1,
+        "MagicFest 2025 - Playtest Card": 1,
+        "Battle the Horde": 5,
+        "Black Lotus Lounge 2025": 1,
+        "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023": 18,
+        "Unstable": 7,
+        "Unknown Event - Playtest Cards -- MAGICON CHICAGO 2025": 6,
+        "Happy Holidays": 1,
+        "Mystery Booster Playtest Cards 2021": 10,
+        "Unknown Event - Playtest Cards -- MagicCon Amsterdam 2024": 3,
+        "Heroes of the Realm (2019)": 1,
+        "Unfinity - Acorn": 9,
+        "Secret Lair Showcase Planes": 2,
+        "Face the Hydra": 2,
+        "Unknown Event - Playtest Cards - MAGICCON AMSTERDAM 2026": 3,
+        "Heroes of the Realm (2017)": 2,
+        "Unknown Event - Playtest Cards -- BLACK LOTUS LOUNGE VEGAS 2024": 3,
+        "Heroes of the Realm (2023)": 1,
+        "Unglued": 1,
+        "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2024": 3,
+        "Unknown Event - Playtest Cards -- GEN CON 2024": 1,
+        "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2025": 4,
+        "Unknown Event - Playtest Cards - MAGICCON VEGAS 2026": 1
+      }
+    },
+    "dungeon_matches": [
+      "Baldur’s Gate Wilderness",
+      "Dungeon of the Mad Mage",
+      "Undercity"
+    ]
+  },
+  "verification": {
+    "corpus_lower_validate_roundtrip": 33529,
+    "changed_records": 40,
+    "unchanged_records": 33489,
+    "preserved": [
+      "identities",
+      "layouts",
+      "characteristics",
+      "operation and result-ID sequence",
+      "movement destinations"
+    ],
+    "unchanged_specialized_payloads": {
+      "Manifest": 44,
+      "Scry": 461,
+      "Surveil": 233,
+      "RevealUntil": 166
+    },
+    "rust_workspace": {
+      "passed": 2103,
+      "failed": 0,
+      "ignored": 24,
+      "targets": 204,
+      "exit_code": 0,
+      "log_sha256": "3d2e87ebe32666026bd1038ae6da90cae9db4711faf6e358ba6fc6fe5e8c0781"
+    },
+    "catalog_reproduces_byte_for_byte": true
+  },
+  "hashes": {
+    "data/mtgish.lines.ron": "6e59a5f782285a0eae2f2a5b2a0664223746324f03ab32f6472b3b243e64157b",
+    "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
+    "docs/ordered-zone-catalog-20261113.jsonl": "3b5725764f07d01e23962d73b3e7e4a98a39e03e580a69dd78ac20fffa4571ad",
+    "docs/ordered-zone-exclusions-20261113.json": "ca230cc0784e663272b6c581a8fe7cb985d44bf3449347ab86cabdb36105c54f",
+    "/mnt/vizier/ordered-zones-20261113/before.jsonl": "62417f1d2b8ec806b43afd6767523e1fe282ec949028aa9d7f15c3ce82d17dcf",
+    "/mnt/vizier/ordered-zones-20261113/after.jsonl": "884e968a7d05f6f06b7f977a2cbae7ba0fa5d219d49321e13ebe0d434e7f96c4"
+  },
+  "changes": [
+    {
+      "names": [
+        "Agent of Raffine"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/card/Duplicate",
+          "before": {
+            "kind": "LibraryTops",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "Target",
+                "args": {
+                  "slot": 0,
+                  "index": 0
+                }
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Alms"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/cost/parts/1/Move/selections/0/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "Any"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Baneful Omen"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/operation/args/amount/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Barrow Ghoul"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/cost/parts/0/Move/selections/0/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Bison Whistle"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Bone Dancer"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/cost/parts/0/PlayerAction/body/instructions/0/args/operation/args/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "DefendingPlayerOf",
+                            "args": {
+                              "kind": "EventSubject"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "DefendingPlayerOf",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Circling Vultures"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/cost/parts/0/Move/selections/0/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Conspicuous Snoop"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/2/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        },
+        {
+          "path": "/faces/0/abilities/2/args/then/0/args/changes/0/args/objects",
+          "before": {
+            "kind": "LibraryTops",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Corpse Dance"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/0/args/operation/args/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Crown of Convergence"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Deceiver of Form"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Guiding Spirit"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/0/args/then/instructions/0/args/operation/args/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "Any"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Ink Dissolver"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Kithkin Zephyrnaut"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Leaf-Crowned Elder"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Mistmoon Griffin"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/1/args/operation/args/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Mudbutton Clanger"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Mul Daya Channelers"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        },
+        {
+          "path": "/faces/0/abilities/2/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Nature's Kiss"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/cost/parts/1/Move/selections/0/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "Any"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Necratog"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/cost/parts/0/Move/selections/0/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Nightshade Schemers"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Oura, the Imitator"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/3/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Phyrexian Furnace"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Take",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "Any"
+                        }
+                      }
+                    },
+                    "count": {
+                      "kind": "Constant",
+                      "args": 1
+                    },
+                    "from": "Bottom"
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Pyroclast Consul"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Quest for Ula's Temple"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Sensation Gorger"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Shallow Grave"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Skill Borrower"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        },
+        {
+          "path": "/faces/0/abilities/1/args/then/0/args/changes/0/args/objects",
+          "before": {
+            "kind": "LibraryTops",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Soldevi Digger"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "Any"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Squeaking Pie Grubfellows"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "The Fourth Doctor"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/changes/0/args/SpecialAction/body/args/instructions/0/args/operation/args/action/args/cards/args/objects",
+          "before": {
+            "kind": "LibraryTops",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Vampire Nocturnus"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Vampire Nocturnus Avatar"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/1/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Wand of Denial"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/condition",
+          "before": {
+            "kind": "Compare",
+            "args": {
+              "left": {
+                "kind": "CountObjects",
+                "args": {
+                  "kind": "Matching",
+                  "args": {
+                    "objects": {
+                      "kind": "LibraryTops",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        }
+                      }
+                    },
+                    "filter": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "CardType",
+                        "args": "Land"
+                      }
+                    }
+                  }
+                }
+              },
+              "test": {
+                "kind": "Compare",
+                "args": {
+                  "comparison": "Greater",
+                  "value": {
+                    "kind": "Constant",
+                    "args": 0
+                  }
+                }
+              }
+            }
+          },
+          "after": {
+            "kind": "ObjectMatches",
+            "args": {
+              "object": {
+                "kind": "Query",
+                "args": {
+                  "objects": {
+                    "kind": "Observed",
+                    "args": 0
+                  },
+                  "index": 0
+                }
+              },
+              "filter": {
+                "kind": "Not",
+                "args": {
+                  "kind": "CardType",
+                  "args": "Land"
+                }
+              }
+            }
+          }
+        },
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/1/args/then/instructions/0/args/operation/args/objects",
+          "before": {
+            "kind": "LibraryTops",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "Target",
+                "args": {
+                  "slot": 0,
+                  "index": 0
+                }
+              }
+            }
+          },
+          "after": {
+            "kind": "Observed",
+            "args": 0
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Wandering Graybeard"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Water Weird"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Waterspout Weavers"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Winnower Patrol"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Wolf-Skull Shaman"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/condition/args/object/args/objects",
+          "before": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Library",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "Any"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          },
+          "after": {
+            "kind": "Zone",
+            "args": {
+              "scope": {
+                "Players": {
+                  "zone": "Library",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "kind": "Card",
+              "filter": {
+                "kind": "Any"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "names": [
+        "Zombie Scavengers"
+      ],
+      "changes": [
+        {
+          "path": "/faces/0/abilities/0/args/cost/parts/0/Move/selections/0/objects",
+          "before": {
+            "kind": "One",
+            "args": {
+              "kind": "Query",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Graveyard",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  }
+                },
+                "index": 0
+              }
+            }
+          },
+          "after": {
+            "kind": "Take",
+            "args": {
+              "objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Players": {
+                      "zone": "Graveyard",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "Card",
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                }
+              },
+              "count": {
+                "kind": "Constant",
+                "args": 1
+              },
+              "from": "Top"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -139,7 +139,15 @@ impl Context {
                 let PlayerSet::One(payer) = actor else {
                     return Err(invalid("a payment has one payer"));
                 };
-                let top = ObjectSet::LibraryTops(PlayerSet::One(self.player(player)?));
+                let player = self.player(player)?;
+                let top = match &self.looked_top {
+                    Some((owner, result))
+                        if crate::producer_forms::same_player_binding(owner, &player) =>
+                    {
+                        ObjectSet::Observed(result.clone())
+                    }
+                    _ => ObjectSet::LibraryTops(PlayerSet::One(player)),
+                };
                 let matches = ObjectSet::Matching {
                     objects: Box::new(top.clone()),
                     filter: self.card_filter(cards)?,

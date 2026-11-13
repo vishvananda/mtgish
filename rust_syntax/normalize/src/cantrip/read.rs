@@ -624,10 +624,24 @@ impl Compiler {
                 };
                 match matches {
                     Some(found) => format!("{found}.get({index}).copied()"),
-                    None if lane_k::from_a_graveyard(objects) => format!(
-                        "({}).into_iter().rev().nth({index} as usize)",
-                        self.objects(objects)?
-                    ),
+                    None if matches!(
+                        objects.as_ref(),
+                        ObjectSet::Zone {
+                            scope: ZoneScope::Players {
+                                zone: EventZone::Library | EventZone::Graveyard,
+                                players: PlayerSet::One(_),
+                            },
+                            kind: ObjectKind::Card,
+                            filter: ObjectFilter::Any,
+                        }
+                    ) => {
+                        let prefix = ObjectSet::Take {
+                            objects: objects.clone(),
+                            count: Expr::Constant(i64::from(*index) + 1),
+                            from: SequenceEnd::Top,
+                        };
+                        format!("({}).get({index}).copied()", self.objects(&prefix)?)
+                    }
                     None => format!("({}).get({index}).copied()", self.objects(objects)?),
                 }
             }
@@ -980,6 +994,33 @@ impl Compiler {
                 from,
             } => {
                 let count = self.number(count)?.amount(usize::MAX as i128, "usize")?;
+                if let ObjectSet::Zone {
+                    scope: ZoneScope::Players {
+                        zone,
+                        players: PlayerSet::One(player),
+                    },
+                    kind: ObjectKind::Card,
+                    filter: ObjectFilter::Any,
+                } = objects.as_ref()
+                {
+                    if matches!(zone, EventZone::Library | EventZone::Graveyard) && !self.cast_test {
+                        let owner = self.player(player)?;
+                        let name = if *zone == EventZone::Library { "library" } else { "graveyard" };
+                        // Libraries store top first; graveyards store newest last.
+                        let reverse = matches!(
+                            (zone, from),
+                            (EventZone::Library, SequenceEnd::Bottom)
+                                | (EventZone::Graveyard, SequenceEnd::Top)
+                        );
+                        let order = if reverse { ".rev()" } else { "" };
+                        let read = format!("({owner}).into_iter().flat_map(|p: PlayerId| q.state().zone(Zone::{name}(p)).iter(){order}.copied().filter(|&zone_card| !q.state().obj(zone_card).token && !q.state().obj(zone_card).card_copy).take({count})).collect::<Vec<ObjectId>>()");
+                        return Ok(if matches!(from, SequenceEnd::Bottom) {
+                            format!("{{ let mut end = {read}; end.reverse(); end }}")
+                        } else {
+                            read
+                        });
+                    }
+                }
                 match from {
                     SequenceEnd::Top => format!(
                         "({}).into_iter().take({count}).collect::<Vec<ObjectId>>()",
@@ -992,7 +1033,7 @@ impl Compiler {
                 }
             }
             ObjectSet::LibraryTops(players) => format!(
-                "({}).into_iter().filter_map(|p: PlayerId| q.state().zone(Zone::library(p)).first().copied()).collect::<Vec<ObjectId>>()",
+                "({}).into_iter().filter_map(|p: PlayerId| q.state().zone(Zone::library(p)).iter().copied().find(|&zone_card| !q.state().obj(zone_card).token && !q.state().obj(zone_card).card_copy)).collect::<Vec<ObjectId>>()",
                 self.players(players)?
             ),
             ObjectSet::EventGroup if self.event_at == EventAt::Item && self.grouped => {
@@ -1160,8 +1201,9 @@ impl Compiler {
             true => ".filter(|id: &ObjectId| *id != asker.source)",
             false => "",
         };
+        let order = if *zone == EventZone::Graveyard { ".rev()" } else { "" };
         Ok(format!(
-            "({players}).into_iter().flat_map(|p: PlayerId| q.state().zone(Zone::{per_player}(p)).to_vec()){other}.collect::<Vec<ObjectId>>()"
+            "({players}).into_iter().flat_map(|p: PlayerId| q.state().zone(Zone::{per_player}(p)).iter(){order}.copied()){other}.collect::<Vec<ObjectId>>()"
         ))
     }
     /// `Vec<PlayerId>`.
@@ -3058,5 +3100,122 @@ mod subject_provenance_tests {
         };
         compiler.frame = object_frame.meet(player_frame);
         assert!(compiler.certain_player(&players[0]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod ordered_zone_runtime_tests {
+    use super::*;
+    #[test]
+    fn generated_reads_agree_on_top_bottom_and_per_library_counts() {
+        let compiler = Compiler::new();
+        let zone = |zone, players| ObjectSet::Zone {
+            scope: ZoneScope::Players { zone, players },
+            kind: ObjectKind::Card,
+            filter: ObjectFilter::Any,
+        };
+        let slice = |zone, from, count| ObjectSet::Take {
+            objects: Box::new(zone),
+            count: Expr::Constant(count),
+            from,
+        };
+        let one = PlayerSet::One(PlayerRef::AbilityController);
+        let mut cases = vec![];
+        for (kind, top, bottom) in [
+            (EventZone::Library, vec![10, 11], vec![11, 12]),
+            (EventZone::Graveyard, vec![3, 2], vec![2, 1]),
+        ] {
+            let pool = zone(kind.clone(), one.clone());
+            cases.push((
+                compiler
+                    .objects(&slice(pool.clone(), SequenceEnd::Top, 2))
+                    .unwrap(),
+                top,
+            ));
+            cases.push((
+                compiler
+                    .objects(&slice(pool.clone(), SequenceEnd::Bottom, 2))
+                    .unwrap(),
+                bottom,
+            ));
+            let mut generic = Compiler::new();
+            generic.cast_test = true;
+            cases.push((
+                generic
+                    .objects(&slice(pool.clone(), SequenceEnd::Top, 1))
+                    .unwrap(),
+                if kind == EventZone::Library {
+                    vec![10]
+                } else {
+                    vec![3]
+                },
+            ));
+            let object = compiler
+                .object(&ObjectRef::Query {
+                    objects: Box::new(pool),
+                    index: 0,
+                })
+                .unwrap();
+            cases.push((
+                format!("({object}).into_iter().collect::<Vec<ObjectId>>()"),
+                if kind == EventZone::Library {
+                    vec![10]
+                } else {
+                    vec![3]
+                },
+            ));
+        }
+        cases.push((
+            compiler
+                .objects(&ObjectSet::LibraryTops(PlayerSet::All))
+                .unwrap(),
+            vec![10, 20],
+        ));
+        cases.push((
+            compiler
+                .objects(&slice(
+                    zone(EventZone::Library, PlayerSet::All),
+                    SequenceEnd::Top,
+                    1,
+                ))
+                .unwrap(),
+            vec![10],
+        ));
+        let mut text = String::from(
+            r#"
+            type ObjectId=u32;type PlayerId=u8;
+            struct Zone(usize);impl Zone {fn library(p:u8)->Self {Self(p as usize)}fn graveyard(p:u8)->Self {Self(2+p as usize)}}
+            struct Obj {token:bool,card_copy:bool}
+            struct State {zones:[Vec<u32>;4]}
+            impl State {fn zone(&self,z:Zone)->&[u32] {&self.zones[z.0]}fn obj(&self,id:u32)->Obj {Obj {token:id==99,card_copy:false}}fn apnap(&self)->impl Iterator<Item=u8> {[0,1].into_iter()}}
+            struct Q(State);impl Q {fn state(&self)->&State {&self.0}}
+            struct Asker {controller:u8,source:u32}
+            fn main() {let q=Q(State {zones:[vec![10,11,12],vec![99,20,21],vec![1,99,2,3],vec![]]});let asker=Asker {controller:0,source:50};
+        "#,
+        );
+        for (code, want) in cases {
+            text.push_str(&format!("assert_eq!({code},vec!{want:?});\n"));
+        }
+        text.push('}');
+        let dir = std::env::temp_dir().join(format!("ordered-zone-runtime-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("main.rs"), text).unwrap();
+        let built = std::process::Command::new("rustc")
+            .args(["--edition=2021", "-C", "overflow-checks=on"])
+            .arg(dir.join("main.rs"))
+            .arg("-o")
+            .arg(dir.join("witness"))
+            .output()
+            .unwrap();
+        assert!(
+            built.status.success(),
+            "{}",
+            String::from_utf8_lossy(&built.stderr)
+        );
+        assert!(std::process::Command::new(dir.join("witness"))
+            .status()
+            .unwrap()
+            .success());
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

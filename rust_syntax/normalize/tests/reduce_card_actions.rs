@@ -268,7 +268,7 @@ fn optional_top_card_moves_are_paid_for_first() {
     says(
         "Wand of Denial",
         &[
-            "LibraryTops",
+            "Observed(ResultId(0))",
             "PaymentChosen",
             "destination: OwnersGraveyard",
         ],

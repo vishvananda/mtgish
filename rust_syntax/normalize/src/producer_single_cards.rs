@@ -16,6 +16,7 @@ struct Receipt {
     before: Objects,
     after: Objects,
     selected: Objects,
+    ordered: bool,
 }
 #[derive(Clone, Default)]
 struct Scope {
@@ -72,6 +73,33 @@ impl Scope {
                 one: sets.len() == 1 && self.objects(&sets[0]).one,
             },
             _ => Objects::default(),
+        }
+    }
+    fn ordered(&self, objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::Zone {
+                scope:
+                    ZoneScope::Players {
+                        zone: EventZone::Library | EventZone::Graveyard,
+                        players: PlayerSet::One(_),
+                    },
+                ..
+            } => true,
+            ObjectSet::Take { objects, .. }
+            | ObjectSet::Matching { objects, .. }
+            | ObjectSet::InZone { objects, .. } => self.ordered(objects),
+            ObjectSet::Observed(result) => self.results.get(&result.0).is_some_and(|r| r.ordered),
+            _ => false,
+        }
+    }
+    fn scalar(&self, objects: &ObjectSet) -> Option<ObjectRef> {
+        if !self.objects(objects).one {
+            return None;
+        }
+        if matches!(objects, ObjectSet::Transition { .. }) || self.ordered(objects) {
+            Some(super::positions::scalar(objects))
+        } else {
+            None
         }
     }
     fn transition(&self, result: &ResultId, phase: &ObjectPhase) -> Objects {
@@ -147,7 +175,10 @@ impl Scope {
             }
             Operation::LookAt { objects, .. }
             | Operation::Reveal { objects }
-            | Operation::NoteObjects { objects } => receipt.selected = self.objects(objects),
+            | Operation::NoteObjects { objects } => {
+                receipt.selected = self.objects(objects);
+                receipt.ordered = self.ordered(objects);
+            }
             Operation::Search { choices, .. } => {
                 receipt.selected = Objects {
                     cards: true,
@@ -318,16 +349,9 @@ impl VisitorMut for Normalize {
         let ObjectSet::Matching { objects, filter } = objects.as_ref() else {
             return;
         };
-        let ObjectSet::Transition { result, phase } = objects.as_ref() else {
-            return;
-        };
-        if self.scope.transition(result, phase).one {
+        if let Some(object) = self.scope.scalar(objects) {
             *condition = Condition::ObjectMatches {
-                object: ObjectRef::Result {
-                    result: result.clone(),
-                    phase: phase.clone(),
-                    index: 0,
-                },
+                object,
                 filter: filter.clone(),
             };
         }
@@ -341,16 +365,9 @@ impl VisitorMut for Normalize {
         else {
             return;
         };
-        let ObjectSet::Transition { result, phase } = objects.as_ref() else {
-            return;
-        };
-        if self.scope.transition(result, phase).one {
+        if let Some(object) = self.scope.scalar(objects) {
             *number = Expr::ObjectProperty {
-                object: ObjectRef::Result {
-                    result: result.clone(),
-                    phase: phase.clone(),
-                    index: 0,
-                },
+                object,
                 property: property.clone(),
                 information: Information::CurrentOrLastKnown,
             };

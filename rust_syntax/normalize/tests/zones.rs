@@ -297,7 +297,7 @@ fn ordered_queries_require_a_single_private_zone_and_shared_zones_keep_their_sco
         panic!()
     };
     assert!(
-        matches!(&body.instructions[0], Instruction::Effect { operation: Operation::Move { objects: ObjectSet::One(ObjectRef::Query { objects, .. }), .. }, .. } if matches!(objects.as_ref(), ObjectSet::Take { from: SequenceEnd::Bottom, .. }))
+        matches!(&body.instructions[0], Instruction::Effect { operation: Operation::Move { objects: ObjectSet::Take {from:SequenceEnd::Bottom,..}, .. }, .. })
     );
     let mut c = card("Counterspell");
     let objects = ObjectSet::Take {

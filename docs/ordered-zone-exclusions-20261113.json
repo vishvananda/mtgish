@@ -1,0 +1,1202 @@
+[
+  {
+    "name": "Aesthetic Consultation",
+    "record": "Aesthetic Consultation",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unhinged",
+      "line": 858
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Alberix, the Trade Planet",
+    "record": "Alberix, the Trade Planet",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1296
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Alexander Clamilton",
+    "record": "Alexander Clamilton",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unsanctioned",
+      "line": 773
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "All-You-Can-Eat Buffet",
+    "record": "All-You-Can-Eat Buffet",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "MagicFest 2025 - Playtest Card",
+      "line": 81
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Altar of Mogis",
+    "record": "Altar of Mogis",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Battle the Horde",
+      "line": 1622
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Artist Alley at the Convention",
+    "record": "Artist Alley at the Convention",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Black Lotus Lounge 2025",
+      "line": 31
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Battle Myrsphere",
+    "record": "Battle Myrsphere",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 359
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Better Than One",
+    "record": "Better Than One",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unstable",
+      "line": 1008
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Blurry Visionary",
+    "record": "Blurry Visionary",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1301
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Boltfire",
+    "record": "Boltfire",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1303
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Catch-Up Mechanic",
+    "record": "Catch-Up Mechanic",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICON CHICAGO 2025",
+      "line": 199
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Chancellor of the Mulligan",
+    "record": "Chancellor of the Mulligan",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 371
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Chaos Wrap",
+    "record": "Chaos Wrap",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Happy Holidays",
+      "line": 1561
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Ago",
+    "record": "Chic // Ago",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICON CHICAGO 2025",
+      "line": 202
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Chimney Goyf",
+    "record": "Chimney Goyf",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1431
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "parsed",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Clamilton Estate",
+    "record": "Clamilton Estate",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Amsterdam 2024",
+      "line": 307
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Collectigull",
+    "record": "Collectigull // Only the Best",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Heroes of the Realm (2019)",
+      "line": 1680
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Decisions, Decisions",
+    "record": "Decisions, Decisions",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 679
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Finally! Left-Handed Magic Cards",
+    "record": "Finally! Left-Handed Magic Cards",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Secret Lair Showcase Planes",
+      "line": 91
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Gallery of Legends",
+    "record": "Gallery of Legends",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 688
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Garbage Elemental",
+    "record": "Garbage Elemental",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unstable",
+      "line": 1057
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Hey, Has Anyone Seen Garruk?",
+    "record": "Garruk's Lost Wolf // Hey, Has Anyone Seen Garruk?",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 407
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Goblin Savant",
+    "record": "Goblin Savant",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 412
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Grown from the Stump",
+    "record": "Grown from the Stump",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Face the Hydra",
+      "line": 1593
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Guess Who it Is!",
+    "record": "Guess Who it Is!",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 417
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Guess Your Fate",
+    "record": "Guess Your Fate",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 698
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Head to Head",
+    "record": "Head to Head",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unhinged",
+      "line": 911
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "High Noon At Thunder Junction",
+    "record": "High Noon At Thunder Junction",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Amsterdam 2024",
+      "line": 310
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "I'm Going On An Adventure!",
+    "record": "I'm Going On An Adventure!",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards - MAGICCON AMSTERDAM 2026",
+      "line": 17
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Imaginary Friends (Plane)",
+    "record": "Imaginary Friends (Plane)",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Secret Lair Showcase Planes",
+      "line": 93
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Inzerva, Master of Insights",
+    "record": "Inzerva, Master of Insights",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Heroes of the Realm (2017)",
+      "line": 1670
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Jalira's Show",
+    "record": "Jalira's Show",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- BLACK LOTUS LOUNGE VEGAS 2024",
+      "line": 184
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Jitte and Divining Top",
+    "record": "Jitte and Divining Top",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 442
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Lackey Recycler",
+    "record": "Lackey Recycler",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unstable",
+      "line": 1103
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Lantern of Undersight",
+    "record": "Lantern of Undersight",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1470
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Largepox",
+    "record": "Largepox",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1471
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Lich's Duel Mastery",
+    "record": "Lich's Duel Mastery",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1340
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Lila, Hospitality Hostess",
+    "record": "Lila, Hospitality Hostess",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 715
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "M'Odo, the Gnarled Oracle",
+    "record": "M'Odo, the Gnarled Oracle",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Heroes of the Realm (2017)",
+      "line": 1671
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Magic Designer",
+    "record": "Magic Designer",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 463
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Massacre Totem",
+    "record": "Massacre Totem",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Battle the Horde",
+      "line": 1623
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "May of the Machine",
+    "record": "May of the Machine",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 468
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Memory Test",
+    "record": "Memory Test",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 719
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Mise",
+    "record": "Mise",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unhinged",
+      "line": 928
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Mr. Monopoly, On the Go",
+    "record": "Mr. Monopoly, On the Go",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Heroes of the Realm (2023)",
+      "line": 1708
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Neck Tangle",
+    "record": "Neck Tangle",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Face the Hydra",
+      "line": 1595
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Necro-Impotence",
+    "record": "Necro-Impotence",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unhinged",
+      "line": 937
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "No Way Out But Through",
+    "record": "No Way Out But Through",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- BLACK LOTUS LOUNGE VEGAS 2024",
+      "line": 186
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "No-Regrets Egret",
+    "record": "No-Regrets Egret",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1360
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Now THIS Is Aether Racing",
+    "record": "Now THIS Is Aether Racing",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICON CHICAGO 2025",
+      "line": 218
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Oteclán",
+    "record": "Oteclán",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Amsterdam 2024",
+      "line": 313
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "parsed",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Phyrexian Chimney Imp",
+    "record": "Phyrexian Chimney Imp",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 496
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Phyrexian Librarian",
+    "record": "Phyrexian Librarian",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unhinged",
+      "line": 944
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Plane-Merge Elf",
+    "record": "Plane-Merge Elf",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1488
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Planeswalkerificate",
+    "record": "Planeswalkerificate",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1370
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Plundered Statue",
+    "record": "Plundered Statue",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Battle the Horde",
+      "line": 1624
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Processing Plant",
+    "record": "Processing Plant",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1373
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Psychic Network",
+    "record": "Psychic Network",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unglued",
+      "line": 1274
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Pursued by Something",
+    "record": "Pursued by Something",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- BLACK LOTUS LOUNGE VEGAS 2024",
+      "line": 189
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Push Your Luck",
+    "record": "Push Your Luck",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 737
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Ransack, the Lab",
+    "record": "Ransack, the Lab",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 517
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Record Store",
+    "record": "Record Store",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unstable",
+      "line": 1138
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Refreshing Elixir",
+    "record": "Refreshing Elixir",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Battle the Horde",
+      "line": 1625
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Rock Star",
+    "record": "Rock Star",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 740
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "S.N.E.A.K. Dispatcher",
+    "record": "S.N.E.A.K. Dispatcher",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unstable",
+      "line": 1144
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Seek Bolas's Counsel",
+    "record": "Seek Bolas's Counsel",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1502
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Sharp Eraser",
+    "record": "Sharp Eraser",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2024",
+      "line": 261
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Sly Spy",
+    "record": "Sly Spy",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unstable",
+      "line": 1155
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Spelling Bee",
+    "record": "Spelling Bee",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 746
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Stroopwafel Cafe",
+    "record": "Stroopwafel Cafe",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 546
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Sunimret",
+    "record": "Sunimret",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1512
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Super-Duper Lost",
+    "record": "Super-Duper Lost",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unfinity - Acorn",
+      "line": 749
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Battle of Dragon Brothers",
+    "record": "The Battle of Dragon Brothers // Fate Reforged",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- GEN CON 2024",
+      "line": 295
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Brewing Chef",
+    "record": "The Brewing Chef",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2025",
+      "line": 162
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Crimson Avenger",
+    "record": "The Crimson Avenger",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 577
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Fact Checker",
+    "record": "The Fact Checker",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICON CHICAGO 2025",
+      "line": 228
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Good Time Sleuth",
+    "record": "The Good Time Sleuth",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICON CHICAGO 2025",
+      "line": 229
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Grand Tour",
+    "record": "The Grand Tour",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1515
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Great Juggernaut",
+    "record": "The Great Juggernaut",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 587
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Heron Moon",
+    "record": "The Heron Moon",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2024",
+      "line": 1392
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Joiner of Cats",
+    "record": "The Joiner of Cats",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 590
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Local Guides",
+    "record": "The Local Guides",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards - MAGICCON AMSTERDAM 2026",
+      "line": 25
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Magic Bandit",
+    "record": "The Magic Bandit",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 601
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Meld Hound",
+    "record": "The Meld Hound",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards - MAGICCON AMSTERDAM 2026",
+      "line": 26
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Mysterious Sphere",
+    "record": "The Mysterious Sphere",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2025",
+      "line": 167
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Powerful Dragon",
+    "record": "The Powerful Dragon",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2024",
+      "line": 283
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "parsed",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Salubrious Philosopher",
+    "record": "The Salubrious Philosopher",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards - MAGICCON VEGAS 2026",
+      "line": 66
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Sprinkler of Stardust",
+    "record": "The Sprinkler of Stardust",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2025",
+      "line": 169
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Trivia Mastermind",
+    "record": "The Trivia Mastermind",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 614
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "The Unknown Wizard",
+    "record": "The Unknown Wizard",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2024",
+      "line": 286
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Time Out",
+    "record": "Time Out",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unstable",
+      "line": 1190
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Truth or Dare",
+    "record": "Truth or Dare",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1521
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Ulgrotha Charm",
+    "record": "Ulgrotha Charm",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 630
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Underdark Beholder",
+    "record": "Underdark Beholder",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1522
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Vitality Salve",
+    "record": "Vitality Salve",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Battle the Horde",
+      "line": 1626
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Yawgmoth's Testament",
+    "record": "Yawgmoth's Testament",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Mystery Booster Playtest Cards 2021",
+      "line": 1533
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "Yet Another Aether Vortex",
+    "record": "Yet Another Aether Vortex",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unhinged",
+      "line": 988
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "You're Toast!",
+    "record": "You're Toast!",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICCON VEGAS 2025",
+      "line": 176
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "You, Iterative Playtester",
+    "record": "You, Iterative Playtester",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MAGICON CHICAGO 2025",
+      "line": 241
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  },
+  {
+    "name": "You, Magic Playtester",
+    "record": "You, Magic Playtester",
+    "dataset": "oracle",
+    "ignore": {
+      "category": "Unknown Event - Playtest Cards -- MagicCon Philadelphia 2023",
+      "line": 651
+    },
+    "export_status": "excluded",
+    "diagnostic_parse_stage": "english",
+    "normal_export_failure": false
+  }
+]
