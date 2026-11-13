@@ -1208,6 +1208,9 @@ impl Compiler {
                 "g.add_effect(item.object, about, EffectKind::Prevention {{ card: item.ability.card, index: {index}, to, shield: {shield_value} }}, DURATION);"
             )));
         }
+        if self.replacing.may.is_some() {
+            return Err(gap("engine: optional granted replacement needs a choice"));
+        }
         if to && !self.granting {
             return Err(gap("replacement of damage to a named recipient"));
         }

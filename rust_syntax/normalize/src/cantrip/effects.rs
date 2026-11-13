@@ -1795,7 +1795,9 @@ impl Compiler {
                 let scope = self.results();
                 let mut asked = each.clone();
                 asked.instructions = vec![offered];
+                let prior_subject = self.payment_subject.replace(binding.0);
                 let compiled = self.program(&asked, out, false);
+                self.payment_subject = prior_subject;
                 let spent = self.performed.get(&paid.0).cloned();
                 self.restore_results(scope);
                 self.bound_objects.remove(&binding.0);

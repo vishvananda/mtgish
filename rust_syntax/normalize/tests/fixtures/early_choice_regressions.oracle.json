@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Blood of the Martyr",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Blood of the Martyr",
+        "manaCost": "{W}{W}{W}",
+        "type": "Instant",
+        "text": "Until end of turn, if damage would be dealt to any creature, you may have that damage dealt to you instead."
+      }
+    ]
+  },
+  {
+    "name": "Call to Arms",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Call to Arms",
+        "manaCost": "{1}{W}",
+        "type": "Enchantment",
+        "text": "As this enchantment enters, choose a color and an opponent.\nWhite creatures get +1/+1 as long as the chosen color is the most common color among nontoken permanents the chosen player controls but isn't tied for most common.\nWhen the chosen color isn't the most common color among nontoken permanents the chosen player controls or is tied for most common, sacrifice this enchantment."
+      }
+    ]
+  },
+  {
+    "name": "Cleansing",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Cleansing",
+        "manaCost": "{W}{W}{W}",
+        "type": "Sorcery",
+        "text": "For each land, destroy that land unless any player pays 1 life."
+      }
+    ]
+  }
+]

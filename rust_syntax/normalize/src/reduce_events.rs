@@ -428,7 +428,7 @@ fn state_event(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         ) => state(Condition::Not(Box::new(Condition::MostCommonColor {
             color: Box::new(color.clone()),
             objects: set.clone(),
-            tied: true,
+            tied: false,
         }))),
         _ => None,
     }

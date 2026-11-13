@@ -870,6 +870,7 @@ struct Compiler {
     /// The card types it offers, if it chooses one as it enters.
     entering_card_type: Option<Vec<String>>,
     bound_objects: BTreeSet<u32>,
+    payment_subject: Option<u32>,
     /// The next closure is a reflexive ability's.
     reflexing: bool,
     /// The next closure is the body of a delayed ability asked of another object.
@@ -1331,6 +1332,7 @@ impl Compiler {
             moving_one: None,
             entering_card_type: None,
             bound_objects: BTreeSet::new(),
+            payment_subject: None,
             reflexing: false,
             source_moved: false,
             watching_object: None,
@@ -2546,6 +2548,7 @@ const ANNOUNCED_SPLICED: &str = "fn announced(g: &dyn Game, item: &StackItem, sp
 
 /// "You may pay": the engine shows the cost, and bots read the verb.
 const PAY_QUESTION: &str = "static PAY_QUESTION: Question = Question::new(\"Pay\", \"pay {cost}?\", \"\", \"Pay {cost}\", \"Decline\");\n";
+const PAY_FOR_OBJECT_QUESTION: &str = "static PAY_FOR_OBJECT_QUESTION: Question = Question::new(\"PayForObject\", \"pay {cost} for {subject}?\", \"\", \"Pay {cost}\", \"Decline\");\n";
 
 /// What a card's abilities contribute to its `CardDef`.
 struct Parts {
@@ -2969,6 +2972,7 @@ fn emit_face(
             "announced" => ANNOUNCED,
             "slot_held" => target_counts::SLOT_HELD,
             "pay_question" => PAY_QUESTION,
+            "pay_for_object_question" => PAY_FOR_OBJECT_QUESTION,
             "most_assigned" => lane_l::MOST_ASSIGNED,
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,

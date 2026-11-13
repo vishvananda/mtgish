@@ -830,10 +830,18 @@ impl Compiler {
         cost: &Cost,
     ) -> Result<String> {
         self.helpers.insert("pay_question");
+        let object_subject = self.payment_subject.map(|n| format!("bound_{n}"));
+        if object_subject.is_some() {
+            self.helpers.insert("pay_for_object_question");
+        }
         let payer = self.fetch(self.certain_player(player)?);
         self.notes.acting = Some(format!("Some(payer_{id})"));
         let ask = |source: &str, subject: &str, cost: &str| {
-            format!("g.may_pay(payer_{id}, {source}, {subject}, {cost}, &PAY_QUESTION)?")
+            let (subject, question) = match (&object_subject, subject) {
+                (Some(object), "asker.source") => (object.as_str(), "PAY_FOR_OBJECT_QUESTION"),
+                _ => (subject, "PAY_QUESTION"),
+            };
+            format!("g.may_pay(payer_{id}, {source}, {subject}, {cost}, &{question})?")
         };
         let beholds: Vec<&CostPart> = cost
             .parts
