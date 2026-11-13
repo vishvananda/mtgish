@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "e2175b457083881ab7f44c1037fbfd09ef72ddffe5e724befc503ef172220e63"
+    "grammars/english_grammar.json5": "516f05d2a82c558188170b393c3f3b4474c4865758c8b5f2084b46b1a661d845"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -5422,7 +5422,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "e2175b457083881ab7f44c1037fbfd09ef72ddffe5e724befc503ef172220e63",
+    "grammars/english_grammar.json5": "516f05d2a82c558188170b393c3f3b4474c4865758c8b5f2084b46b1a661d845",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -8048,5 +8048,16 @@
       }
     ],
     "reason": "All three damage templates now bind the second printed amount to its own part. Equal actual amounts no longer rely on automatic scalar equivalence; unequal-amount parser controls pass."
+  },
+  "reference_untap_deadlines_20261113": {
+    "scope": "Seven templates saying your next untap step and 17 matching frozen corpus records; explicitly controller-following forms remain unchanged.",
+    "rationale": "DuringPlayersNextUntapStep(You) preserves the ability controller named by your, including after control changes, whereas the former controller-following source operation did not. The change preserves the affected permanent and the untap prohibition.",
+    "evidence": "The complete fresh frozen-corpus parse has 33,529 ordered lines and is byte-identical to data/mtgish.lines.ron (SHA-256 bb1c2ee13c6c964704068109f38b6d4f4db862d54a629f56d39e79062d2ff205). All 37 context findings have the same finding IDs and canonical matched-usage hashes as their prior reviewed rationales; 145 scalar findings remain automatic equivalents.",
+    "validation": [
+      "uncached focused parser regression for all 17 matching records and explicit controller-following control",
+      "Deep Spawn, Homarid Warrior, and Reveka control-change scenarios",
+      "native skipped-untap step deadline test",
+      "Krovikan drawn-card current-hand membership and replacement scenarios"
+    ]
   }
 }
