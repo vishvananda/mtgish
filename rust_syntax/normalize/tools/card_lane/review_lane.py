@@ -1241,9 +1241,11 @@ def pipeline_flow(db, cfg):
     if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='publish_cards'").fetchone():
         publishing = {r['job']:r['status'] for r in db.execute('SELECT p.job,b.status FROM publish_cards p JOIN publish_batches b ON b.number=p.batch')}
     active = {name:set() for name in flow}
-    for row in db.execute("""SELECT id,source,status,stage,worker FROM jobs
+    represented = set()
+    for row in db.execute("""SELECT id,name,source,status,stage,worker FROM jobs
             WHERE status!='superseded' AND rowid IN
             (SELECT MAX(rowid) FROM jobs GROUP BY name)"""):
+        represented.add(canonical_typography(row['name']))
         source=json.loads(row['source']);round_number=source.get('review_round',0)
         completed=round_number+(row['stage']=='confirm' or row['status'] in ('passed','blocked','infrastructure'))
         completed=min(3,max(completed,source.get('verifier_rejections',0)))
@@ -1273,9 +1275,16 @@ def pipeline_flow(db, cfg):
     if intake_path and Path(intake_path).exists():
         queue=read(intake_path)
         indexed={r['name']:r for r in implementation if r['revision']==queue.get('generator_commit')}
+        blocked_names = set()
         for card in queue.get('cards',[]):
             if card.get('status')=='pending' and card['name'] not in indexed:queued_names.add(card['name'])
             if card.get('status') in ('generator_gap','deferred_blocked','needs_generation','needs_reservation'):held+=1
+            name = canonical_typography(card['name'])
+            if (card.get('status') in ('generator_bug','engine_gap','needs_review','failed_gates','timeout','infrastructure','error','abandoned')
+                    and name not in represented):
+                blocked_names.add(name)
+        flow['blocked']['cards'] += len(blocked_names)
+        flow['blocked']['rounds'][0] += len(blocked_names)
     flow['intake'].update(cards=len(queued_names),queued=len(queued_names),held=held,rounds=[len(queued_names),0,0,0])
     for name, workers in active.items():flow[name]['active_workers']=len(workers)
     return flow

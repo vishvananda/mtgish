@@ -114,6 +114,30 @@ class QueueTests(unittest.TestCase):
             self.assertEqual(flow['implementation']['cards'],0)
             self.assertEqual(flow['blocked']['cards'],0)
 
+    def test_blocked_flow_uses_current_queue_and_deduplicates_reviews(self):
+        queue=self.root/'implementation-queue.json'
+        cards=[('Retry Pending','pending'),('Retry Running','working'),('Retry Committed','committed'),
+               ('Ashen','needs_review'),('In Review','needs_review'),('Review Blocked','needs_review'),
+               ('Unresolved','generator_bug'),('Engine','engine_gap'),('Incomplete','needs_review'),
+               ('Infrastructure','infrastructure')]
+        lane.save(queue, {'generator_commit':'new','cards':[{'name':n,'status':s} for n,s in cards]})
+        with lane.connect(self.root) as db:
+            db.execute('CREATE TABLE implementation_jobs(name TEXT,revision TEXT,status TEXT,worker TEXT)')
+            for name in ('Retry Pending','Retry Running','Retry Committed'):
+                db.execute('INSERT INTO implementation_jobs VALUES(?,?,?,?)',(name,'old','generator_bug','i1'))
+            for name,state in [('Retry Pending','queued'),('Retry Running','running'),('Retry Committed','committed')]:
+                db.execute('INSERT INTO implementation_jobs VALUES(?,?,?,?)',(name,'new',state,'i2'))
+            for name,state in [('Ashen','passed'),('In Review','queued'),('Review Blocked','blocked')]:
+                db.execute('INSERT INTO jobs(id,name,source_commit,source,status,stage,enqueued) VALUES(?,?,?,?,?,?,?)',
+                           (name,name,name,'{}',state,'review','now'))
+            flow=lane.pipeline_flow(db,{'implementation_queue':str(queue)})
+            self.assertEqual(flow['ready']['cards'],1)
+            self.assertEqual(flow['review']['cards'],1)
+            self.assertEqual(flow['intake']['cards'],1)
+            self.assertEqual(flow['implementation']['cards'],1)
+            self.assertEqual(flow['blocked']['cards'],5)
+            self.assertEqual(flow['blocked']['rounds'],[4,1,0,0])
+
     def test_lane_creates_state_directory_before_constructing_sandbox_roots(self):
         tree=self.root/'tree';tree.mkdir()
         state=self.root/'packet/state'
