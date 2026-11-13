@@ -53,6 +53,9 @@ def sync(root):
     # hold SQLite's writer lock while computing plans; card workers finish here too.
     planned = []
     for card in sorted(latest.values(), key=lambda c: (c['issue'], c['name'])):
+        subject = review.git(tree, 'show', '-s', '--format=%s', card['candidate'])
+        if subject.startswith('Review WIP:'):
+            raise RuntimeError(f"Provisional work is not an approved card candidate: {card['name']}")
         key = hashlib.sha256((card['name']+'\0'+card['candidate']).encode()).hexdigest()[:20]
         if key in existing:
             continue

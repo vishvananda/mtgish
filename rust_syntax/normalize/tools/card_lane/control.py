@@ -40,6 +40,7 @@ def initialize(root, lane_root, cantrip, worktrees, base, implementers, reviewer
                cargo_build_jobs=8, rust_min_stack=16777216,
                poll_seconds=5, repairs=3, timeout_seconds=3600, max_verifier_rejections=3,
                keep_verifier=True, focused_builds=True, implementation_queue=str(root/'implementation-queue.json'),
+               provisional_handoff=dict(enabled=False),
                implementers={f'i{i}':dict(tree=str(worktrees/f'i{i}')) for i in range(1,implementers+1)},
                reviewers={**{f'r{i}':dict(tree=str(worktrees/f'r{i}'),role='review') for i in range(1,reviewers+1)},
                           **{f'v{i}':dict(tree=str(worktrees/f'v{i}'),role='confirm') for i in range(1,verifiers+1)}},

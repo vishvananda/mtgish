@@ -713,6 +713,7 @@ def prepare(card, build=True):
         raise GeneratorBug(f"{name} has a gap: {row['gap']}")
     packet = card_dir(name)
     packet.mkdir(parents=True, exist_ok=True)
+    (packet / "generator-row.json").write_text(json.dumps({"revision": card.get("implementation_generator_revision", card.get("generator_commit")), "row": row}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     for stale in ("report.json", "check.json", "work.patch"):
         (packet / stale).unlink(missing_ok=True)
     if card.get("layout") in DRAFTED and not content_file(name).exists():

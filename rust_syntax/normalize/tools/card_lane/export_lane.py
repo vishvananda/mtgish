@@ -100,6 +100,8 @@ def plan(root, head, *, defer_implementations=(), hold_publications=()):
             if row['status'] != 'superseded':
                 blockers.append(f"Unfinished review: {row['name']} ({row['status']})")
             continue
+        if publication.git(tree, 'show', '-s', '--format=%s', row['candidate']).startswith('Review WIP:'):
+            raise ValueError('Provisional work cannot be exported: ' + row['name'])
         imported = imports.get(row['name'])
         if imported and imported['status'] == 'upstream':
             continue

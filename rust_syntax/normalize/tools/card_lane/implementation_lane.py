@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 import sys
 import time
@@ -261,6 +262,7 @@ def worker(root, slot, once=False):
                 review.git(tree, 'checkout', '-b', 'implement/'+job['id'], job_base)
             queue['cantrip_commit'] = job_base
             queue['cards'] = [card]
+            card['source_base'] = job_base
             lane.save_queue(queue)
             session.start_card()
             review.save(folder / 'live.json', dict(state='running', at=review.now(), card=card['name'], context_cards=session.cards))
@@ -277,6 +279,11 @@ def worker(root, slot, once=False):
                     db = review.connect(root)
                     review.enqueue(db, source, cfg.get('priorities', {}).get(card['name'], 0))
                 finish(root, job, outcome, result)
+                if outcome == 'needs_review' and cfg.get('provisional_handoff', {}).get('enabled', False):
+                    log = folder/'provisional-handoff.log'
+                    with log.open('a') as out:
+                        subprocess.run([sys.executable, str(review.HERE/'provisional_lane.py'), '--root', str(root), job['id']],
+                                       stdout=out, stderr=subprocess.STDOUT, check=False)
                 review.maintain_caches(root, cfg)
                 session.finish_card()
                 if outcome in ('infrastructure', 'error', 'timeout'):

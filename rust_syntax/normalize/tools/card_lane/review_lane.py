@@ -211,7 +211,7 @@ def clean(tree):
 def driver_stamp():
     paths = [HERE / name for name in (
         'review_lane.py', 'implementation_lane.py', 'shared_base.py', 'review_confirmation.py', 'card_lane.py',
-        'context_budget.py', 'review_evidence.py', 'cache_cleanup.py', 'cache_leases.py')]
+        'context_budget.py', 'review_evidence.py', 'cache_cleanup.py', 'cache_leases.py', 'provisional_lane.py')]
     paths.append(HERE.parent / 'cantrip_tree.py')
     return tuple(path.stat().st_mtime_ns for path in paths)
 
@@ -597,6 +597,8 @@ def packet(root, tree, job, source, lane):
             "## Author's line-by-line validation and evidence\n" + (folder / "author-report.json").read_text(),
             "## Scenarios\n" + "\n".join(f"### {p.relative_to(tree)}\n```\n{p.read_text()}\n```" for p in scenarios),
             "## Prior findings (leads to verify; not a verdict)\n" + json.dumps(hints, indent=2)]
+    if source.get('provisional'):
+        body.append("## Incomplete implementation\nThis is an unapproved Review WIP, not a completed card. The author report is incomplete; independently finish all printed-line validation, scenarios, report and full gates. Do not treat the provisional commit as approval.")
     if source.get("retry_note"):
         body.append("## Retry instructions\n" + source["retry_note"])
     if job["stage"] == "confirm":
@@ -997,6 +999,10 @@ def report_valid(report, name):
             canonical_typography(name) in [canonical_typography(n) for n in report.get("affected_cards", [])] and bool(report.get("client")))
 
 
+def needs_confirmation(source, paths):
+    return source.get('provisional', False) or any(p.endswith('.rs') or p.startswith('content/') for p in paths)
+
+
 def park_blocked(tree, source, folder, paths, result):
     """Retain a blocked card on its own named branch, freeing the worker without losing edits."""
     if not paths:
@@ -1187,9 +1193,12 @@ def worker(root, slot, once=False, resume=None):
                         # Stage all allowed new scenarios too so the confirmation sees their exact diff.
                         if paths:
                             git(tree, "add", "--", *paths)
-                        (packet_dir / "fixes.diff").write_text(git(tree, "diff", "HEAD") + "\n")
+                        # A provisional source has never had an author pass: the verifier must see
+                        # its entire card diff, including unchanged work from the provisional commit.
+                        diff_base = parent if source.get('provisional') else 'HEAD'
+                        (packet_dir / "fixes.diff").write_text(git(tree, "diff", diff_base) + "\n")
                         candidate = commit_candidate(tree, source, parent, paths)
-                        logic_changed = any(p.endswith(".rs") or p.startswith("content/") for p in paths)
+                        logic_changed = needs_confirmation(source, paths)
                         finish(db, job, "queued" if logic_changed else "passed", result, candidate=candidate,
                                branch=branch, fixed_by=slot, stage="confirm" if logic_changed else "review")
                     else:

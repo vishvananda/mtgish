@@ -46,6 +46,13 @@ shared `implementation_queue`. Their context can span 20 cards, but each card is
 immediately. No implementation worker reserves the next 19 cards while another slot is idle. Terminal outcomes
 and held generator gaps are never retried merely because a worker or importer restarts.
 
+Set `provisional_handoff.enabled` to route a stopped `needs_review` implementation to review after its retained
+patch passes scope, generator identity and private compile checks. The source is an unapproved `Review WIP:` commit;
+the reviewer must complete all normal gates and a separate verifier must confirm it before collection. Other outcomes
+never take this route. Existing stopped jobs can be imported explicitly with `provisional_lane.py --root ROOT JOB_ID`.
+Legacy packets without a captured row require a frozen revision and independently recorded rows SHA256, created with
+`provisional_lane.py --root ROOT --freeze-rows --revision FULL_SHA --sha256 ROWS_SHA256` before rows are refreshed.
+
 Reviewers claim **one committed revision** at a time from a SQLite queue; importing a producer queue twice does
 not duplicate work. Each reviewer owns a prepared CoW worktree and keeps its build cache. Each card starts on
 its own branch from the configured base plus its producer's prerequisite commits. Original producer branches and
