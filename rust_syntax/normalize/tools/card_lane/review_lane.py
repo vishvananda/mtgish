@@ -351,9 +351,9 @@ def retry_stopped(root, job_id, reason, *, new_base=None):
         previous = json.loads(job["result"] or "{}")
         limit = cfg.get("max_verifier_rejections", cfg.get("max_verifier_rounds", 3))
         source.setdefault("verifier_rejections", source.get("review_round", 0))
-        if source.get("verifier_rejections", 0) >= limit:
+        if source.get("verifier_rejections", 0) >= limit and new_base is None:
             raise ValueError("verifier rejection limit reached; retry cannot bypass it")
-        if job['stage'] == 'confirm':
+        if job['stage'] == 'confirm' and new_base is None:
             prior_folder = job_folder(root, job, 'confirm')
             if previous.get('report') or (prior_folder/'review.json').exists() or not job['candidate']:
                 raise ValueError('confirmation with a report requires its normal finding/fix process')
@@ -366,7 +366,17 @@ def retry_stopped(root, job_id, reason, *, new_base=None):
             event(db,job_id,None,'confirmation_retry_requested',dict(reason=reason,attempt=attempt,prior=str(prior_folder)))
             db.commit()
             return job_id
-        if job['stage'] != 'review':
+        if job['stage'] == 'confirm' and new_base is not None:
+            # A real shared-engine repair changes the code under review. This is
+            # not an evidence-only confirmation retry: retain the full candidate
+            # and its original parent, and require a fresh review on the new base.
+            old_review = job_folder(root, job, 'review')
+            checked = read(old_review / 'checks.json')
+            reviewed = read(old_review / 'result.json')
+            if not job['candidate'] or checked.get('head') != job['candidate']:
+                raise ValueError('base migration requires the previously checked candidate')
+            previous = dict(previous, prepared_parent=reviewed.get('prepared_parent'))
+        elif job['stage'] != 'review':
             raise ValueError('only stopped review jobs or reportless confirmations can be explicitly retried')
         if not job["branch"] or not previous.get("prepared_parent"):
             raise ValueError("stopped job lacks its preserved branch or prepared parent")
@@ -380,12 +390,15 @@ def retry_stopped(root, job_id, reason, *, new_base=None):
             pin = shared_base.read_work_base(cfg, Path(tree))
             if not pin or pin.get('kind') != 'local_integration' or pin['head'] != new_base:
                 raise ValueError('new base must be the currently validated local snapshot')
+            if new_base == previous['prepared_parent'] or new_base in source.get('base_fix_retries', []):
+                raise ValueError('base migration requires a genuinely newer, unused validated snapshot')
             git(tree, 'merge-base', '--is-ancestor', previous['prepared_parent'], new_base)
-            retained = git(tree, 'rev-parse', previous.get('wip_commit') or job['branch'])
+            retained = git(tree, 'rev-parse', previous.get('wip_commit') or
+                           (job['candidate'] if job['stage'] == 'confirm' else job['branch']))
             git(tree, 'merge-base', '--is-ancestor', previous['prepared_parent'], retained)
             migration = dict(rebase_base=previous['prepared_parent'], rebase_head=retained)
         round_number = source.get("review_round", 0) + 1
-        prior_folder = job_folder(root, job, "review")
+        prior_folder = job_folder(root, job, job['stage'])
         source["review_round"] = round_number
         source["retry_note"] = (f"Coordinator returned this SAME card after its blocker changed:\n{reason}\n"
                                 f"Prior immutable report and evidence: {prior_folder}\n"
@@ -395,6 +408,7 @@ def retry_stopped(root, job_id, reason, *, new_base=None):
             retry["wip_commit"] = previous["wip_commit"]
         if pin:
             source.update(shared_base.metadata(pin))
+            source['base_fix_retries'] = [*source.get('base_fix_retries', []), new_base]
             retry.update(migration, prepared_parent=pin['head'])
         save(Path(root) / "jobs" / job_id / f"retry-{round_number}.json",
              dict(at=now(), reason=reason, job=job))

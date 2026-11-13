@@ -920,6 +920,51 @@ class GitTests(unittest.TestCase):
         self.assertEqual(json.loads(row['result'])['wip_commit'],retained)
         self.assertEqual(self.git('status','--porcelain'),'')
 
+    def test_capped_confirmation_can_migrate_once_after_a_validated_engine_fix(self):
+        job,head,retained=self.migration_job()
+        with lane.connect(self.root) as db:
+            source=json.loads(db.execute('select source from jobs').fetchone()[0])
+            source.update(review_round=3,verifier_rejections=3)
+            previous=dict(report=dict(decision='blocked',reason='Defender history missing'))
+            db.execute("update jobs set stage='confirm',candidate=?,source=?,result=?",
+                       (retained,json.dumps(source),json.dumps(previous)));db.commit()
+            old=dict(db.execute('select * from jobs').fetchone())
+        review=lane.job_folder(self.root,old,'review')
+        lane.save(review/'checks.json',dict(head=retained))
+        lane.save(review/'result.json',dict(prepared_parent=self.base))
+        confirmation=lane.job_folder(self.root,old,'confirm')/'review.json'
+        lane.save(confirmation,previous['report'])
+        lane.retry_stopped(self.root,job['id'],'Defender assignments now recorded and validated',new_base=head)
+        with lane.connect(self.root) as db:new=dict(db.execute('select * from jobs').fetchone())
+        source=json.loads(new['source']);result=json.loads(new['result'])
+        self.assertEqual((new['stage'],new['status'],new['candidate']),('review','queued',None))
+        self.assertEqual((source['review_round'],source['verifier_rejections']),(4,3))
+        self.assertEqual(source['base_fix_retries'],[head])
+        self.assertEqual(result['rebase_head'],retained)
+        self.assertEqual(lane.read(confirmation),previous['report'])
+        archived=lane.read(self.root/'jobs'/job['id']/'retry-4.json')
+        self.assertEqual(archived['job'],old)
+        _,parent,_=lane.prepare(self.root,self.repo,new)
+        self.assertEqual(parent,head)
+        self.assertEqual((self.repo/'crates/cantrip-cards/src/cards/test_card.rs').read_text(),'retained fix')
+        with lane.connect(self.root) as db:
+            db.execute("update jobs set status='blocked',branch='parked',result=?",
+                       (json.dumps(dict(prepared_parent=self.base,wip_commit=retained)),));db.commit()
+        with self.assertRaisesRegex(ValueError,'rejection limit'):
+            lane.retry_stopped(self.root,job['id'],'No automatic retries after the cap')
+        with self.assertRaisesRegex(ValueError,'unused validated'):
+            lane.retry_stopped(self.root,job['id'],'Same engine is not another fix',new_base=head)
+
+    def test_base_migration_rejects_the_unchanged_parent(self):
+        job,_,retained=self.migration_job()
+        lane.save(self.root/'snapshot.json',dict(kind='local_integration',base=self.base,head=self.base,
+                                               validation=dict(ok=True,head=self.base)))
+        with self.assertRaisesRegex(ValueError,'genuinely newer'):
+            lane.retry_stopped(self.root,job['id'],'No actual engine change',new_base=self.base)
+        with lane.connect(self.root) as db:row=dict(db.execute('select * from jobs').fetchone())
+        self.assertEqual(row['status'],'blocked')
+        self.assertEqual(json.loads(row['result'])['wip_commit'],retained)
+
     def test_migration_keeps_card_edits_when_the_shared_fix_is_already_in_foundation(self):
         job,head,retained=self.migration_job(shared=True)
         lane.retry_stopped(self.root,job['id'],'Shared fix now validated in foundation',new_base=head)
