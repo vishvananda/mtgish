@@ -217,6 +217,7 @@ fn entering_choices_and_rich_backend_gaps_keep_their_paths() {
         ("Sower of Discord", "entering.chosen_player"),
         ("Greymond, Avacyn's Stalwart", "choose"),
         ("Imagecrafter", "ChooseSubtype"),
+        ("Gabriel Angelfire", "Duration::UntilNextStepOf"),
     ] {
         let (source, _) = card(name);
         let lowered = unified::lower(&source);
@@ -229,7 +230,6 @@ fn entering_choices_and_rich_backend_gaps_keep_their_paths() {
         ("Rite of Ruin", "operation ChooseValueWith"),
         ("Desert Cenote", "operation ChooseValueWith"),
         ("Alhammarret, High Arbiter", "name choice And"),
-        ("Gabriel Angelfire", "duration UntilNext upkeep"),
         (
             "Phyrexian Splicer",
             "a value chosen as an activation cost, read by its targets",

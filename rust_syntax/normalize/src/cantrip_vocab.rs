@@ -1,6 +1,6 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
-pub const API_FINGERPRINT: &str = "31d0e482b00c413d94f371d6cde3b468b35221d47f0ca6d5cf90c64ee2612bff";
+pub const API_FINGERPRINT: &str = "c65f91ea05ae924de5a2c8d2a935154f038cab8673bea0a39200c3b2d337e4cf";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -509,6 +509,7 @@ pub const SUBTYPES: &[&str] = &[
     "JemHadar",
     "Talaxian",
     "Communicator",
+    "Edosian",
 ];
 pub const KEYWORDS: &[&str] = &[
     "Flying",
@@ -669,6 +670,12 @@ pub const COUNTERS: &[&str] = &[
     "Storage",
     "Tide",
     "Music",
+    "Vow",
+    "Cube",
+    "Doom",
+    "Glyph",
+    "Pin",
+    "Sleight",
 ];
 pub const LASTING_RULE_KINDS: &[&str] = &[
     "CantAttack",
@@ -678,4 +685,4 @@ pub const LASTING_RULE_KINDS: &[&str] = &[
     "DoesntUntap",
     "CantAttackYou",
 ];
-pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "divide-reads-context", "typed-prevention-amount", "32-bit-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage", "target-original-context", "delayed-watched-source", "multiple-blocks", "cost-object-receipts", "game-draw-legality", "left-battlefield-receipts", "delayed-watched-subject", "core-riot", "exile-cast-fields", "permanent-cost-exclusions", "spell-alternative-kinds", "multi-zone-search", "job-select-token", "resolved-land-types", "untap-events", "counter-removal-events", "control-change-events", "event-delayed-object-lists", "exile-on-leave", "life-exchange", "compound-cumulative-upkeep", "no-other-auras", "resolution-x-payment"];
+pub const FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "divide-reads-context", "typed-prevention-amount", "32-bit-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage", "target-original-context", "delayed-watched-source", "multiple-blocks", "cost-object-receipts", "game-draw-legality", "left-battlefield-receipts", "delayed-watched-subject", "core-riot", "exile-cast-fields", "permanent-cost-exclusions", "spell-alternative-kinds", "multi-zone-search", "job-select-token", "resolved-land-types", "untap-events", "counter-removal-events", "control-change-events", "event-delayed-object-lists", "exile-on-leave", "life-exchange", "compound-cumulative-upkeep", "no-other-auras", "resolution-x-payment", "landwalk-blocking-exceptions", "independent-pt-settings", "no-combat-damage-assignment", "world-rule", "other-activators", "step-deadlines", "counted-untap-steps", "explicit-mana-loss", "random-discard-costs", "attack-as-though-haste", "nonmana-mana-tap-triggers", "keyword-family-metadata", "combat-event-delays", "other-player-targets", "blocking-reassignment", "noted-values", "nonmana-combat-costs", "combat-group-constraints", "revealed-hands", "computed-x", "bands-with-other", "rechosen-values", "hand-size-rules", "skip-steps", "untap-limits"];

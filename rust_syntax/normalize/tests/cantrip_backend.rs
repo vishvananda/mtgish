@@ -93,7 +93,7 @@ fn backend_capabilities_do_not_change_ast_coverage_or_publish_partial_code() {
         panic!()
     };
     limits.activators = Some(PlayerSet::All);
-    let error = cantrip::module(&kessig).unwrap_err();
+    let error = cantrip::planned::without_features(&["other-activators"], || cantrip::module(&kessig)).unwrap_err();
     // Who may activate it is a requirement: the code keeps the planned form,
     // and a card with a requirement is still not published.
     assert_eq!(error.feature, "engine: no activation by other players");
@@ -110,7 +110,7 @@ fn backend_capabilities_do_not_change_ast_coverage_or_publish_partial_code() {
         ),
     )
     .unwrap();
-    assert!(cantrip::export(&input, &output).is_err());
+    assert!(cantrip::planned::without_features(&["other-activators"], || cantrip::export(&input, &output)).is_err());
     assert_eq!(fs::read_to_string(&output).unwrap(), "previous artifact");
     fs::remove_dir_all(root).unwrap();
 }

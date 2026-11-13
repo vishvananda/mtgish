@@ -130,11 +130,18 @@ fn early_set_generated_effects_execute_in_cantrip() {
 }
 
 #[test]
-fn ability_choice_can_grant_rampage_while_keeping_the_missing_upkeep_duration() {
-    let row = &rows()["Gabriel Angelfire"];
-    let gaps: Vec<_> = row["faces"][0]["gaps"].as_array().unwrap().iter().map(|g| g["feature"].as_str().unwrap()).collect();
+fn ability_choice_requires_step_deadlines_for_its_upkeep_duration() {
+    let source = include_str!("fixtures/early_set_generator_gaps.ronl").lines()
+        .map(|line| ron::from_str::<OracleCard>(line).unwrap())
+        .find(|source| corpus::Identity::of(source).unwrap().names.iter().any(|n| n == "Gabriel Angelfire")).unwrap();
+    let lowered = unified::lower(&source);
+    let baseline = cantrip::planned::without_features(&["step-deadlines"], || {
+        cantrip::whole(&source, &lowered.card).unwrap()
+    });
+    let gaps: Vec<_> = baseline.faces[0].gaps.iter().map(|g| g.feature.as_str()).collect();
     assert_eq!(gaps, ["duration UntilNext upkeep"]);
-    let code = row["faces"][0]["rust"].as_str().unwrap();
+    let code = ready("Gabriel Angelfire");
     assert!(code.contains("rampage 3"), "{code}");
     assert!(code.contains("EffectKind::AddAbility"), "{code}");
+    assert!(code.contains("Duration::UntilNextStepOf"), "{code}");
 }

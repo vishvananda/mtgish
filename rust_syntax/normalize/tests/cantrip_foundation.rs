@@ -1,8 +1,18 @@
 #![cfg(feature = "cantrip")]
-//! The native early-set foundation is an explicit candidate profile until merged upstream.
+//! Compare incremental early-set capabilities against the pre-foundation profile.
 use mtgish_ast::cantrip;
 use std::{collections::BTreeMap, path::PathBuf, sync::OnceLock};
 const FOUNDATION: &[&str] = &["world-rule", "landwalk-blocking-exceptions", "independent-pt-settings", "no-combat-damage-assignment"];
+// Freeze the pre-foundation production capabilities so each incremental profile
+// proves which requirements it removes, even after the production pin advances.
+const LEGACY_FEATURES: &[&str] = &["lasting-rules", "rampage", "combat-removal", "blocked-status", "pt-counters", "regeneration-bans", "mana-counter-costs", "next-turn-delayed", "blocking-status", "damage-poison", "combat-lki", "entry-actor", "resolving-counter-costs", "aura-graveyard-identity", "delayed-subject-members", "counter-placement-ceiling", "divide-reads-context", "typed-prevention-amount", "32-bit-effect-quantities", "snow-mana", "non-target-attachment-hosts", "simultaneous-replacement-damage", "target-original-context", "delayed-watched-source", "multiple-blocks", "cost-object-receipts", "game-draw-legality", "left-battlefield-receipts", "delayed-watched-subject", "core-riot", "exile-cast-fields", "permanent-cost-exclusions", "spell-alternative-kinds", "multi-zone-search", "job-select-token", "resolved-land-types", "untap-events", "counter-removal-events", "control-change-events", "event-delayed-object-lists", "exile-on-leave", "life-exchange", "compound-cumulative-upkeep", "no-other-auras", "resolution-x-payment"];
+fn with_profile<R>(features: &[&str], f: impl FnOnce() -> R) -> R {
+    let mut combined = LEGACY_FEATURES.to_vec();
+    for feature in features {
+        if !combined.contains(feature) { combined.push(feature); }
+    }
+    cantrip::planned::with_features(&combined, f)
+}
 type Rows = BTreeMap<String,serde_json::Value>;
 fn read(path: &std::path::Path) -> Rows {
     std::fs::read_to_string(path).unwrap().lines().map(|line| { let row:serde_json::Value=serde_json::from_str(line).unwrap();(row["name"].as_str().unwrap().to_string(),row) }).collect()
@@ -14,8 +24,8 @@ fn profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_foundation.ronl");let oracle=fixtures.join("early_set_foundation.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-foundation-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-foundation-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
-        cantrip::planned::with_additional_features(FOUNDATION, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
+        with_profile(FOUNDATION, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -26,9 +36,9 @@ fn activator_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_activators.ronl");let oracle=fixtures.join("early_set_activators.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-activators-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-activators-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("other-activators");
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -53,9 +63,9 @@ fn step_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_steps.ronl");let oracle=fixtures.join("early_set_steps.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-steps-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-steps-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.extend(["other-activators","step-deadlines","counted-untap-steps"]);
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -75,9 +85,9 @@ fn mana_loss_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_mana_loss.ronl");let oracle=fixtures.join("early_set_mana_loss.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-mana-loss-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-mana-loss-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.extend(["other-activators","step-deadlines","counted-untap-steps","explicit-mana-loss"]);
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -97,9 +107,9 @@ fn random_cost_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_random_cost.ronl");let oracle=fixtures.join("early_set_random_cost.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-random-cost-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-random-cost-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.extend(["other-activators","step-deadlines","counted-untap-steps","explicit-mana-loss","random-discard-costs"]);
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -115,7 +125,7 @@ fn constant_random_costs_land_but_variable_random_discard_does_not() {
     let Ability::Activated {cost,..}=&mut lowered.card.faces[0].abilities[0] else {panic!()};
     let Some(CostPart::Discard {count,..})=cost.parts.iter_mut().find(|p|matches!(p,CostPart::Discard {..})) else {panic!()};
     *count=Expr::AnnouncedX;
-    cantrip::planned::with_additional_features(&["random-discard-costs"],|| {
+    with_profile(&["random-discard-costs"],|| {
         let generated=cantrip::whole(&source,&lowered.card).unwrap();
         assert!(generated.faces.iter().any(|f|f.gaps.iter().any(|g|g.feature=="engine: no random discard cost")));
     });
@@ -127,9 +137,9 @@ fn keyword_family_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_keyword_family.ronl");let oracle=fixtures.join("early_set_keyword_family.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-keyword-family-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-keyword-family-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.extend(["other-activators","step-deadlines","counted-untap-steps","explicit-mana-loss","random-discard-costs","keyword-family-metadata"]);
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -148,8 +158,8 @@ fn attached_cost_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_attached_cost.ronl");let oracle=fixtures.join("early_set_attached_cost.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-attached-cost-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-attached-cost-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
-        cantrip::planned::with_additional_features(FOUNDATION, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
+        with_profile(FOUNDATION, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -187,9 +197,9 @@ fn untap_limit_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_untap_limits.ronl");let oracle=fixtures.join("early_set_untap_limits.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-untap-limits-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-untap-limits-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("untap-limits");
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -210,9 +220,9 @@ fn mana_tap_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_mana_tap.ronl");let oracle=fixtures.join("early_set_mana_tap.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-mana-tap-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-mana-tap-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("nonmana-mana-tap-triggers");
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -233,9 +243,9 @@ fn attack_haste_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_attack_haste.ronl");let oracle=fixtures.join("early_set_attack_haste.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-attack-haste-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-attack-haste-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("attack-as-though-haste");
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -255,9 +265,9 @@ fn skip_step_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_skip_steps.ronl");let oracle=fixtures.join("early_set_skip_steps.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-skip-steps-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-skip-steps-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("skip-steps");
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -278,9 +288,9 @@ fn player_value_profiles() -> &'static (Rows,Rows) {
         let source=fixtures.join("early_set_player_values.ronl");let oracle=fixtures.join("early_set_player_values.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-player-values-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-player-values-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.extend(["hand-size-rules","rechosen-values"]);
-        cantrip::planned::with_additional_features(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features, || cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -308,9 +318,9 @@ fn band_profiles() -> &'static (Rows,Rows) {
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-bands-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-bands-candidate.jsonl");
         let source=fixtures.join("early_set_bands.ronl");let oracle=fixtures.join("early_set_bands.oracle.json");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("bands-with-other");
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -337,7 +347,7 @@ fn contextual_band_qualities_keep_an_explicit_gap_instead_of_losing_their_holder
     let mut card=unified::lower(&source);
     card.card.faces[0].abilities=vec![Ability::Mechanic {mechanic:Mechanic::BandsWithOthers,cost:None,amount:None,
         filter:Some(ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)))}];
-    cantrip::planned::with_additional_features(&["bands-with-other"],|| {
+    with_profile(&["bands-with-other"],|| {
         let generated=cantrip::whole(&source,&card.card).unwrap();
         assert!(generated.faces.iter().flat_map(|f|&f.gaps).any(|g|g.feature=="bands with other of a contextual quality"));
     });
@@ -349,9 +359,9 @@ fn combat_delay_profiles() -> &'static (Rows,Rows) {
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-delays-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-delays-candidate.jsonl");
         let source=fixtures.join("early_set_combat_delays.ronl");let oracle=fixtures.join("early_set_combat_delays.oracle.json");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("combat-event-delays");
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -375,9 +385,9 @@ fn notes_profiles() -> &'static (Rows,Rows) {
         let source=fixture.join("early_set_notes.ronl");let oracle=fixture.join("early_set_notes.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-notes-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-notes-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("noted-values");
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -403,7 +413,7 @@ fn other_note_kinds_remain_explicit_gaps() {
     for note in [NoteKind::Number(Expr::Constant(7)),NoteKind::LifeTotal,NoteKind::Player(PlayerRef::AbilityController)] {
         let mut lowered=unified::lower(&source);let Ability::Activated {body,..}=&mut lowered.card.faces[0].abilities[0] else{panic!()};
         *body=Program {instructions:vec![Instruction::Effect {result:ResultId(0),operation:Operation::Note(note)}]};
-        cantrip::planned::with_additional_features(&["noted-values"],|| {
+        with_profile(&["noted-values"],|| {
             let row=cantrip::whole(&source,&lowered.card).unwrap();assert!(row.faces[0].gaps.iter().any(|g|g.feature=="operation Note"));
         });
     }
@@ -420,7 +430,7 @@ fn coffin_note_probe() -> serde_json::Value {
         }
     }
     assert!(found);
-    cantrip::planned::with_additional_features(&["world-rule","noted-values"],|| {
+    with_profile(&["world-rule","noted-values"],|| {
         let row=cantrip::whole(&source,&lowered.card).unwrap();
         serde_json::json!({"faces":row.faces.iter().map(|face|serde_json::json!({"rust":face.rust,"gaps":face.gaps})).collect::<Vec<_>>()})
     })
@@ -437,9 +447,9 @@ fn blocking_profiles() -> &'static (Rows,Rows) {
         let source=fixture.join("early_set_blocking.ronl");let oracle=fixture.join("early_set_blocking.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-blocking-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-blocking-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("blocking-reassignment");
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -466,7 +476,7 @@ fn blocking_reassignment_does_not_enable_independent_attacking_or_combat_reselec
         let mut lowered=unified::lower(&source);
         let Ability::Spell {body,..}=lowered.card.faces[0].abilities.iter_mut().find(|a|matches!(a,Ability::Spell{..})).unwrap() else {unreachable!()};
         *body=Program {instructions:vec![Instruction::Effect {result:ResultId(0),operation:Operation::ChangeCombat {change}}]};
-        cantrip::planned::with_additional_features(&["blocking-reassignment"],|| {
+        with_profile(&["blocking-reassignment"],|| {
             let row=cantrip::whole(&source,&lowered.card).unwrap();
             assert!(row.faces[0].gaps.iter().any(|g|g.feature=="operation ChangeCombat"));
         });
@@ -479,9 +489,9 @@ fn target_chooser_profiles() -> &'static (Rows,Rows) {
         let source=fixture.join("early_set_target_choosers.ronl");let oracle=fixture.join("early_set_target_choosers.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-target-choosers-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-target-choosers-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("other-player-targets");
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -506,9 +516,9 @@ fn combat_payment_profiles() -> &'static (Rows,Rows) {
         let source=fixture.join("early_set_combat_payments.ronl");let oracle=fixture.join("early_set_combat_payments.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-payments-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-payments-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("nonmana-combat-costs");
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -538,7 +548,7 @@ fn fixed_attack_costs_do_not_pretend_to_announce_variable_sacrifice_counts() {
         }
     }
     lowered.card.walk_mut(&mut Variable);
-    cantrip::planned::with_additional_features(&["nonmana-combat-costs"],|| {
+    with_profile(&["nonmana-combat-costs"],|| {
         let generated=cantrip::whole(&source,&lowered.card).unwrap();
         assert!(generated.faces.iter().flat_map(|f|&f.gaps).any(|g|g.feature=="engine: no announced X in an attack cost"));
     });
@@ -550,9 +560,9 @@ fn combat_group_profiles() -> &'static (Rows,Rows) {
         let source=fixture.join("early_set_combat_groups.ronl");let oracle=fixture.join("early_set_combat_groups.oracle.json");
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-groups-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-combat-groups-candidate.jsonl");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.extend(["combat-group-constraints","world-rule"]);
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -574,9 +584,9 @@ fn revealed_hands_profiles() -> &'static (Rows,Rows) {
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-revealed-hands-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-revealed-hands-candidate.jsonl");
         let source=fixtures.join("early_set_revealed_hands.ronl");let oracle=fixtures.join("early_set_revealed_hands.oracle.json");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.push("revealed-hands");
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -597,9 +607,9 @@ fn computed_x_profiles() -> &'static (Rows,Rows) {
         let baseline=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-computed-x-baseline.jsonl");
         let candidate=PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("early-set-computed-x-candidate.jsonl");
         let source=fixtures.join("early_set_computed_x.ronl");let oracle=fixtures.join("early_set_computed_x.oracle.json");
-        cantrip::planned::tracked(&source,&oracle,&baseline).unwrap();
+        with_profile(&[], || cantrip::planned::tracked(&source,&oracle,&baseline).unwrap());
         let mut features=FOUNDATION.to_vec();features.extend(["computed-x","rechosen-values"]);
-        cantrip::planned::with_additional_features(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
+        with_profile(&features,||cantrip::planned::tracked(&source,&oracle,&candidate).unwrap());
         (read(&baseline),read(&candidate))
     })
 }
@@ -628,7 +638,7 @@ fn computed_x_costs_and_casting_limits_use_the_real_announcement_interface() {
     for ability in &mut lowered.card.faces[0].abilities {
         if let Ability::Casting(CastingRule::Require(Condition::Compare {left:Expr::AnnouncedX,test:NumberTest::Compare {comparison,..}}))=ability { *comparison=Comparison::Greater; }
     }
-    cantrip::planned::with_additional_features(&["computed-x"],|| {
+    with_profile(&["computed-x"],|| {
         let row=cantrip::whole(&source,&lowered.card).unwrap();
         assert!(row.faces[0].gaps.iter().any(|g|g.feature=="a limit on the X announced"));
     });
@@ -640,7 +650,7 @@ fn a_dynamic_effect_definition_is_not_silently_read_as_the_frozen_cost_x() {
     let mut lowered=unified::lower(&source);
     let Ability::Activated {body,..}=&mut lowered.card.faces[0].abilities[2] else {panic!()};
     *body=Program {instructions:vec![Instruction::Effect {result:ResultId(0),operation:Operation::Draw {players:PlayerSet::One(PlayerRef::AbilityController),amount:Expr::AnnouncedX}}]};
-    cantrip::planned::with_additional_features(&["computed-x"],|| {
+    with_profile(&["computed-x"],|| {
         let generated=cantrip::whole(&source,&lowered.card).unwrap();
         assert!(generated.faces[0].gaps.iter().any(|g|g.feature=="dynamic text-defined X in an activated effect"));
     });
@@ -681,7 +691,7 @@ fn foundation_generated_cards_execute_in_cantrip() {
     fs::create_dir_all(root.join("src")).unwrap();
     let fixture=PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let old=root.join("earlier-candidate.jsonl");
-    cantrip::planned::with_additional_features(FOUNDATION,||cantrip::planned::tracked(&fixture.join("early_set_generator_gaps.ronl"),&fixture.join("early_set_generator_gaps.oracle.json"),&old).unwrap());
+    with_profile(FOUNDATION,||cantrip::planned::tracked(&fixture.join("early_set_generator_gaps.ronl"),&fixture.join("early_set_generator_gaps.oracle.json"),&old).unwrap());
     let mut cards=read(&old);cards.extend(profiles().1.clone());cards.extend(activator_profiles().1.clone());cards.extend(step_profiles().1.clone());cards.extend(mana_loss_profiles().1.clone());cards.extend(random_cost_profiles().1.clone());cards.extend(keyword_family_profiles().1.clone());cards.extend(attached_cost_profiles().1.clone());cards.extend(untap_limit_profiles().1.clone());cards.extend(mana_tap_profiles().1.clone());cards.extend(attack_haste_profiles().1.clone());cards.extend(skip_step_profiles().1.clone());cards.extend(player_value_profiles().1.clone());cards.extend(band_profiles().1.clone());cards.extend(combat_delay_profiles().1.clone());cards.extend(computed_x_profiles().1.clone());cards.extend(revealed_hands_profiles().1.clone());cards.extend(combat_group_profiles().1.clone());cards.extend(combat_payment_profiles().1.clone());cards.extend(target_chooser_profiles().1.clone());
     // Modules actually used by these scenarios; candidate modules also have separate compile probes.
     // Cube and Doom counter declarations are intentionally separate from these runtime cases.
@@ -738,7 +748,7 @@ fn a_landwalk_exception_does_not_unlock_ignoring_an_unrelated_ability() {
     let Ability::Static {changes,..}=&mut lowered.card.faces[0].abilities[0] else {panic!()};
     let Change::Rule(RuleChange::BlockedAsThoughLacking(ability))=&mut changes[0] else {panic!()};
     *ability=Box::new(Operand::Vocabulary {family:"CheckHasable".into(),form:"Flying".into()});
-    cantrip::planned::with_additional_features(FOUNDATION,|| {
+    with_profile(FOUNDATION,|| {
         let generated=cantrip::whole(&source,&lowered.card).unwrap();
         assert!(generated.faces.iter().any(|f|f.gaps.iter().any(|g|g.feature=="static rule BlockedAsThoughLacking")));
     });

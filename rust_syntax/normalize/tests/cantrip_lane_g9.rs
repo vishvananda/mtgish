@@ -57,7 +57,7 @@ const CARDS: &[(&str, &str, bool)] = &[
         "an-exile-until-this-leaves-the-battlefield-dropped-from-a-choice-in-the-data",
         false,
     ),
-    ("Winter's Chill", "a-limit-on-the-x-announced", false),
+    ("Winter's Chill", "x_rule: Some(XRule::AtMost(", true),
     (
         "Jhoira, Weatherlight Corsair",
         "the-life-you-lose-read-as-the-revealing-player-s-in-the-data",

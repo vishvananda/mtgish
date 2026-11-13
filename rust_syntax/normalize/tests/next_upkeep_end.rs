@@ -109,9 +109,14 @@ fn exact_upkeep_end_validates_its_player_and_is_not_an_alias_for_upkeep_beginnin
 }
 #[test]
 #[cfg(feature = "cantrip")]
-fn generator_refuses_an_exact_duration_that_the_engine_cannot_represent() {
+fn generator_requires_step_deadlines_to_represent_the_exact_upkeep_end() {
     corpus::on_large_stack(|| {
-        let error = mtgish_ast::cantrip::module(&halfdane()).unwrap_err();
+        let card = halfdane();
+        let error = mtgish_ast::cantrip::planned::without_features(&["step-deadlines"], || {
+            mtgish_ast::cantrip::module(&card)
+        }).unwrap_err();
         assert!(error.feature.contains("UntilEndOfNextUpkeep"), "{error:?}");
+        let code = mtgish_ast::cantrip::module(&card).unwrap();
+        assert!(code.contains("Duration::UntilEndOfNextStepOf"), "{code}");
     });
 }
