@@ -8,6 +8,7 @@ fn card(name: &str) -> Card {
         .chain(include_str!("fixtures/tokens.ronl").lines())
         .chain(include_str!("fixtures/mana.ronl").lines())
         .chain(include_str!("fixtures/backend.ronl").lines())
+        .chain(include_str!("fixtures/early_set_generator_gaps.ronl").lines())
         .map(|s| ron::from_str(s).unwrap())
         .find(|s| {
             corpus::Identity::of(s)
@@ -42,6 +43,41 @@ fn verify_cantrip_snapshot(checkout: &std::path::Path) {
         "{}",
         String::from_utf8_lossy(&result.stderr)
     );
+}
+
+/// Execute the emitted applicability callback: negating an allowed-creature
+/// predicate must not turn lands and artifacts into restricted attackers.
+#[test]
+#[ignore = "explicit native callback boundary check; needs MTGISH_CANTRIP_DIR"]
+fn generated_attacker_filter_respects_the_creature_domain() {
+    use quote::ToTokens;
+    let checkout = PathBuf::from(std::env::var_os("MTGISH_CANTRIP_DIR").expect("MTGISH_CANTRIP_DIR"));
+    verify_cantrip_snapshot(&checkout);
+    let generated = cantrip::module(&card("Island Sanctuary")).unwrap();
+    let parsed = syn::parse_file(&generated).unwrap();
+    let functions = parsed.items.into_iter().filter_map(|item| match item {
+        syn::Item::Fn(f) if f.sig.ident.to_string().starts_with("permitted_attackers_") => Some(f),
+        _ => None,
+    }).collect::<Vec<_>>();
+    assert_eq!(functions.len(), 1);
+    let function = &functions[0];
+    let name = function.sig.ident.to_string();
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("generated-attacker-domain");
+    fs::create_dir_all(root.join("src")).unwrap();
+    let mut manifest = String::from("[package]\nname=\"generated-attacker-domain\"\nversion=\"0.0.0\"\nedition=\"2024\"\n[workspace]\n[dependencies]\n");
+    for dep in ["cantrip-api", "cantrip-rules"] {
+        manifest.push_str(&format!("{dep}={{path={:?}}}\n", checkout.join("crates").join(dep)));
+    }
+    manifest.push_str("\n[profile.release]\nopt-level=3\ndebug=\"line-tables-only\"\ncodegen-units=16\n[profile.cards]\ninherits=\"release\"\nincremental=true\ncodegen-units=256\n[profile.checked]\ninherits=\"cards\"\ndebug-assertions=true\n");
+    fs::write(root.join("Cargo.toml"), manifest).unwrap();
+    let harness = include_str!("fixtures/attacker_domain_native.rs")
+        .replace("__GENERATED_CALLBACK__", &function.to_token_stream().to_string())
+        .replace("__CALLBACK__", &name);
+    fs::write(root.join("src/lib.rs"), harness).unwrap();
+    let output = Command::new("cargo").args(["test", "--offline", "--profile", "checked"])
+        .current_dir(&root).env("CARGO_TARGET_DIR", generated_target())
+        .env("CANTRIP_VERIFY", "1").output().unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
 }
 #[test]
 fn a_made_redirect_cannot_read_the_target_of_the_ability_that_made_it() {

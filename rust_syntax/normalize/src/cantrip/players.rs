@@ -488,7 +488,9 @@ impl Compiler {
                     let allowed = predicate.filter(filter, &Candidate::of("object"))?;
                     let index = self.made_lasting_rules.len();
                     let function = format!("permitted_attackers_{index}");
-                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, object: ObjectId) -> bool {{ !({allowed}) }}").unwrap();
+                    // Only creatures can be restricted attackers. Negating the
+                    // permitted filter alone would include every noncreature.
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, object: ObjectId) -> bool {{ q.chars(object).is(CardType::Creature) && !({allowed}) }}").unwrap();
                     let text = quoted(self.line_text().unwrap_or("Only the permitted creatures can attack that player."));
                     self.made_lasting_rules.push(("restricted attackers".into(), format!("LastingRule {{ text: {text}, rule: LastingRuleKind::CantAttackYou, applies: {function} }}"), false));
                     let players = self.fetch(self.players(players)?);
