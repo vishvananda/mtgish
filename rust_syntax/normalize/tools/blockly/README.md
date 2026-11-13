@@ -1,5 +1,12 @@
 # Card blocks demo
 
+The Wasm bridge now depends directly on Oracle Grammar's `oracle-ir-contract`
+package at the workspace's immutable model revision. Browser validation and
+compact card-code editing do not compile the MTGish Source parser or generator.
+The proposed long-term home is a separate `oracle-blocks` repository; see
+[the component ownership plan](../../../../docs/oracle-owned-model-consumers-20261113.md).
+
+
 The generated `card-blocks.html` is one self-contained file. Open it in a modern
 browser; it also works from an ordinary static web server. Search the entire
 checked-in card corpus, inspect/edit the blocks, start a blank creature or draw
@@ -313,7 +320,7 @@ in the browser. Rebuild after changing the IR, validator or Source corpus.
   Primitive, vocabulary and scalar newtype fields are inline; compound list items use statement sockets. Rust documentation appears when
   selecting a constructor. Explicit integer text fields and lossless JSON
   handling preserve the full i64/u64 ranges.
-* `blockly-wasm` depends on `mtgish-ast` with default features disabled. It uses
+* `blockly-wasm` depends directly on the pinned `oracle-ir-contract` package. It uses
   the existing `validate::unified` and strict `validate::card`, not a JavaScript
   imitation. Card-code parsing and formatting also run in Rust/Wasm. Unknown fields, unreduced forms, invalid ranges, wrong schema and
   bad reference scopes are rejected. Checks run in a Web Worker; results from

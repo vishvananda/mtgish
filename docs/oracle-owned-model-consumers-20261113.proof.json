@@ -1,0 +1,83 @@
+{
+  "schema": 190,
+  "baseline_mtgish_revision": "d4b172343b06f8887f700b425ebf69a67acf8efa",
+  "provider_repository": "https://github.com/vishvananda/oracle-grammar.git",
+  "provider_revision": "4174f5e4fa73ff569dccb931a61a63004323d22e",
+  "provider_pr": "https://github.com/vishvananda/oracle-grammar/pull/1",
+  "source_cache_sha256": "6e59a5f782285a0eae2f2a5b2a0664223746324f03ab32f6472b3b243e64157b",
+  "migration": {
+    "schema_definitions": "shared oracle-ir; mtgish-ir compatibility re-export",
+    "contracts": "shared oracle-ir-contract",
+    "wasm_bridge": "direct dependency on oracle-ir-contract",
+    "source_compiler": "retained in MTGish adapter",
+    "engine_changes": false,
+    "schema_or_numeric_changes": false,
+    "source_cache_changes": false
+  },
+  "verification": {
+    "workspace_check": "passed",
+    "workspace_tests": {
+      "passed": 1994,
+      "failed": 0,
+      "ignored": 20,
+      "targets": 204,
+      "exit_code": 0
+    },
+    "wasm_dependency_graph": "no MTGish packages",
+    "full_corpus_parity": {
+      "records": 33529,
+      "byte_identical_jsonl": true,
+      "after_sha256": "884e968a7d05f6f06b7f977a2cbae7ba0fa5d219d49321e13ebe0d434e7f96c4",
+      "all_lower_without_diagnostics": true,
+      "all_semantically_validate": true,
+      "all_binary_roundtrip": true
+    },
+    "generator_parity": {
+      "records": 286,
+      "ready": 221,
+      "gapped": 65,
+      "executable_code_and_rendered_files_identical": true,
+      "all_gaps_identical": true,
+      "all_normalized_ir_hashes_identical": true,
+      "cantrip_api_fingerprint_unchanged": true,
+      "only_change": "generator provenance SHA256 header",
+      "generator_fingerprints": [
+        [
+          "874939a72aa04e455b3a2f14c82a64937880be3eb1709b66b7c3118eb541a69d",
+          "a451b26e9f5fd5595c1adeb2d185371b49860b8a1af6ad679e623020d6f053ea"
+        ]
+      ],
+      "before_sha256": "8f9d7d429b39e661ca08ddda51e8d747438404a6ee79842cf2093c88c6421ac3",
+      "after_sha256": "270b6f975f3f899e02d1d0c8b88c4ee77ba13df766624a2e178828227c4c3f86"
+    },
+    "wasm_build": {
+      "target": "wasm32-unknown-unknown",
+      "exit_code": 0,
+      "sha256": "abe8a5c6bc8aec1e39c1178cb7bab1f27d06124856f600879f3f461fc299a315"
+    },
+    "provider_ci": {
+      "url": "https://github.com/vishvananda/oracle-grammar/actions/runs/43360575303",
+      "model_tests": 4,
+      "contract_tests": 94,
+      "frontend_tests": 667,
+      "ignored": 5,
+      "python_tests": 39,
+      "clippy": "all targets/all features with warnings denied"
+    },
+    "moved_test_counts": {
+      "contract_regressions": 93,
+      "schema_regressions": 4,
+      "vocabulary_typescript_exports": 12,
+      "explanation": "These 109 cases moved out of the MTGish workspace; 2103 - 109 = 1994. The provider also adds an independent extraction compatibility regression."
+    },
+    "logs_sha256": {
+      "mtgish-owned-ir-check-final.log": "34b513dd8a7ddc6f94e08336a559fb3eb03b0465231f2b2d7ef01e083c159c48",
+      "mtgish-owned-ir-workspace-tests.log": "a40f2580e3bf90f42db062148e06e1a41e15314a10b8883bce52137f53156ff0",
+      "mtgish-owned-ir-wasm-build.log": "7fa87f2fa0a9ed30b486527e3dc2d0e043fc362fb5631e7130ca24a811991c90"
+    }
+  },
+  "planned_component_homes": {
+    "blocks": "proposed independent oracle-blocks repository",
+    "generator": "proposed Cantrip tools/oracle-codegen"
+  }
+}

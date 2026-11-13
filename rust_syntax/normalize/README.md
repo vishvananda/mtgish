@@ -1,5 +1,12 @@
 # Rust AST normalization
 
+The portable AST and shared contracts are owned by Oracle Grammar. This package
+consumes its pinned `oracle-ir` and `oracle-ir-contract` crates and keeps the
+existing module imports as re-exports. Legacy Source compilation and Cantrip
+code generation remain here during the consumer migration. See
+[ownership and planned component homes](../../docs/oracle-owned-model-consumers-20261113.md).
+
+
 `mtgish-ast` lowers the parser's existing Rust types into generic semantic data.
 It is a separate package so a change to the lowerer does not rebuild all of the
 legacy schema's serialization derives. The implementation is in progress:
