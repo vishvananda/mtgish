@@ -972,9 +972,15 @@ def commit_candidate(tree, source, parent, paths):
             raise RuntimeError('card_test_paths may name only Rust integration test files')
         owned.add(path)
     shared = [p for p in paths if p not in owned]
-    if paths:
-        git(tree, "add", "--", *paths)
-    final_tree = git(tree, "write-tree")
+    # A migrated WIP can have an index entry the reviewer restored in the
+    # worktree. Checks and allowed_changes read the worktree; stale staged
+    # bytes must not reappear in the candidate just because their net diff is zero.
+    with tempfile.TemporaryDirectory() as temporary:
+        env = dict(os.environ, GIT_INDEX_FILE=str(Path(temporary) / "index"))
+        git(tree, "read-tree", "HEAD", env=env)
+        if paths:
+            git(tree, "add", "--", *paths, env=env)
+        final_tree = git(tree, "write-tree", env=env)
     if shared:
         with tempfile.TemporaryDirectory() as temporary:
             env = dict(os.environ, GIT_INDEX_FILE=str(Path(temporary) / "index"))
@@ -990,6 +996,7 @@ def commit_candidate(tree, source, parent, paths):
         message += f"\n\nCloses #{source['issue']}"
     env = dict(os.environ, GIT_AUTHOR_NAME=author[0], GIT_AUTHOR_EMAIL=author[1], GIT_AUTHOR_DATE=author[2])
     candidate = git(tree, "commit-tree", final_tree, "-p", parent, "-m", message, env=env)
+    git(tree, "read-tree", final_tree)
     git(tree, "reset", "--soft", candidate)
     clean(tree)
     return candidate

@@ -609,6 +609,31 @@ class GitTests(unittest.TestCase):
         self.assertEqual(self.git("show", "--format=", "--name-only", candidate), paths[0])
         self.assertEqual(self.git("status", "--porcelain"), "")
 
+    def test_candidate_uses_reviewed_worktree_when_staged_change_was_restored(self):
+        foreign = 'scenarios/other-card.cantrip'
+        own = 'crates/cantrip-cards/src/cards/test_card.rs'
+        self.git('checkout', '-qb', 'shared', self.base)
+        self.write(foreign, 'original scenario')
+        self.git('add', foreign)
+        self.git('commit', '-qm', 'Shared baseline')
+        parent = self.git('rev-parse', 'HEAD')
+        self.git('checkout', '-qb', 'review')
+        self.write(own, 'reviewed card')
+        self.write(foreign, 'unnecessary staged scenario rewrite')
+        self.git('add', own, foreign)
+        self.write(foreign, 'original scenario')
+        paths = lane.allowed_changes(self.repo, 'Test Card')
+        self.assertNotIn(foreign, paths)
+        self.assertIn(foreign, self.git('diff', '--cached', '--name-only'))
+        digest = lane.work_digest(self.repo)
+        candidate = lane.commit_candidate(self.repo,
+            dict(name='Test Card', commit=self.source), parent, paths)
+        self.assertEqual(self.git('show', candidate+':'+foreign), 'original scenario')
+        self.assertEqual(self.git('show', '--format=', '--name-only', candidate), own)
+        self.assertEqual(self.git('rev-parse', candidate+'^'), parent)
+        self.assertEqual(lane.work_digest(self.repo), digest)
+        self.assertEqual(self.git('status', '--porcelain'), '')
+
     def test_candidate_normalizes_title_for_publication_without_changing_content(self):
         import publish_lane
         self.git('commit', '--amend', '-qm', 'Implement Test Card\n\nRetain the reviewed behavior.')
