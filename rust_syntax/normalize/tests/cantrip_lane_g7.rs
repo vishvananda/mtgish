@@ -43,7 +43,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     // Held by other forms; the landed part.
     ("Zombie Musher", "Keyword::SnowLandwalk", false),
     ("Moritte of the Frost", "with_keyword(Keyword::Changeling)", false),
-    ("Orcish Farmer", "Duration::UntilNextTurnOf(", false),
+    ("Orcish Farmer", "until-the-affected-object-s-current-controller-s-next-untap-step", false),
 ];
 
 /// Features these cards no longer hold.

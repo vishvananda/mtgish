@@ -28,10 +28,12 @@ fn ready(name: &str) -> String {
 }
 #[test]
 fn native_land_type_and_trigger_interfaces_publish_complete_cards() {
-    for name in ["Gaea's Liege", "Orcish Farmer", "Thelonite Monk", "Merieke Ri Berit",
+    for name in ["Gaea's Liege", "Thelonite Monk", "Merieke Ri Berit",
         "Krovikan Vampire", "Seraph", "Glyph of Doom", "Phantasmal Mount", "Venomous Breath", "War Barge"] {
         ready(name);
     }
+    let farmer = &rows()["Orcish Farmer"]["faces"][0];
+    assert!(farmer["gaps"].as_array().unwrap().iter().any(|gap| gap.to_string().contains("current controller's next untap step")), "{farmer}");
     assert!(ready("Gaea's Liege").contains("EffectKind::SetLandType"));
     assert!(ready("Merieke Ri Berit").contains("Event::Untapped"));
     assert!(ready("Krovikan Vampire").contains("from: player"));
