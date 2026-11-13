@@ -5413,7 +5413,7 @@ mod shared_tap_untap_tests {
 
 #[cfg(test)]
 mod replacement_role_regression {
-    use super::*;
+    use super as renderer;
 
     #[test]
     fn replacement_helper_requires_exclusive_private_callers() {
@@ -5434,14 +5434,14 @@ mod replacement_role_regression {
             };
             static OTHER: fn() = publicly_referenced_step;
         "#).unwrap();
-        let roles = callback_roles(&file);
-        assert!(roles.get("replace_then") == Some(&Role::Replacement));
-        assert!(roles.get("private_step") == Some(&Role::Replacement));
-        assert!(roles.get("nested_private_step") == Some(&Role::Replacement));
+        let roles = renderer::callback_roles(&file);
+        assert!(roles.get("replace_then") == Some(&renderer::Role::Replacement));
+        assert!(roles.get("private_step") == Some(&renderer::Role::Replacement));
+        assert!(roles.get("nested_private_step") == Some(&renderer::Role::Replacement));
         assert!(!roles.contains_key("shared_step"));
         assert!(!roles.contains_key("publicly_referenced_step"));
         assert!(!roles.contains_key("externally_callable_step"));
-        assert!(roles.get("hand_predicate") == Some(&Role::Static));
+        assert!(roles.get("hand_predicate") == Some(&renderer::Role::Static));
         assert!(!roles.contains_key("resolving_effect"));
     }
 }
