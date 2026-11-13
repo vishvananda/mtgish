@@ -26,8 +26,8 @@ P="$HOME/card-lane/pipeline-demo"               # queue, reports and service log
 POOL="/path/on/reflink-filesystem/card-workers" # worker sources and private caches
 
 git -C "$CANTRIP" fetch https://github.com/vishvananda/cantrip-rs.git \
-    card/early-sets-20261106-v4/foundation
-BASE=27690f3fb867737b346c0df275c6ddf34121ff17
+    engine/early-set-foundation-20261112
+BASE=11237af09f9f3ae9384796017c8a4135d8c2ec72
 git -C "$CANTRIP" worktree add -b lane-demo/seed "$LANE/cantrip" "$BASE"
 export CARD_LANE="$LANE" CARD_LANE_CANTRIP="$LANE/cantrip"
 export CARD_LANE_BRANCH=lane-demo/seed CARD_LANE_TARGET="$LANE/cantrip/target"

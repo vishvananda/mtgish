@@ -1,8 +1,8 @@
 {
-  "generator_revision": "c0c78ba8f3775a8a79b8f581b61cacc647ce21c4",
-  "native_revision": "27690f3fb867737b346c0df275c6ddf34121ff17",
-  "native_pr": "https://github.com/cantrip-rs/cantrip-rs/pull/2594",
-  "api_fingerprint": "c00a0b9a4edcbeba8fff086c0cb3f5a8292d77f5fe0c93e4673a4365dfc9c792",
+  "generator_revision": "defd5e872d295e9cc7cfdf756241dc7242e742a9",
+  "native_revision": "11237af09f9f3ae9384796017c8a4135d8c2ec72",
+  "native_pr": "https://github.com/cantrip-rs/cantrip-rs/pull/2875",
+  "api_fingerprint": "c65f91ea05ae924de5a2c8d2a935154f038cab8673bea0a39200c3b2d337e4cf",
   "model": "gpt-6.1-terra",
   "effort": "medium",
   "implementers": 6,
@@ -11,5 +11,7 @@
   "cards_per_context": 20,
   "context_tokens": 300000,
   "idle_context_seconds": 3600,
+  "cargo_build_jobs": 2,
+  "rust_min_stack": 16777216,
   "note": "The current packaging commit is a descendant of this generator revision. Revalidate compatibility when selecting newer revisions."
 }
