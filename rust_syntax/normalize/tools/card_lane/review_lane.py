@@ -373,7 +373,10 @@ def retry_stopped(root, job_id, reason, *, new_base=None):
             old_review = job_folder(root, job, 'review')
             checked = read(old_review / 'checks.json')
             reviewed = read(old_review / 'result.json')
-            if not job['candidate'] or checked.get('head') != job['candidate']:
+            # Checks run before commit_candidate constructs the final commit, so
+            # their HEAD can differ. No old approval is carried into this retry;
+            # the retained candidate must pass the entire new review again.
+            if not job['candidate'] or checked.get('ok') is not True:
                 raise ValueError('base migration requires the previously checked candidate')
             previous = dict(previous, prepared_parent=reviewed.get('prepared_parent'))
         elif job['stage'] != 'review':

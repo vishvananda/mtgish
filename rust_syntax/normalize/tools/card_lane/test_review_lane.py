@@ -930,7 +930,7 @@ class GitTests(unittest.TestCase):
                        (retained,json.dumps(source),json.dumps(previous)));db.commit()
             old=dict(db.execute('select * from jobs').fetchone())
         review=lane.job_folder(self.root,old,'review')
-        lane.save(review/'checks.json',dict(head=retained))
+        lane.save(review/'checks.json',dict(ok=True,head=self.source))
         lane.save(review/'result.json',dict(prepared_parent=self.base))
         confirmation=lane.job_folder(self.root,old,'confirm')/'review.json'
         lane.save(confirmation,previous['report'])
