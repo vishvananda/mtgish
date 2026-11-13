@@ -1,0 +1,140 @@
+{
+  "schema_version": 190,
+  "registry_migration_commit": "9d17f1a3dfb6e7037e5734087c33a562b8b36a9c",
+  "stack_fix_commit": "83a7861",
+  "validation_process_commit": "4965253cd5859a92cbaa3041974a8d849e9fe8d1",
+  "packages": {
+    "oracle-ir": {
+      "version": "0.1.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "6c61600c9bb4e8244dbd4d5a73ac5fe32a2aa1eb411636c33ce2f4de9e38db51",
+      "producer": {
+        "git": {
+          "sha1": "0edb7f52a83b1fae15ddd369aad33a7a5c18a763"
+        },
+        "path_in_vcs": "crates/oracle-ir"
+      }
+    },
+    "oracle-ir-contract": {
+      "version": "0.1.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "42c2140527da439c6e9ec6a7eeaeee0e16bb54ea0e369faeafe7c03e448ed336",
+      "producer": {
+        "git": {
+          "sha1": "0edb7f52a83b1fae15ddd369aad33a7a5c18a763"
+        },
+        "path_in_vcs": "crates/oracle-ir-contract"
+      }
+    }
+  },
+  "workspace_tests": {
+    "passed": 2003,
+    "failed": 0,
+    "ignored": 20,
+    "targets": 203,
+    "RUST_MIN_STACK": "unset",
+    "exit_code": 0
+  },
+  "python_gate_tests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "source_cache": {
+    "sha256": "6e59a5f782285a0eae2f2a5b2a0664223746324f03ab32f6472b3b243e64157b",
+    "unchanged": true
+  },
+  "corpus_validation": {
+    "records": 33529,
+    "all_lower_without_diagnostics": true,
+    "all_validate": true,
+    "all_binary_roundtrip": true,
+    "jsonl_sha256": "884e968a7d05f6f06b7f977a2cbae7ba0fa5d219d49321e13ebe0d434e7f96c4",
+    "byte_identical_to_git_provider": true
+  },
+  "stack_safety": {
+    "diagnosis": "legacy Action Serialize<Inspector> exhausted caller stack during Source inspection",
+    "root_inspection_guarded": true,
+    "explicit_2mb_caller_regression": "passed",
+    "same_protected_worker_regression": "passed",
+    "worker_fast_path": "inline, with cold thread construction; internal recursive fields do not re-enter the guard",
+    "schema_or_ast_layout_changed": false,
+    "new_dependency_added": false,
+    "inspection_benchmark": {
+      "records": 33529,
+      "samples_seconds": {
+        "before": [
+          7.23995121801272,
+          7.4670457651373,
+          7.158727013971657,
+          6.378084834897891,
+          6.734339672140777,
+          6.58564758207649,
+          6.5849748679902405
+        ],
+        "after": [
+          6.98623465700075,
+          6.669846839038655,
+          6.441126593854278,
+          6.902219762792811,
+          7.213192168157548,
+          7.189077988034114,
+          6.393521293066442
+        ]
+      },
+      "medians_seconds": {
+        "before": 6.734339672140777,
+        "after": 6.902219762792811
+      },
+      "inspection_manifests_identical": true,
+      "threads": 2,
+      "profile": "dev, Source crate unoptimized; dependencies opt-level 2",
+      "interleaved": true,
+      "RUST_MIN_STACK": null,
+      "after_before_ratio": 1.0249289609412686
+    },
+    "benchmark_scope": "development-profile inspection, seven interleaved samples per binary; not an optimized release performance claim",
+    "baseline_binary_sha256": "0ca4d29dd154cec94ea7da358d1db98af19754335f0c0b0680897c8be20965c9",
+    "after_binary_sha256": "8cad17ee27eb91d442658f29998962981cec4912056b8403b02d7d0bbd3a5751"
+  },
+  "wasm": {
+    "build": "passed",
+    "target": "wasm32-unknown-unknown",
+    "source_compiler_absent_from_normal_graph": true
+  },
+  "cross_producer_gate": {
+    "fixture_kind": "independent synthetic native-IR bundle; fresh actual Go parsing and registry-backed AST lowering",
+    "positive": {
+      "passed": true,
+      "complete_agreement": false,
+      "counts": {
+        "equal": 2,
+        "grammar_refused": 1
+      },
+      "comparison_sha256": "0b31c141c433230d7d947900f18a44cfa106bc0d899a60156c00ee45a3ac15c2",
+      "fresh_source_sha256": "aee07e98a7dbd9da6f96e2ad1e123657d8629a9bcc904cf633bcd50be6ce512d"
+    },
+    "negative": {
+      "passed": false,
+      "complete_agreement": false,
+      "counts": {
+        "equal": 1,
+        "grammar_refused": 1,
+        "mismatch": 1
+      },
+      "comparison_sha256": "08990cec93167297691b9b31002cc0ec1322d31b82cd6c45f01123226fa9ced2",
+      "fresh_source_sha256": "aee07e98a7dbd9da6f96e2ad1e123657d8629a9bcc904cf633bcd50be6ce512d"
+    },
+    "actual_published_face_bundle_audit": "pending data publication; grammar-v0.1.0 code release exists, no faces release available at verification"
+  },
+  "engine_changes": false,
+  "site_deployment": false,
+  "upstream_reports": "none: no confirmed new reference defects from this migration; stack defect was local inspection code",
+  "logs_sha256": {
+    "mtgish-stack-tests-final.log": "ba4041b3d18cc34ebfa6cff604f2d9f2ad3b74ded38b85862205cd0d2beb80ee",
+    "mtgish-stack-trace.log": "d527a45b3f7b5d9df5ab9f91f85f8bdca2becf35f80222f4ffdd37f76a62a0b5",
+    "mtgish-registry-wasm.log": "2a9e6f10ded988c0fb19ab0cd45feb204f56ad1dd11947af99300d40ae81c0f5",
+    "mtgish-registry-workflow-committed.log": "5248aba7a04dc8c4121750a837ca89a617f89c40b50f249dcbf16c2b5380b418",
+    "mtgish-stack-check.log": "805734472c6ca0658361952188e354f29749d4632e5d01af386f015ff3be4b5f",
+    "mtgish-registry-cli-final.log": "50cce13e5508750cf81ba2b4b83c04bb8288407f98a064d9b727704c3abba96e"
+  }
+}
