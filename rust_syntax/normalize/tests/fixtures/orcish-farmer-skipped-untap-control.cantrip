@@ -1,0 +1,27 @@
+# The affected land stays a Swamp if its controller's next untap step is skipped.
+[Bot1 Deck]
+Black Lotus
+Orcish Farmer
+Mountain x20
+[Bot2 Deck]
+Proof Skip Untap
+Forest
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Red)
+Bot1.Hand.Orcish Farmer.Cast
+Bot1.Pass
+[T2 Bot2.Main1]
+Bot2.Hand.Forest.Play
+Bot2.Hand.Proof Skip Untap.Cast
+Bot2.Pass
+[T3 Bot1.Main1]
+Bot1.Battlefield.Orcish Farmer.Activate(Bot2.Battlefield.Forest)
+Bot1.Pass
+Bot2.Pass
+? Bot2.Battlefield.Forest.Subtypes = Swamp
+[T4 Bot2.Main1]
+[Expect]
+Bot2.Battlefield.Forest.Subtypes = Swamp

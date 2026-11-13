@@ -4536,6 +4536,11 @@ impl Compiler {
                 "Duration::UntilNextTurnOf({})",
                 self.fetch(self.certain_player(player)?)
             ),
+            // This deadline follows the object's controller at the beginning
+            // of the next actual untap step; a fixed player would be incorrect.
+            D::UntilNextUntapStep(PlayerRef::ControllerOf(_)) => {
+                return Err(gap("until the affected object's current controller's next untap step"));
+            }
             // A skipped untap step never begins, so wait for the next actual step.
             D::UntilNextUntapStep(player) => format!(
                 "Duration::UntilNextStepOf {{ step: Step::Untap, player: Some({}) }}",

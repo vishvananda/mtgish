@@ -1,0 +1,28 @@
+# A land changed by Orcish Farmer changes controller before the new controller's untap.
+[Bot1 Deck]
+Black Lotus
+Orcish Farmer
+Mountain x20
+[Bot2 Deck]
+Proof Take Land
+Island x20
+[Actions]
+Bot1.Hand.Mountain.Play
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Red)
+Bot1.Hand.Orcish Farmer.Cast
+Bot1.Pass
+[T3 Bot1.Main1]
+Bot1.Battlefield.Orcish Farmer.Activate(Bot1.Battlefield.Mountain)
+Bot1.Pass
+Bot2.Pass
+? Bot1.Battlefield.Mountain.Subtypes = Swamp
+Bot1.Pass
+Bot2.Hand.Proof Take Land.Cast(Bot1.Battlefield.Mountain)
+Bot2.Pass
+Bot1.Pass
+? Bot2.Battlefield.Mountain.Subtypes = Swamp
+[T4 Bot2.Main1]
+[Expect]
+Bot2.Battlefield.Mountain.Subtypes = Mountain
