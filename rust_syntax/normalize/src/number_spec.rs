@@ -116,22 +116,7 @@ pub struct Object {
     pub kind: ObjectKind,
     pub argument: Option<usize>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum PaymentAction {
-    Sacrifice,
-    Discard,
-    Tap,
-    Untap,
-    Exile,
-    RemoveCounters,
-    Enter,
-    Reveal,
-    Draw,
-    Mill,
-    /// The cost picked one object and left it where it was.
-    Choose,
-    Return,
-}
+pub use oracle_ir_contract::payments::PaymentAction;
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum PrivateZone {
     Hand,

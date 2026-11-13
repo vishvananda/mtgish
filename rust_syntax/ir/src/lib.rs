@@ -1,11 +1,3 @@
-//! Frozen normalized IR types and their wire/schema contracts.
-//! Consumers pin this package independently of changing canonicalization,
-//! validation and source-lowering code, so its serialization derives stay cached.
-pub use rust_syntax::mtg_types;
-pub mod counter;
-pub mod declarations;
-pub mod ir;
-pub mod ir_schema;
-pub mod visit;
-
-pub mod targets;
+//! Compatibility imports for existing MTGish IR consumers.
+//! Oracle Grammar owns all definitions, wire schemas and generated traversal.
+pub use oracle_ir::*;

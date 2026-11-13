@@ -206,24 +206,6 @@ fn generator_fingerprint() -> &'static str {
             ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
             (
-                "keyword_actions.rs",
-                include_bytes!("keyword_actions.rs").as_slice(),
-            ),
-            (
-                "source_values.rs",
-                include_bytes!("source_values.rs").as_slice(),
-            ),
-            ("copying.rs", include_bytes!("copying.rs").as_slice()),
-            (
-                "validate/copying.rs",
-                include_bytes!("validate/copying.rs").as_slice(),
-            ),
-            (
-                "validate/arrival.rs",
-                include_bytes!("validate/arrival.rs").as_slice(),
-            ),
-            ("validate.rs", include_bytes!("validate.rs").as_slice()),
-            (
                 "cantrip_vocab.rs",
                 include_bytes!("cantrip_vocab.rs").as_slice(),
             ),
@@ -293,8 +275,8 @@ fn generator_fingerprint() -> &'static str {
             crate::declarations::fingerprint_sources().map(|(path, text)| (path, text.as_bytes())),
         )
         .chain(std::iter::once((
-            "validate/bounds.rs",
-            include_bytes!("validate/bounds.rs").as_slice(),
+            "model-dependencies.lock",
+            include_bytes!("../../Cargo.lock").as_slice(),
         )))
         .chain(std::iter::once((
             "cantrip/entry.rs",

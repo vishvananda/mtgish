@@ -1,10 +1,10 @@
 //! Browser entry point to the same validator used by native IR consumers.
-use mtgish_ast::{ir::UnifiedCard, validate};
+use oracle_ir_contract::{ir::UnifiedCard, validate};
 use serde_json::{json, Value};
 use wasm_bindgen::prelude::*;
 
 fn check(input: &str) -> Result<UnifiedCard, String> {
-    let value = mtgish_ast::json_input::value(input)?;
+    let value = oracle_ir_contract::json_input::value(input)?;
     let card: UnifiedCard = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
     if serde_json::to_value(&card).map_err(|e| e.to_string())? != value {
         return Err(
@@ -39,7 +39,7 @@ fn check(input: &str) -> Result<UnifiedCard, String> {
 #[wasm_bindgen]
 pub fn validate_ir(input: &str) -> String {
     match check(input) {
-        Ok(card) => json!({"valid":true,"schema":mtgish_ast::ir::SCHEMA_VERSION,
+        Ok(card) => json!({"valid":true,"schema":oracle_ir_contract::ir::SCHEMA_VERSION,
             "faces":card.faces.len(),"ir":serde_json::to_string_pretty(&card).unwrap()})
         .to_string(),
         Err(error) => json!({"valid":false,"error":error}).to_string(),
@@ -50,7 +50,7 @@ pub fn validate_ir(input: &str) -> String {
 /// and scope checks. Ordinary validation never guesses an old schema.
 #[wasm_bindgen]
 pub fn migrate_ir(input: &str) -> String {
-    match mtgish_ast::migrate::read_json(input) {
+    match oracle_ir_contract::migrate::read_json(input) {
         Ok(card) => {
             json!({"valid":true,"ir":serde_json::to_string_pretty(&card).unwrap()}).to_string()
         }
@@ -61,7 +61,7 @@ pub fn migrate_ir(input: &str) -> String {
 /// Render card code using the Rust schema, shared defaults and naming policy.
 #[wasm_bindgen]
 pub fn format_card_code(input: &str) -> String {
-    match check(input).and_then(|card| mtgish_ast::human::write(&card)) {
+    match check(input).and_then(|card| oracle_ir_contract::human::write(&card)) {
         Ok(code) => json!({"valid":true,"code":code}).to_string(),
         Err(error) => json!({"valid":false,"error":error}).to_string(),
     }
@@ -70,7 +70,7 @@ pub fn format_card_code(input: &str) -> String {
 /// Parse symbolic authoring code, allocate internal IDs and validate the full IR.
 #[wasm_bindgen]
 pub fn parse_card_code(input: &str) -> String {
-    match mtgish_ast::human::document::read(input) {
+    match oracle_ir_contract::human::document::read(input) {
         Ok(document) => {
             json!({"valid":true,"ir":serde_json::to_string_pretty(document.card()).unwrap(),
                 "document":serde_json::to_string(&document).unwrap()})
@@ -83,7 +83,7 @@ pub fn parse_card_code(input: &str) -> String {
 /// Inspect typed names without changing the caller's numeric compiler IDs.
 #[wasm_bindgen]
 pub fn describe_card_bindings(input: &str) -> String {
-    match check(input).and_then(|card| mtgish_ast::human::document::from_card(&card)) {
+    match check(input).and_then(|card| oracle_ir_contract::human::document::from_card(&card)) {
         Ok(document) => {
             json!({"valid":true,"document":serde_json::to_string(&document).unwrap()}).to_string()
         }
@@ -93,7 +93,7 @@ pub fn describe_card_bindings(input: &str) -> String {
 /// Format a persisted authoring document; its names never enter engine IR.
 #[wasm_bindgen]
 pub fn format_card_document(input: &str) -> String {
-    match mtgish_ast::human::document::Document::from_json(input)
+    match oracle_ir_contract::human::document::Document::from_json(input)
         .and_then(|doc| doc.write().map(|code| (doc, code)))
     {
         Ok((document, code)) => {
@@ -108,8 +108,8 @@ pub fn format_card_document(input: &str) -> String {
 mod tests {
     use super::*;
     fn blank() -> Value {
-        json!({"schema_version":mtgish_ast::ir::SCHEMA_VERSION,"layout":"Card","data":[],"faces":[{
-            "schema_version":mtgish_ast::ir::SCHEMA_VERSION,"name":"New card",
+        json!({"schema_version":oracle_ir_contract::ir::SCHEMA_VERSION,"layout":"Card","data":[],"faces":[{
+            "schema_version":oracle_ir_contract::ir::SCHEMA_VERSION,"name":"New card",
             "characteristics":{"supertypes":[],"card_types":["Creature"],"subtypes":[],"mana_cost":[],
                 "color_indicator":[],"power_toughness":[1,1],"loyalty":null,"defense":null},"abilities":[]}]})
     }

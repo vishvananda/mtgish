@@ -2,32 +2,31 @@
 //! schema so edits to lowering do not recompile its serialization derives.
 #[cfg(test)]
 extern crate self as mtgish_ast;
+pub use mtgish_ir::{battlefield_query, declarations, ir, ir_schema, visit};
+pub use oracle_ir_contract::binding_map;
+pub use oracle_ir_contract::canonical;
+pub use oracle_ir_contract::change_lists;
 pub use rust_syntax::{corpus, inspect, mtg_types};
-pub mod binding_map;
-mod binding_roles;
-pub mod canonical;
-pub use mtgish_ir::{battlefield_query, counter, declarations, ir, ir_schema, visit};
-pub mod change_lists;
 pub mod coin_policies;
-mod complete;
-pub mod copying;
-pub mod json_input;
-pub mod keyword_actions;
+use oracle_ir_contract::complete;
+pub use oracle_ir_contract::copying;
+pub use oracle_ir_contract::json_input;
+pub use oracle_ir_contract::keyword_actions;
 #[cfg(feature = "legacy")]
 pub mod lower;
-pub mod migrate;
-pub mod mode_policies;
-pub mod movement;
-pub mod presentation;
+pub use oracle_ir_contract::migrate;
+pub use oracle_ir_contract::mode_policies;
+pub use oracle_ir_contract::movement;
+pub use oracle_ir_contract::presentation;
 #[cfg(feature = "legacy")]
 pub mod report;
-pub mod result_reads;
-mod source_values;
+pub use oracle_ir_contract::result_reads;
+use oracle_ir_contract::source_values;
 #[cfg(feature = "legacy")]
 mod producer_forms;
-pub mod validate;
+pub use oracle_ir_contract::validate;
 
-mod subtype;
+use oracle_ir_contract::subtype;
 #[cfg(feature = "legacy")]
 mod spell_paragraphs;
 
@@ -60,8 +59,10 @@ pub mod unified;
 #[cfg(feature = "legacy")]
 pub mod value_audit;
 
-pub mod cost_history;
 pub use mtgish_ir::targets;
-pub mod human;
+pub use oracle_ir_contract::cost_history;
+pub use oracle_ir_contract::human;
 
 mod target_populations;
+
+pub mod counter;

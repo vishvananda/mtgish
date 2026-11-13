@@ -16,7 +16,8 @@ fn write_vocabularies() {
     let path =
         PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../src/mtg_types.rs");
     println!("cargo:rerun-if-changed={}", path.display());
-    let names: Vec<String> = syn::parse_file(&fs::read_to_string(&path).unwrap())
+    let source = format!("{}\n{}", fs::read_to_string(&path).unwrap(), oracle_ir::declarations::SOURCE_VOCABULARY);
+    let names: Vec<String> = syn::parse_file(&source)
         .unwrap()
         .items
         .iter()
@@ -34,7 +35,7 @@ fn write_vocabularies() {
         .collect();
     // Variants whose one field is a list: their JSON args are the list's items,
     // as a tuple variant's are its fields, so only the type tells them apart.
-    let lists: Vec<(String, String)> = syn::parse_file(&fs::read_to_string(&path).unwrap())
+    let lists: Vec<(String, String)> = syn::parse_file(&source)
         .unwrap()
         .items
         .iter()

@@ -2,17 +2,7 @@
 name = "mtgish-ir"
 version = "0.1.0"
 edition = "2021"
+description = "Compatibility re-exports of Oracle Grammar's owned model"
 
 [dependencies]
-rust_syntax = { path = ".." }
-serde = { version = "1", features = ["derive"] }
-bincode = "2.0.1"
-syn = { version = "2", features = ["full"] }
-
-[build-dependencies]
-syn = { version = "2", features = ["full"] }
-quote = "1"
-proc-macro2 = "1"
-
-[dev-dependencies]
-serde_json = "1"
+oracle-ir = { git = "https://github.com/vishvananda/oracle-grammar.git", rev = "4174f5e4fa73ff569dccb931a61a63004323d22e", default-features = false }
