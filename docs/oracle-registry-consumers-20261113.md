@@ -118,3 +118,42 @@ Pending corrections/normalizations belong in its
 records, evidence and issue link. When upstream adopts a fix, remove the adopted
 update, advance the reference artifact/checksum and rerun comparisons. A stale
 or already-adopted update must fail rather than be applied twice.
+
+## Caller-stack safety
+
+A default-stack regression exposed legacy `Action` serialization through the
+Source inspector on a 2 MB test thread. Corpus workers already had a protected
+stack, but direct `inspect::value` and `Identity::of` callers could bypass it.
+The inspector now enters that boundary once at its public entry point and uses
+an internal recursive visitor. Inputs must be `Sync` to permit a borrowed tree
+to be inspected safely on a scoped worker. Normal corpus workers stay inline;
+thread construction is kept in a separate cold function. AST fields, numeric
+widths, schema and serialization are unchanged.
+
+The full workspace passes with `RUST_MIN_STACK` absent. Dedicated regressions
+exercise a 2 MB caller stack and verify that an existing protected worker is
+reused. Full-corpus inspection manifests remain identical. Seven interleaved
+before/after measurements in the development profile (Source unoptimized,
+dependencies at opt-level 2, two corpus threads) are retained in the proof.
+These development timings are not an optimized-release performance claim.
+
+## Verification
+
+- Published dependencies resolve to one registry instance each at `0.1.0`;
+  unrelated locked packages were retained.
+- Full workspace: **2,003 passed, 20 ignored**, without `RUST_MIN_STACK`.
+- Five provenance/population tests and seven Rust comparison tests pass.
+- The complete **33,529-record** Source corpus lowers, validates and binary
+  roundtrips to byte-identical JSONL against the previous provider export.
+- The actual wasm32 bridge builds; its normal dependency graph contains no
+  MTGish Source parser or AST/compiler facade.
+- A synthetic pinned bundle exercises fresh Go parsing through registry-backed
+  Rust lowering: matching values pass and an intentionally changed P/T operand
+  fails with its differing path. A native refusal is recorded, not counted as a
+  match. These are independent test fixtures, not a published face-data audit.
+
+Run the gate against the publishing worker's actual face bundle and its pinned
+original source snapshot when those data artifacts are available. Publishing
+crates alone does not provide independent per-card expected values. Evidence and
+artifact hashes are recorded in
+[the registry-consumer proof](oracle-registry-consumers-20261113.proof.json).

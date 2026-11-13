@@ -113,7 +113,8 @@ def requests_for(records, outcomes):
 
 
 def fingerprints():
-    files = [ROOT/'preprocess_scryfall', ROOT/'rust_syntax/Cargo.lock', Path(__file__)]
+    files = [ROOT/'preprocess_scryfall', ROOT/'rust_syntax/Cargo.lock',
+             ROOT/'data/grammar_audit_review.json', Path(__file__)]
     for directory, suffix in (('grammars', '.json5'), ('go_mtg_parser', '.go'),
                               ('rust_syntax/src', '.rs'), ('rust_syntax/normalize/src', '.rs')):
         files += list((ROOT/directory).rglob('*'+suffix))
@@ -243,6 +244,8 @@ def check(bundle, oracle, manifest_sha256, work):
                'tracked_changes':bool(subprocess.check_output(['git','diff','HEAD','--name-only'],cwd=ROOT,text=True).strip()),
                'bundle_manifest_sha256':manifest_sha256, 'source_oracle':manifest['source_oracle'],
                'grammar':manifest['grammar'], 'model':manifest['model'], 'registry_packages':packages,
+               'population':manifest['population'], 'bundle_tag':manifest.get('tag'),
+               'build_features':['cantrip','serde_json/preserve_order'],
                'inputs':before, 'fresh_source_sha256':digest(source), 'ast_binary_sha256':digest(binary),
                'parser_exit_code':parser_status, 'comparison_exit_code':result.returncode,
                'comparison_sha256':digest(comparison), 'counts':report['counts']}
