@@ -1,0 +1,45 @@
+# Regression: the lasting restriction follows a later Magical Hack instead of retaining its creation text (CR 611.2c, 612.1).
+# The accepted draw creates the islandwalk exception before Magical Hack changes the enchantment to swampwalk.
+[Bot1 Deck]
+Island Sanctuary
+Mox Pearl
+Mox Sapphire
+Magical Hack
+Plains x3
+Forest
+Island x20
+[Bot2 Deck]
+Memnite
+Ornithopter
+Grayscaled Gharial
+Mox Sapphire
+Island x20
+[Actions]
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Island Sanctuary.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Mox Sapphire.Cast
+Bot2.Hand.Memnite.Cast
+Bot2.Hand.Ornithopter.Cast
+Bot2.Battlefield.Mox Sapphire.Activate
+Bot2.Hand.Grayscaled Gharial.Cast
+[T3 Bot1.Draw]
+Bot1.Accept
+[T3 Bot1.Main1]
+? Bot1.Library.Top = Forest
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Magical Hack.Cast(Bot1.Battlefield.Island Sanctuary)
+Bot1.Pass
+Bot2.Pass
+Bot1.Modes(Island)
+Bot1.Modes(Swamp)
+[T4 Bot2.Attackers]
+! Bot2.Attack(Memnite > Bot1)
+Bot2.Attack(Ornithopter > Bot1; Grayscaled Gharial > Bot1)
+[T4 Bot2.Main2]
+[Expect]
+Bot1.Life = 19

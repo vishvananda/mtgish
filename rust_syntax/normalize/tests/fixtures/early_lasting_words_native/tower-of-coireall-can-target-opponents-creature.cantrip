@@ -1,0 +1,33 @@
+# Tower may protect an opposing creature from its controller's Wall this turn (CR 115.1c, 509.1b).
+[Bot1 Deck]
+Tower of Coireall
+Mox Pearl
+Mox Sapphire
+Forest
+Wall of Wood
+Island x20
+[Bot2 Deck]
+Memnite
+Island x20
+[Actions]
+Bot1.Hand.Forest.Play
+Bot1.Battlefield.Forest.Activate
+Bot1.Hand.Wall of Wood.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Tower of Coireall.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Memnite.Cast
+[T4 Bot2.Main1]
+Bot1.Battlefield.Tower of Coireall.Activate(Bot2.Battlefield.Memnite)
+Bot1.Pass
+Bot2.Pass
+[T4 Bot2.DeclareAttackers]
+Bot2.Attack(Memnite > Bot1)
+! Bot1.Block(Wall of Wood > Memnite)
+[T4 Bot2.Main2]
+[Expect]
+Bot1.Life = 19

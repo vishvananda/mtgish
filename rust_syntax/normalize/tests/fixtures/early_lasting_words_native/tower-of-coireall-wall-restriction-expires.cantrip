@@ -1,0 +1,46 @@
+# Tower keeps a Wall from blocking its target this turn, but other blockers and other attackers are unaffected;
+# next turn the same Wall can block it again (CR 509.1b, 611.2a).
+[Bot1 Deck]
+Tower of Coireall
+Mox Pearl
+Mox Sapphire
+Memnite
+Phyrexian Walker
+Island x20
+[Bot2 Deck]
+Wall of Wood
+Forest
+Ornithopter
+Island x20
+[Actions]
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Memnite.Cast
+Bot1.Hand.Phyrexian Walker.Cast
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Tower of Coireall.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Forest.Play
+Bot2.Battlefield.Forest.Activate
+Bot2.Hand.Wall of Wood.Cast
+Bot2.Hand.Ornithopter.Cast
+[T3 Bot1.Main1]
+! Bot1.Battlefield.Tower of Coireall.Activate(Bot2.Battlefield.Forest)
+Bot1.Battlefield.Tower of Coireall.Activate(Bot1.Battlefield.Memnite)
+? Bot1.Battlefield.Tower of Coireall.Tapped = true
+Bot1.Pass
+Bot2.Pass
+! Bot1.Battlefield.Tower of Coireall.Activate(Bot1.Battlefield.Memnite)
+[T3 Bot1.DeclareAttackers]
+Bot1.Attack(Memnite > Bot2; Phyrexian Walker > Bot2)
+! Bot2.Block(Wall of Wood > Memnite)
+Bot2.Block(Wall of Wood > Phyrexian Walker; Ornithopter > Memnite)
+[T5 Bot1.DeclareAttackers]
+Bot1.Attack(Memnite > Bot2)
+Bot2.Block(Wall of Wood > Memnite)
+[T5 Bot1.Main2]
+[Expect]
+Bot1.Battlefield.Memnite.Toughness = 1
+Bot2.Life = 20

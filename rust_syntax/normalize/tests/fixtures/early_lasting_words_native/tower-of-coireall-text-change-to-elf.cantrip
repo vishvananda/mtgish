@@ -1,0 +1,51 @@
+# Artificial Evolution changes Tower’s Wall word to Elf before activation, so Elves cannot block the target and Walls can (CR 612.2, 509.1b).
+[Bot1 Deck]
+Tower of Coireall
+Mox Pearl
+Mox Sapphire
+Memnite
+Phyrexian Walker
+Artificial Evolution
+Island x20
+[Bot2 Deck]
+Wall of Wood
+Forest
+Llanowar Elves
+Mox Emerald
+Island x20
+[Actions]
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Memnite.Cast
+Bot1.Hand.Phyrexian Walker.Cast
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Tower of Coireall.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Forest.Play
+Bot2.Battlefield.Forest.Activate
+Bot2.Hand.Wall of Wood.Cast
+Bot2.Hand.Mox Emerald.Cast
+Bot2.Battlefield.Mox Emerald.Activate
+Bot2.Hand.Llanowar Elves.Cast
+[T3 Bot1.Main1]
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Artificial Evolution.Cast(Bot1.Battlefield.Tower of Coireall)
+Bot1.Pass
+Bot2.Pass
+Bot1.Modes(Wall)
+Bot1.Modes(Elf)
+! Bot1.Battlefield.Tower of Coireall.Activate(Bot2.Battlefield.Forest)
+Bot1.Battlefield.Tower of Coireall.Activate(Bot1.Battlefield.Memnite)
+? Bot1.Battlefield.Tower of Coireall.Tapped = true
+Bot1.Pass
+Bot2.Pass
+! Bot1.Battlefield.Tower of Coireall.Activate(Bot1.Battlefield.Memnite)
+[T3 Bot1.DeclareAttackers]
+Bot1.Attack(Memnite > Bot2)
+! Bot2.Block(Llanowar Elves > Memnite)
+Bot2.Block(Wall of Wood > Memnite)
+[T3 Bot1.Main2]
+[Expect]
+Bot2.Life = 20
