@@ -16,7 +16,8 @@ fn direct_destroy_filters_only_after_its_printed_pool_is_computed() {
         let text = "At the beginning of your upkeep, destroy the creature with the least power.";
         let printed = render(raw, name, text, Characteristics::Oracle).unwrap();
         let minimum = printed.find(".min()").unwrap();
-        let exclusion = printed.find("Keyword::Indestructible").unwrap();
+        let exclusion = printed.find("q.can_destroy(").unwrap();
+        assert!(!printed.contains("keywords.has(Keyword::Indestructible)"), "the core owns destruction permission: {printed}");
         assert!(minimum < exclusion, "{printed}");
     }
     let monster = rows["Frankenstein's Monster"]["faces"][0]["rust"].as_str().unwrap();

@@ -1,0 +1,37 @@
+# The defending player is retained when an unblocked attacker put into combat leaves before its trigger resolves.
+[Bot1 Deck]
+Mox Pearl x2
+Ornithopter x3
+Kinscaer Sentry
+Floral Spuzzem
+Island x20
+[Bot2 Deck]
+Mox Ruby
+Mox Jet
+Shock
+Island x20
+[Actions]
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Ornithopter.Cast
+Bot1.Hand.Ornithopter.Cast
+Bot1.Hand.Ornithopter.Cast
+Bot1.Battlefield.Mox Pearl#1.Activate
+Bot1.Battlefield.Mox Pearl#2.Activate
+Bot1.Hand.Kinscaer Sentry.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Mox Ruby.Cast
+Bot2.Hand.Mox Jet.Cast
+[T3 Bot1.DeclareAttackers]
+Bot1.Attack(Kinscaer Sentry; Ornithopter#1; Ornithopter#2; Ornithopter#3)
+Bot1.Choose(Floral Spuzzem)
+Bot1.Target(Bot2.Battlefield.Mox Jet)
+Bot1.Pass
+Bot2.Battlefield.Mox Ruby.Activate
+Bot2.Hand.Shock.Cast(Bot1.Battlefield.Floral Spuzzem)
+Bot2.Pass
+Bot1.Pass
+Bot1.Accept
+[T3 Bot1.Main2]
+[Expect]
+Bot2.Graveyard = Mox Jet; Shock

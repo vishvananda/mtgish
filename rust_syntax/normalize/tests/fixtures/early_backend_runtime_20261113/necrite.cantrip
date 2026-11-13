@@ -1,0 +1,46 @@
+# Regenerating Necrite in response removes it from combat; its target remains the defending player’s creature (CR 608.2b, 701.19a).
+[Bot1 Deck]
+Kinscaer Sentry
+Necrite
+Ornithopter
+Ornithopter
+Mox Pearl
+Mox Sapphire
+Island
+Island x25
+[Bot2 Deck]
+Memnite
+Mox Pearl
+Mox Ruby
+Death Ward
+Shock
+Island x25
+[Actions]
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Hand.Kinscaer Sentry.Cast
+Bot1.Hand.Ornithopter.Cast
+Bot1.Hand.Ornithopter.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Memnite.Cast
+Bot2.Hand.Mox Pearl.Cast
+Bot2.Hand.Mox Ruby.Cast
+[T3 Bot1.Attackers]
+Bot1.Attack(Kinscaer Sentry; Ornithopter; Ornithopter)
+Bot1.Choose(Necrite)
+Bot2.Block()
+Bot2.Battlefield.Mox Pearl.Activate
+Bot2.Hand.Death Ward.Cast(Necrite)
+Bot2.Pass
+Bot1.Pass
+Bot2.Battlefield.Mox Ruby.Activate
+Bot2.Hand.Shock.Cast(Necrite)
+Bot2.Pass
+Bot1.Pass
+Bot1.Accept
+[T3 Bot1.Main2]
+[Expect]
+Bot1.Graveyard.Necrite.Colors = Black
+Bot2.Graveyard.Memnite.Power = 1

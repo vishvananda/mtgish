@@ -947,11 +947,32 @@ impl Compiler {
             ),
             ObjectSet::Created(result) => self.created(result)?,
             ObjectSet::Transition { result, phase } => self.transition(result, phase)?,
-            ObjectSet::Matching { objects, filter } => format!(
-                "({}).into_iter().filter(|&id| {}).collect::<Vec<ObjectId>>()",
-                self.objects(objects)?,
-                self.filter(filter, &Candidate::of("id"))?
-            ),
+            ObjectSet::Matching { objects, filter } => {
+                let predicate = match (objects.as_ref(), filter) {
+                    // Direct destruction chooses a possible action. The core's
+                    // permission is the same one its destroy verb uses; ordinary
+                    // choose-then-destroy instructions retain their original pool.
+                    (crate::battlefield_query!(_), ObjectFilter::Not(inner))
+                        if self.reader != Reader::Layer
+                            && matches!(inner.as_ref(), ObjectFilter::HasKeyword(Keyword::Indestructible)) =>
+                    {
+                        "q.can_destroy(id)".into()
+                    }
+                    // A transition's original incarnations retain their arrival
+                    // zone after a later move. Explicit InZone sets below still
+                    // ask current membership and reject departed incarnations.
+                    (_, ObjectFilter::InZone(ZoneScope::Shared(zone)))
+                        if arrival_incarnations(objects) =>
+                    {
+                        format!("q.state().obj(id).zone.kind() == {}", zone_kind(zone)?)
+                    }
+                    _ => self.filter(filter, &Candidate::of("id"))?,
+                };
+                format!(
+                    "({}).into_iter().filter(|&id| {predicate}).collect::<Vec<ObjectId>>()",
+                    self.objects(objects)?
+                )
+            }
             ObjectSet::Difference { objects, excluding } => format!(
                 "{{ let without: Vec<ObjectId> = {}; ({}).into_iter().filter(|id| !without.contains(id)).collect::<Vec<ObjectId>>() }}",
                 self.objects(excluding)?,
@@ -3243,5 +3264,14 @@ mod ordered_zone_runtime_tests {
             .unwrap()
             .success());
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+
+fn arrival_incarnations(objects: &ObjectSet) -> bool {
+    match objects {
+        ObjectSet::Transition { phase: ObjectPhase::After, .. } => true,
+        ObjectSet::Matching { objects, .. } => arrival_incarnations(objects),
+        _ => false,
     }
 }
