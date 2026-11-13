@@ -6,7 +6,7 @@ use super::*;
 /// The native duration records the uninterrupted source interval, including a
 /// lapse before resolution. Only these exact conjuncts share that authority;
 /// an arbitrary callback must retain its own condition.
-fn source_tapped_duration(duration: &crate::ir::Duration) -> Option<&'static str> {
+fn source_interval_duration(duration: &crate::ir::Duration) -> Option<&'static str> {
     use crate::ir::Duration as D;
     fn flags(duration: &D) -> Option<u8> {
         match duration {
@@ -27,6 +27,7 @@ fn source_tapped_duration(duration: &crate::ir::Duration) -> Option<&'static str
     }
     match flags(duration)? {
         1 => Some("WhileSourceTapped"),
+        2 if planned::switched_on("source-control-intervals") => Some("WhileSourceControlled"),
         3 => Some("WhileSourceTappedAndControlled"),
         _ => None,
     }
@@ -723,7 +724,7 @@ impl Compiler {
     /// 611.2b), or the word Cantrip will have for it.
     pub(super) fn more_duration(&mut self, duration: &crate::ir::Duration) -> Result<String> {
         use crate::ir::Duration as D;
-        if let Some(native) = source_tapped_duration(duration) {
+        if let Some(native) = source_interval_duration(duration) {
             return Ok(format!("Duration::{native}"));
         }
         Ok(match duration {

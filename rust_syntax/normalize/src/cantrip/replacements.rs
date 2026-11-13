@@ -4,6 +4,31 @@
 //! ability about the source's own arrival is a part of `CardDef::enters`.
 use super::*;
 
+/// Label each arm of a compound land-mana replacement with its own verbatim printed clause. The typed rule
+/// identifies that clause; the words only label the choice and never determine matching or replacement semantics.
+fn mana_clause_hint(event: &ReplacementEvent, changes: &[EventChange], printed: &str) -> Option<String> {
+    fn land(filter: &ObjectFilter) -> Option<&crate::mtg_types::SubType> {
+        match filter {
+            ObjectFilter::Subtype(kind) => Some(kind),
+            ObjectFilter::AllOf(parts) => {
+                let mut kinds = parts.iter().filter_map(land);
+                let kind = kinds.next()?;
+                kinds.next().is_none().then_some(kind)
+            }
+            _ => None,
+        }
+    }
+    let ReplacementEvent::ProduceMana { sources, .. } = event else { return None };
+    let [EventChange::ReplaceMana(ManaProduction::Amount { color, amount: Expr::Constant(1) })] = changes else { return None };
+    let plural = match name(land(sources)?).as_str() {
+        "Plains" => "Plains", "Island" => "Islands", "Swamp" => "Swamps", "Mountain" => "Mountains", "Forest" => "Forests",
+        _ => return None,
+    };
+    if !matches!(color, ManaColor::White | ManaColor::Blue | ManaColor::Black | ManaColor::Red | ManaColor::Green | ManaColor::Colorless) { return None }
+    let clause = format!("{plural} produce {{{}}}", lane_j::mana_letter(color));
+    printed.contains(&clause).then_some(clause)
+}
+
 /// The X a number read with no stack item holds as a hole.
 const ANNOUNCED_X_HELD: &str = "planned_value!(\"numeric expression AnnouncedX\",";
 /// The same X in an effect a resolving ability made: the effect has no number of its own.
@@ -578,7 +603,8 @@ impl Compiler {
         if let Some(guard) = &guard {
             extra.push(self.matching(frame, |c| c.condition(guard))?);
         }
-        let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
+        let printed = self.said(lane_k::Said::Sentence, ability_text(body));
+        let hint = quoted(&mana_clause_hint(event, &changes, &printed).unwrap_or(printed));
         if arms[0].kind == "Damage" {
             if let [change] = changes.as_slice() {
                 let amount = match change {

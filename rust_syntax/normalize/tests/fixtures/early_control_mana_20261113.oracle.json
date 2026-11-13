@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Merieke Ri Berit",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Merieke Ri Berit",
+        "manaCost": "{W}{U}{B}",
+        "type": "Legendary Creature — Human",
+        "text": "Merieke Ri Berit doesn't untap during your untap step.\n{T}: Gain control of target creature for as long as you control Merieke Ri Berit. When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature. It can't be regenerated.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Naked Singularity",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Naked Singularity",
+        "manaCost": "{5}",
+        "type": "Artifact",
+        "text": "Cumulative upkeep {3} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nIf tapped for mana, Plains produce {R}, Islands produce {G}, Swamps produce {W}, Mountains produce {U}, and Forests produce {B} instead of any other type."
+      }
+    ]
+  },
+  {
+    "name": "Orcish Squatters",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Orcish Squatters",
+        "manaCost": "{4}{R}",
+        "type": "Creature — Orc",
+        "text": "Whenever this creature attacks and isn't blocked, you may gain control of target land defending player controls for as long as you control this creature. If you do, this creature assigns no combat damage this turn.",
+        "power": "2",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Reality Twist",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Reality Twist",
+        "manaCost": "{U}{U}{U}",
+        "type": "Enchantment",
+        "text": "Cumulative upkeep {1}{U}{U} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nIf tapped for mana, Plains produce {R}, Swamps produce {G}, Mountains produce {W}, and Forests produce {B} instead of any other type."
+      }
+    ]
+  }
+]

@@ -1,0 +1,45 @@
+# On turn 3 the unblocked Orcish Squatters takes a land and assigns no damage; declining on turn 5 lets it deal 2 (CR 603.2, 510.1).
+[Bot1 Deck]
+Orcish Squatters
+Mox Ruby
+Mox Pearl
+Mox Sapphire
+Mox Jet
+Mox Emerald
+Mountain
+Mountain x20
+[Bot2 Deck]
+Island
+Forest
+Island x20
+[Actions]
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Hand.Mox Emerald.Cast
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Battlefield.Mox Emerald.Activate
+Bot1.Hand.Orcish Squatters.Cast
+? Bot1.Mana =
+[T2 Bot2.Main1]
+Bot2.Hand.Island.Play
+[T3 Bot1.Main1]
+Bot1.Hand.Mountain.Play
+Bot1.Attack(Orcish Squatters > Bot2)
+Bot1.Accept
+[T3 Bot1.Main2]
+? Bot2.Life = 20
+? Bot1.Battlefield.Island.Tapped = false
+[T4 Bot2.Main1]
+Bot2.Hand.Forest.Play
+[T5 Bot1.Main1]
+Bot1.Attack(Orcish Squatters > Bot2)
+Bot1.Decline
+[T5 Bot1.Main2]
+[Expect]
+Bot1.Battlefield.Island.Tapped = false
+Bot2.Life = 18

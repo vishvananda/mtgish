@@ -44,6 +44,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     // `DuringItsControllersNextUntapStep` and `DuringNextUntapStepOf`: Cantrip
     // PR #897. Its rules on open sets are `plan_switched` holes, not landed ids:
     // a rule it has no `LastingRuleKind` for shares their requirement.
+    ("source-control-intervals", "WhileSourceControlled,", &[]),
     ("lasting-rules", "fn add_lasting_rule", &["continuous-rule-untap-step", "duration-during-controllers-next-untap-step", "duration-during-next-untap-step"]),
     ("rampage", "pub mod rampage;", &["engine-no-rampage"]),
     ("combat-removal", "pub fn remove_from_combat_and_unblock(", &["engine-no-effect-removes-from-combat"]),

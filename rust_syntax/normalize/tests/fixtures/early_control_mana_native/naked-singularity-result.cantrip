@@ -1,0 +1,25 @@
+[Bot1 Deck]
+Black Lotus
+Mox Ruby
+Mox Jet
+Naked Singularity
+Tundra
+Island x20
+[Bot2 Deck]
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Ruby.Cast
+Bot1.Hand.Mox Jet.Cast
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Mox Ruby.Activate
+Bot1.Battlefield.Mox Jet.Activate
+Bot1.Hand.Naked Singularity.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+Bot1.Hand.Tundra.Play
+Bot1.Battlefield.Tundra.Activate(Ability: {W})
+Bot1.Replace(Naked Singularity)
+? Bot1.Mana = {G}
+[Expect]

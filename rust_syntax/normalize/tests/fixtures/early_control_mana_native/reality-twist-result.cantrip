@@ -1,0 +1,20 @@
+[Bot1 Deck]
+Black Lotus
+Reality Twist
+Scrubland
+Island x20
+[Bot2 Deck]
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Hand.Scrubland.Play
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Hand.Reality Twist.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+Bot1.Battlefield.Scrubland.Activate(Ability: {W})
+Bot1.Replace(Reality Twist)
+? Bot1.Mana = {G}
+[Expect]
