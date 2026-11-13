@@ -1153,7 +1153,7 @@ impl Compiler {
             } => {
                 let draw = self.number(draw)?.amount(u32::MAX.into(), "u32")?;
                 let discard = self.number(discard)?.amount(u32::MAX.into(), "u32")?;
-                writeln!(out, "let draw_{id} = {}; let discard_{id} = {}; for player in {} {{ g.draw(player, draw_{id}); let cards = {M}::choose_from_hand(g, player, asker.source, discard_{id})?; g.discard_together(&cards); }}", self.fetch(draw), self.fetch(discard), self.fetch(self.players(players)?)).unwrap();
+                writeln!(out, "let draw_{id} = {}; let discard_{id} = {}; for player in {} {{ let before = g.history().all().len(); g.draw(player, draw_{id}); let drawn: Vec<ObjectId> = g.history().all()[before..].iter().filter_map(|record| match record.event {{ Event::Drew {{ player: who, card }} if who == player && g.state().obj(card).zone == Zone::hand(player) => Some(card), _ => None }}).collect(); let cards = {M}::choose::cards(g, player, asker.source, Purpose::Discard, drawn, discard_{id}, false)?; g.discard_together(&cards); }}", self.fetch(draw), self.fetch(discard), self.fetch(self.players(players)?)).unwrap();
             }
             Operation::PutCountersEach {
                 amount,

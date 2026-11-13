@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Casting of Bones",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Casting of Bones",
+        "manaCost": "{2}{B}",
+        "type": "Enchantment \u2014 Aura",
+        "text": "Enchant creature\nWhen enchanted creature dies, draw three cards, then discard one of them."
+      }
+    ]
+  },
+  {
+    "name": "Krovikan Sorcerer",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Krovikan Sorcerer",
+        "manaCost": "{2}{U}",
+        "type": "Creature \u2014 Human Wizard Sorcerer",
+        "text": "{T}, Discard a nonblack card: Draw a card.\n{T}, Discard a black card: Draw two cards, then discard one of them.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  },
+  {
+    "name": "Soldevi Sage",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Soldevi Sage",
+        "manaCost": "{1}{U}",
+        "type": "Creature \u2014 Human Wizard",
+        "text": "{T}, Sacrifice two lands: Draw three cards, then discard one of them.",
+        "power": "1",
+        "toughness": "1"
+      }
+    ]
+  }
+]
