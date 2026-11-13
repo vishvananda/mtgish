@@ -64,7 +64,7 @@ both AST values and the first differing JSON pointer. `receipt.json` records
 model versions/checksums, grammar producer, source hash, MTGish input fingerprints,
 fresh Source hash, toolchain, executable hash and comparison hash. A comparison
 fails if inputs change during its run. The low-level command is
-`ast compare-oracle-export SOURCE.ronl REQUESTS.json REPORT.json`; use the Python
+`ast compare-oracle-export SOURCE.ronl REQUESTS.jsonl REPORT.json`; use the Python
 wrapper for release/provenance checks.
 
 ## Updating dependencies and exports
@@ -163,3 +163,8 @@ bundles after code releases. Bundles include the original source bytes. Use the
 included `oracle-source.jsonl.gz` as `--oracle` when the manifest declares
 `encoding: "jsonl-gzip"`; older JSON array sources remain supported. The source
 checksum always covers the original compressed bytes, not a rewritten array.
+
+The first real published-data run is complete; see
+[face adoption and audit](oracle-face-adoption-20261113.md). Its strict structural
+comparison remains failed and is retained as triage evidence. The approved five
+history thresholds are adopted without rewriting the published expected values.

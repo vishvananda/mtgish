@@ -1,0 +1,187 @@
+{
+  "format_version": 1,
+  "implementation_commit": "345b1d80a9a07d71e6b6183b119ac804d7f439d5",
+  "upstream_issue": "https://github.com/i5jb/mtgish/issues/277",
+  "upstream_reproducer_commit": "5a02adf9cd2c13d5028acc57e8eb9e663ecfb34b",
+  "published_release": {
+    "format_version": 1,
+    "release": {
+      "repository": "vishvananda/oracle-grammar",
+      "tag": "faces-oracle-20261112220158-s190-g0.1.0-r1",
+      "url": "https://github.com/vishvananda/oracle-grammar/releases/tag/faces-oracle-20261112220158-s190-g0.1.0-r1",
+      "manifest_url": "https://github.com/vishvananda/oracle-grammar/releases/download/faces-oracle-20261112220158-s190-g0.1.0-r1/manifest.json",
+      "manifest_sha256": "6c97e5d8767460b96c9074ce6d39056511825d9b76d963d055e0410951bf59ce",
+      "published_at": "2026-11-13T08:48:08Z"
+    },
+    "grammar": {
+      "commit": "0edb7f52a83b1fae15ddd369aad33a7a5c18a763",
+      "crate": "oracle-ir-grammar",
+      "inputs_sha256": "18b49b0c630343d0f541d7be5c4f714ebedf433b50cde1b443fcdc30d35ab2d6",
+      "version": "0.1.0"
+    },
+    "model": {
+      "packages": {
+        "oracle-ir": "0.1.0",
+        "oracle-ir-contract": "0.1.0",
+        "oracle-ir-grammar": "0.1.0"
+      },
+      "schema_version": 190
+    },
+    "source_oracle": {
+      "encoding": "jsonl-gzip",
+      "provider": "scryfall",
+      "sha256": "a44b7e9a00570d2c627188fcdf740921caa60c14b16d90fc4bc2302cf99a8ee7",
+      "snapshot_id": "20261112220158",
+      "url": "https://data.scryfall.io/oracle-cards/oracle-cards-20261112220158.jsonl.gz"
+    },
+    "population": {
+      "kind": "all",
+      "policy": "Complete original Scryfall Oracle bulk snapshot for release export; no rule authoring or held-out diagnostics.",
+      "sha256": "e3a0545f8b4377670692c96e33a397363ae35310f95859bb0a70a6cd04ef02cf"
+    },
+    "exporter": {
+      "commit": "3288e6d62e5219e14c2a747a048351af862b7bb7",
+      "revision": 1
+    },
+    "counts": {
+      "counts": {
+        "ambiguous": 984,
+        "limit": 0,
+        "refused": 16970,
+        "unique": 24725
+      },
+      "gates": {
+        "exact_wording": "not_run",
+        "print_reparse": "not_run",
+        "reference_agreement": "not_run",
+        "typed_validation": true,
+        "whole_input_native_parse": true
+      },
+      "input_faces": 42679
+    }
+  },
+  "comparison": {
+    "passed": false,
+    "complete_agreement": false,
+    "bundle_manifest_sha256": "6c97e5d8767460b96c9074ce6d39056511825d9b76d963d055e0410951bf59ce",
+    "fresh_source_sha256": "fa5222e572ff7511f1bbe72b452b29bd2f2764a745c892e235b07a5e0641ee27",
+    "ast_binary_sha256": "fb43647abc8705e183a419a7f2a62b935d867fab58c04e750e240f8368ffc2b1",
+    "comparison_sha256": "d5199bc3c8dc5eb168d8532470bf2293863a0b506039eaaa42f894b4f4cc4a85",
+    "parser_exit_code": 1,
+    "comparison_exit_code": 1,
+    "counts": {
+      "canonical_only": 18706,
+      "equal": 1812,
+      "grammar_ambiguous": 984,
+      "grammar_refused": 16970,
+      "mismatch": 4044,
+      "mtgish_missing": 163
+    }
+  },
+  "cached_corpus_delta": {
+    "records": 33529,
+    "changed": 5,
+    "unchanged": 33524,
+    "before_sha256": "884e968a7d05f6f06b7f977a2cbae7ba0fa5d219d49321e13ebe0d434e7f96c4",
+    "after_sha256": "4824cf8cc934cebb2902e3e8c494c9e02304d14b43935d5e0ba7b1f2886804fd",
+    "changes": [
+      {
+        "names": [
+          "Dream Thief"
+        ],
+        "changes": [
+          {
+            "path": "/faces/0/abilities/1/args/body/instructions/0/args/condition/args/test/args/comparison",
+            "before": "Greater",
+            "after": "GreaterOrEqual"
+          },
+          {
+            "path": "/faces/0/abilities/1/args/body/instructions/0/args/condition/args/test/args/value/args",
+            "before": 0,
+            "after": 1
+          }
+        ]
+      },
+      {
+        "names": [
+          "Hotheaded Giant"
+        ],
+        "changes": [
+          {
+            "path": "/faces/0/abilities/1/args/body/instructions/0/args/condition/args/args/test/args/comparison",
+            "before": "Greater",
+            "after": "GreaterOrEqual"
+          },
+          {
+            "path": "/faces/0/abilities/1/args/body/instructions/0/args/condition/args/args/test/args/value/args",
+            "before": 0,
+            "after": 1
+          }
+        ]
+      },
+      {
+        "names": [
+          "I Bask in Your Silent Awe"
+        ],
+        "changes": [
+          {
+            "path": "/faces/0/abilities/1/args/intervening_if/args/left/args/args/1/args/condition/args/test/args/comparison",
+            "before": "Greater",
+            "after": "GreaterOrEqual"
+          },
+          {
+            "path": "/faces/0/abilities/1/args/intervening_if/args/left/args/args/1/args/condition/args/test/args/value/args",
+            "before": 0,
+            "after": 1
+          }
+        ]
+      },
+      {
+        "names": [
+          "Laboratory Drudge"
+        ],
+        "changes": [
+          {
+            "path": "/faces/0/abilities/0/args/body/instructions/0/args/condition/args/0/args/test/args/comparison",
+            "before": "Greater",
+            "after": "GreaterOrEqual"
+          },
+          {
+            "path": "/faces/0/abilities/0/args/body/instructions/0/args/condition/args/0/args/test/args/value/args",
+            "before": 0,
+            "after": 1
+          }
+        ]
+      },
+      {
+        "names": [
+          "Spider-Man 2099"
+        ],
+        "changes": [
+          {
+            "path": "/faces/0/abilities/3/args/intervening_if/args/1/args/test/args/comparison",
+            "before": "Greater",
+            "after": "GreaterOrEqual"
+          },
+          {
+            "path": "/faces/0/abilities/3/args/intervening_if/args/1/args/test/args/value/args",
+            "before": 0,
+            "after": 1
+          }
+        ]
+      }
+    ]
+  },
+  "tests": {
+    "workspace_targets": 204,
+    "passed": 2006,
+    "failed": 0,
+    "ignored": 20,
+    "python_tool_tests": 8
+  },
+  "notes": [
+    "Full published comparison is intentionally failing, with raw/canonical differences, ambiguity, refusals and input-policy omissions retained.",
+    "Counts are structural comparisons, not a count of confirmed semantic defects.",
+    "Historical saved expectations remain unchanged; checked test-only before/after transitions cover the two older Dream Thief snapshots."
+  ]
+}

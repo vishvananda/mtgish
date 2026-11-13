@@ -1,0 +1,58 @@
+{
+  "reference53_20261112_expected.json": {
+    "Dream Thief": [
+      {
+        "path": "/1/args/body/instructions/0/args/condition/args/test",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "comparison": "Greater",
+            "value": {
+              "kind": "Constant",
+              "args": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Compare",
+          "args": {
+            "comparison": "GreaterOrEqual",
+            "value": {
+              "kind": "Constant",
+              "args": 1
+            }
+          }
+        },
+        "reason": "Oracle Grammar published 0.1.0 U0001: spell history exists iff occurrences >= 1"
+      }
+    ]
+  },
+  "reference_decisions_20261111_expected.json": {
+    "Dream Thief": [
+      {
+        "path": "/1/args/body/instructions/0/args/condition/args/test",
+        "before": {
+          "kind": "Compare",
+          "args": {
+            "comparison": "Greater",
+            "value": {
+              "kind": "Constant",
+              "args": 0
+            }
+          }
+        },
+        "after": {
+          "kind": "Compare",
+          "args": {
+            "comparison": "GreaterOrEqual",
+            "value": {
+              "kind": "Constant",
+              "args": 1
+            }
+          }
+        },
+        "reason": "Oracle Grammar published 0.1.0 U0001: spell history exists iff occurrences >= 1"
+      }
+    ]
+  }
+}

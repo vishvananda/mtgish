@@ -14,7 +14,8 @@ pub fn assert_named(baseline: &str, name: &str, saved: &Value, fresh: &Value) {
         include_str!("../fixtures/target_populations_fresh_changes_20261112.json"),
         include_str!("../fixtures/random_damage_fresh_changes_20261112.json"),
         include_str!("../fixtures/reference_followups_fresh_changes_20261112.json"),
-        include_str!("../fixtures/ordered_zones_fresh_changes_20261113.json")] {
+        include_str!("../fixtures/ordered_zones_fresh_changes_20261113.json"),
+        include_str!("../fixtures/history_threshold_fresh_changes_20261113.json")] {
         let reviewed: Value=serde_json::from_str(data).unwrap();
         if let Some(changes) = reviewed[baseline][name].as_array() {
             for change in changes {
