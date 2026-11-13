@@ -1009,7 +1009,7 @@ def style_problems(name, source):
     # narrowing preserves that representation; an arbitrary card-rule cap does not.
     bounded_source = source
     for kind, low, high in [('i16', '-32768', '32767'), ('u16', '0', '65535'),
-                            ('i32', '-2147483648', '2147483647')]:
+                            ('i32', '-2147483648', '2147483647'), ('u32', '0', '4294967295')]:
         bounded_source = re.sub(r'\.clamp\(\s*'+low+r'\s*,\s*'+high+r'\s*\)\s+as\s+'+kind+r'\b',
                                 ' as '+kind, bounded_source)
     # The production X interface is u32; preserve its full range at the
