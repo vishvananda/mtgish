@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Extinguish the Light",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Extinguish the Light",
+        "manaCost": "{2}{B}{B}",
+        "type": "Instant",
+        "text": "Destroy target creature or planeswalker. If its mana value was 3 or less, you gain 3 life."
+      }
+    ]
+  },
+  {
+    "name": "Thermokarst",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Thermokarst",
+        "manaCost": "{1}{G}{G}",
+        "type": "Sorcery",
+        "text": "Destroy target land. If that land was a snow land, you gain 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Urza's Miter",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Urza's Miter",
+        "manaCost": "{3}",
+        "type": "Artifact",
+        "text": "Whenever an artifact you control is put into a graveyard from the battlefield, if it wasn't sacrificed, you may pay {3}. If you do, draw a card."
+      }
+    ]
+  },
+  {
+    "name": "Vexing Arcanix",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Vexing Arcanix",
+        "manaCost": "{4}",
+        "type": "Artifact",
+        "text": "{3}, {T}: Target player chooses a card name, then reveals the top card of their library. If that card has the chosen name, that player puts it into their hand. Otherwise, they put it into their graveyard and this artifact deals 2 damage to them."
+      }
+    ]
+  }
+]

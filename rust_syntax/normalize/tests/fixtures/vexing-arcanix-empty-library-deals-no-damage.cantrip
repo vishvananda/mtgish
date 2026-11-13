@@ -1,0 +1,28 @@
+# With an empty library there is no revealed card to compare, so the player names a card but takes no damage (Vexing Arcanix ruling, 2004-10-04).
+[Bot1 Deck]
+Black Lotus x2
+Mox Pearl
+Vexing Arcanix
+Island x4
+[Bot2 Deck]
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Black Lotus.Cast
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Battlefield.Black Lotus#1.Activate(Color: White)
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Hand.Vexing Arcanix.Cast
+? Bot1.Mana =
+[T3 Bot1.Main1]
+? Bot1.Library.Count = 0
+Bot1.Battlefield.Black Lotus.Activate(Color: White)
+Bot1.Battlefield.Vexing Arcanix.Activate(Bot1)
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+Bot1.Name(Island)
+[Expect]
+Bot1.Library.Count = 0
+Bot1.Life = 20
+Result = InProgress

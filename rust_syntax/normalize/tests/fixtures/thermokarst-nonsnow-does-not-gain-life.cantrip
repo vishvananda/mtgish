@@ -1,0 +1,32 @@
+# A snow land made indestructible remains a snow land after destruction fails, so Thermokarst's controller gains 1 life (CR 608.2h, 701.8a).
+
+[Bot1 Deck]
+Thermokarst
+Black Lotus
+Forest x20
+
+[Bot2 Deck]
+Forest
+Black Lotus
+Mox Pearl
+Boros Charm
+Island x20
+
+[Actions]
+[T2 Bot2.Main1]
+Bot2.Hand.Forest.Play
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Hand.Mox Pearl.Cast
+Bot2.Pass
+[T3 Bot1.Main1]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Green)
+Bot1.Hand.Thermokarst.Cast(Bot2.Battlefield.Forest)
+? Bot1.Mana =
+Bot1.Pass
+Bot2.Pass
+[Expect]
+Bot1.Life = 20
+Bot2.Graveyard = Forest

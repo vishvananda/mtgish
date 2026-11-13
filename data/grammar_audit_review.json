@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "516f05d2a82c558188170b393c3f3b4474c4865758c8b5f2084b46b1a661d845"
+    "grammars/english_grammar.json5": "c60c4886dfed18e5e68251172ef42c8c7ada4fceafbdac4555928e10af6c0a0f"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -5422,7 +5422,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "516f05d2a82c558188170b393c3f3b4474c4865758c8b5f2084b46b1a661d845",
+    "grammars/english_grammar.json5": "c60c4886dfed18e5e68251172ef42c8c7ada4fceafbdac4555928e10af6c0a0f",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -8058,6 +8058,16 @@
       "Deep Spawn, Homarid Warrior, and Reveka control-change scenarios",
       "native skipped-untap step deadline test",
       "Krovikan drawn-card current-hand membership and replacement scenarios"
+    ]
+  },
+  "reference_destroy_reveal_20261113": {
+    "scope": "Thermokarst and Extinguish the Light retain the named target even when destruction fails; Vexing Arcanix checks that a card was revealed before applying either name-comparison branch.",
+    "rationale": "The named target is independent of the success of a destruction action and its old identity has last-known characteristics after a zone change. Otherwise refers to a revealed card, so it cannot damage anyone when no card was revealed.",
+    "evidence": "The complete frozen-corpus parse has 33,529 ordered records and is byte-identical to data/mtgish.lines.ron (SHA-256 e538f7fd74150274aa6d52819563e74ad3e71da0cc05955fcfd18a1cde92130a). All 182 finding IDs and every non-rationale field, including matched usage, are identical to the preceding reviewed audit; the 37 context findings retain their canonical matched-usage hashes.",
+    "validation": [
+      "uncached parser Source regression for both target cards and Vexing Arcanix",
+      "native destroyed snow, indestructible snow, and nonsnow controls",
+      "native empty-library, correct-name, and incorrect-name controls"
     ]
   }
 }

@@ -1,0 +1,42 @@
+# A controlled artifact destroyed instead of sacrificed triggers the Miter; paying three draws a card (CR 603.2, 118.12).
+[Bot1 Deck]
+Urza's Miter
+Black Lotus
+Mox Pearl
+Mox Sapphire
+Mox Emerald
+Ornithopter
+Island x20
+[Bot2 Deck]
+Black Lotus
+Shatter
+Island x20
+[Actions]
+Bot1.Hand.Black Lotus.Cast
+Bot1.Pass
+Bot1.Battlefield.Black Lotus.Activate(Color: Blue)
+Bot1.Hand.Urza's Miter.Cast
+? Bot1.Mana =
+Bot1.Pass
+Bot1.Hand.Mox Pearl.Cast
+Bot1.Pass
+Bot1.Hand.Mox Sapphire.Cast
+Bot1.Pass
+Bot1.Hand.Mox Emerald.Cast
+Bot1.Pass
+Bot1.Hand.Ornithopter.Cast
+[T2 Bot2.Main1]
+Bot2.Hand.Black Lotus.Cast
+Bot2.Pass
+Bot2.Battlefield.Black Lotus.Activate(Color: Red)
+Bot2.Hand.Shatter.Cast(Ornithopter)
+Bot2.Pass
+Bot1.Pass
+Bot1.Battlefield.Mox Pearl.Activate
+Bot1.Battlefield.Mox Sapphire.Activate
+Bot1.Battlefield.Mox Emerald.Activate
+Bot1.PayCost
+? Bot1.Mana =
+[Expect]
+Bot1.Hand.Count = 2
+Bot1.Graveyard = Ornithopter; Black Lotus

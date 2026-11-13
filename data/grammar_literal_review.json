@@ -1203,15 +1203,15 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "0ac80f42fcf92b6fda0f1718e4ccb3370ac43b37568d11940d89d1bc5ddc417c",
+   "id": "1b631e4a91e03ed9b3ffcb1c5cbf61476d37c601fbfc865587b248777ebfb211",
    "kind": "mined_token",
    "rule": "ActivatedActions(~Permanent)",
    "token": "ChooseACardName",
    "word": "choose",
    "support": "54/57",
    "template": "Target player chooses a card name, then reveals the top card of their library. If that card has the chosen name, that player puts it into their hand. Otherwise, they put it into their graveyard and this artifact deals {{Digits}} damage to them",
-   "result": "Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerActions(Ref_TargetPlayer, [ChooseACardName(AnyOracleCard), RevealTopCardOfLibrary]), IfElse(ACardWasRevealedThisWay(IsNamed(TheChosenName)), [PlayerAction(Ref_TargetPlayer, PutTopOfLibraryInHand)], [PlayerAction(Ref_TargetPlayer, PutTopOfLibraryInGraveyard), PermanentDealsDamage(ThisPermanent, {{Digits[0]}}, Player(Ref_TargetPlayer))])]))",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerActions(Ref_TargetPlayer, [ChooseACardName(AnyOracleCard), RevealTopCardOfLibrary]), If(ACardWasRevealedThisWay(AnyCard), [IfElse(ACardWasRevealedThisWay(IsNamed(TheChosenName)), [PlayerAction(Ref_TargetPlayer, PutTopOfLibraryInHand)], [PlayerAction(Ref_TargetPlayer, PutTopOfLibraryInGraveyard), PermanentDealsDamage(ThisPermanent, {{Digits[0]}}, Player(Ref_TargetPlayer))])])]))",
+   "reason": "The printed “chooses a card name” is implemented by ChooseACardName for the target player; the literal miner does not equate “chooses” with “choose”. The revealed-card existence guard changes neither the choice nor its actor."
   },
   {
    "id": "17e33439988dcd120d86c872f5a8b05d132ed298d0d9beba9ebc06bbb1ac138a",

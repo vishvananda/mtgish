@@ -8,6 +8,21 @@ use super::costs::constant_u8;
 use super::read::compare;
 use super::triggers::{object_fired, single, Arm, Matched};
 use super::*;
+
+fn history_window_includes_current(window: &ObjectWindow) -> bool {
+    matches!(window, ObjectWindow::ThisTurn | ObjectWindow::ThisGame)
+}
+
+#[cfg(test)]
+mod current_history_window_tests {
+    use super as renderer;
+    #[test]
+    fn current_event_is_excluded_from_previous_turn_windows() {
+        assert!(renderer::history_window_includes_current(&renderer::ObjectWindow::ThisTurn));
+        assert!(renderer::history_window_includes_current(&renderer::ObjectWindow::ThisGame));
+        assert!(!renderer::history_window_includes_current(&renderer::ObjectWindow::LastTurnOf(renderer::PlayerRef::AbilityController)));
+    }
+}
 use crate::mtg_types::CardType;
 
 const ONE: &str = "let subject = Target::Player(*player); let data = [0u32; 2];";
@@ -2535,7 +2550,9 @@ impl Compiler {
             H::Cycled => format!("Event::Cycled {{ card, .. }} if card == {id}"),
             H::Discarded => format!("Event::Discarded {{ card, .. }} if card == {id}"),
             H::Milled => moved("new, reason: ZoneReason::Mill", &format!("new == {id}")),
-            H::Sacrificed => moved("new, reason: ZoneReason::Sacrifice", &format!("new == {id}")),
+            // A battlefield look-back carries the old incarnation; a later
+            // graveyard read may carry the new one from this same move.
+            H::Sacrificed => moved("old, new, reason: ZoneReason::Sacrifice", &format!("old == {id} || new == {id}")),
             H::Exiled => moved("new, to", &format!("new == {id} && to.is(ZoneKind::Exile)")),
             H::PutIntoGraveyard => {
                 moved("new, to", &format!("new == {id} && to.is(ZoneKind::Graveyard)"))
@@ -2596,8 +2613,14 @@ impl Compiler {
             }
             other => return Ok(format!("{{ let {id} = {candidate}; {} }}", self.object_history_p(other, id, window)?)),
         };
+        // Look-back trigger matchers see history from before the event batch.
+        // The event being matched is authoritative for its own sacrifice.
+        let current = if matches!(event, H::Sacrificed) && self.event_at == EventAt::Matcher && self.history.is_none()
+            && history_window_includes_current(window) {
+            format!("matches!(event, Event::ZoneChange {{ old, new, reason: ZoneReason::Sacrifice, .. }} if *old == {id} || *new == {id}) || ")
+        } else { String::new() };
         Ok(format!(
-            "{{ let {id} = {candidate}; {}.any(|r| matches!(r.event, {pattern})) }}",
+            "{{ let {id} = {candidate}; {current}{}.any(|r| matches!(r.event, {pattern})) }}",
             self.object_window(window)?
         ))
     }
