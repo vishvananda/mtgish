@@ -7,7 +7,15 @@ use serde::ser::{self, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
-pub fn value<T: Serialize + ?Sized>(value: &T) -> serde_json::Result<Value> {
+/// Inspect a shared tree on the protected corpus stack. The derived Source
+/// serializers have large frames even for ordinary cards in unoptimized builds.
+/// Existing corpus workers take the inline fast path; child fields recurse
+/// through `tree` rather than creating another thread or checking TLS per node.
+pub fn value<T: Serialize + Sync + ?Sized>(value: &T) -> serde_json::Result<Value> {
+    crate::corpus::on_large_stack(|| tree(value))
+}
+
+fn tree<T: Serialize + ?Sized>(value: &T) -> serde_json::Result<Value> {
     value.serialize(Inspector)
 }
 
@@ -118,7 +126,7 @@ impl ser::Serializer for Inspector {
         Ok(Value::Null)
     }
     fn serialize_some<T: Serialize + ?Sized>(self, v: &T) -> serde_json::Result<Value> {
-        value(v)
+        tree(v)
     }
     fn serialize_unit(self) -> serde_json::Result<Value> {
         Ok(Value::Null)
@@ -139,7 +147,7 @@ impl ser::Serializer for Inspector {
         _: &'static str,
         v: &T,
     ) -> serde_json::Result<Value> {
-        value(v)
+        tree(v)
     }
     fn serialize_newtype_variant<T: Serialize + ?Sized>(
         self,
@@ -148,7 +156,7 @@ impl ser::Serializer for Inspector {
         name: &'static str,
         v: &T,
     ) -> serde_json::Result<Value> {
-        Ok(variant(ty, name, value(v)?))
+        Ok(variant(ty, name, tree(v)?))
     }
     fn serialize_seq(self, _: Option<usize>) -> serde_json::Result<Compound> {
         Ok(Compound::new(true, None))
@@ -191,7 +199,7 @@ macro_rules! sequence {
             type Ok = Value;
             type Error = serde_json::Error;
             fn $method<T: Serialize + ?Sized>(&mut self, v: &T) -> serde_json::Result<()> {
-                self.items.push(value(v)?);
+                self.items.push(tree(v)?);
                 Ok(())
             }
             fn end(self) -> serde_json::Result<Value> {
@@ -215,7 +223,7 @@ macro_rules! fields {
                 key: &'static str,
                 v: &T,
             ) -> serde_json::Result<()> {
-                self.fields.insert(key.into(), value(v)?);
+                self.fields.insert(key.into(), tree(v)?);
                 Ok(())
             }
             fn end(self) -> serde_json::Result<Value> {
@@ -246,7 +254,7 @@ impl ser::SerializeMap for Compound {
             .key
             .take()
             .ok_or_else(|| <serde_json::Error as ser::Error>::custom("map value without key"))?;
-        self.fields.insert(key, value(v)?);
+        self.fields.insert(key, tree(v)?);
         Ok(())
     }
     fn end(self) -> serde_json::Result<Value> {

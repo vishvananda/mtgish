@@ -22,10 +22,18 @@ const CHUNK_LINES: usize = 32;
 std::thread_local!(static LARGE_STACK: Cell<bool> = const { Cell::new(false) });
 
 /// Run `work` with a stack sized for lowering. Cheap when already on one.
+#[inline(always)]
 pub fn on_large_stack<R: Send>(work: impl FnOnce() -> R + Send) -> R {
     if LARGE_STACK.get() {
         return work();
     }
+    spawn_with_large_stack(work)
+}
+
+// Keep thread construction and its stack frame out of existing corpus workers.
+#[cold]
+#[inline(never)]
+fn spawn_with_large_stack<R: Send>(work: impl FnOnce() -> R + Send) -> R {
     std::thread::scope(|scope| {
         std::thread::Builder::new()
             .stack_size(STACK_BYTES)

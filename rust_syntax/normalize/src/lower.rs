@@ -52,7 +52,7 @@ fn fill_cardtype(tree: &mut serde_json::Value, card_type: &serde_json::Value) {
     }
 }
 
-fn unsupported(value: &impl Serialize) -> Diagnostic {
+fn unsupported(value: &(impl Serialize + Sync)) -> Diagnostic {
     let inspected = crate::inspect::value(value).expect("source AST serialization");
     Diagnostic {
         path: String::new(),

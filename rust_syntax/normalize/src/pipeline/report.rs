@@ -109,7 +109,7 @@ fn features(value: &serde_json::Value, context: &str, found: &mut BTreeSet<Strin
         _ => {}
     }
 }
-fn recipe_forms(value: &impl Serialize, out: &mut crate::inventory::Forms) -> corpus::Result<()> {
+fn recipe_forms(value: &(impl Serialize + Sync), out: &mut crate::inventory::Forms) -> corpus::Result<()> {
     let mut forms = BTreeMap::new();
     crate::inspect::count(&crate::inspect::value(value)?, &mut forms);
     for (ty, variants) in forms {

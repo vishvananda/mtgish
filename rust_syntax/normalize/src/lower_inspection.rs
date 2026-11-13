@@ -48,7 +48,7 @@ impl Context {
     /// nothing from a failed attempt, so a row can still stand in for the step.
     fn sibling_step(
         &mut self,
-        step: &impl Serialize,
+        step: &(impl Serialize + Sync),
         player: &PlayerRef,
         instructions: &mut Vec<Instruction>,
     ) -> Option<Result<()>> {

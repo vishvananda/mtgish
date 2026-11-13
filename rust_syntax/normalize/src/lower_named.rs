@@ -1,7 +1,7 @@
 // `Named` forms are built from the inspected source tree, so every enum variant
 // has one with no per-variant code. Operands lower with an empty Context: a
 // reference that needs the enclosing ability's bindings fails and stays a Form.
-fn named_value(value: &impl Serialize) -> Named {
+fn named_value(value: &(impl Serialize + Sync)) -> Named {
     let inspected = crate::inspect::value(value).expect("source AST serialization");
     named_node(&inspected)
 }
@@ -19,7 +19,7 @@ pub(crate) fn rule_at(card: &source::OracleCard, index: usize) -> Named {
 }
 
 /// A card field with no reduced form.
-fn named_field(name: &str, value: &impl Serialize) -> Named {
+fn named_field(name: &str, value: &(impl Serialize + Sync)) -> Named {
     let inspected = crate::inspect::value(value).expect("source AST serialization");
     Named {
         source_type: "Characteristics".into(),
@@ -519,7 +519,7 @@ impl Context {
     }
 
     /// The row name and bound operands of `value`, if it has a reviewed primitive.
-    fn primitive(&self, family: &str, value: &impl Serialize) -> Option<(String, Vec<Operand>)> {
+    fn primitive(&self, family: &str, value: &(impl Serialize + Sync)) -> Option<(String, Vec<Operand>)> {
         self.primitive_inspected(family, &crate::inspect::value(value).ok()?)
     }
 
@@ -659,7 +659,7 @@ impl Context {
     fn primitive_step(
         &mut self,
         family: &str,
-        value: &impl Serialize,
+        value: &(impl Serialize + Sync),
         actor: &PlayerRef,
         objects: ObjectSet,
     ) -> Result<Instruction> {
@@ -1168,7 +1168,7 @@ impl Context {
         self.primitive_predicate("Permanents", value)
     }
 
-    fn primitive_predicate(&self, family: &str, value: &impl Serialize) -> Option<ObjectFilter> {
+    fn primitive_predicate(&self, family: &str, value: &(impl Serialize + Sync)) -> Option<ObjectFilter> {
         let (name, operands) = self.primitive(family, value)?;
         Some(crate::semantics::reduce_filter(name, operands))
     }

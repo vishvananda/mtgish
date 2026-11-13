@@ -46,7 +46,7 @@ impl Context {
     /// The same predicate under `Permanents` reads the same characteristics.
     fn as_permanent_filter(
         &self,
-        value: &impl Serialize,
+        value: &(impl Serialize + Sync),
         error: Diagnostic,
     ) -> Result<ObjectFilter> {
         self.rescue(error, || {
@@ -55,7 +55,7 @@ impl Context {
         })
     }
     /// The same predicate under `Cards` reads the same characteristics.
-    fn as_card_filter(&self, value: &impl Serialize, error: Diagnostic) -> Result<ObjectFilter> {
+    fn as_card_filter(&self, value: &(impl Serialize + Sync), error: Diagnostic) -> Result<ObjectFilter> {
         self.rescue(error, || {
             let filter: source::Cards = as_family(value, "Cards")?;
             self.card_filter(&filter).ok()

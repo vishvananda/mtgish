@@ -113,7 +113,7 @@ fn decode_step<T: serde::de::DeserializeOwned>(value: &serde_json::Value) -> Res
 
 /// The same form under the enum another family uses for it.
 fn as_family<T: serde::de::DeserializeOwned>(
-    value: &impl Serialize,
+    value: &(impl Serialize + Sync),
     family: &'static str,
 ) -> Option<T> {
     let mut inspected = crate::inspect::value(value).ok()?;
@@ -124,7 +124,7 @@ fn as_family<T: serde::de::DeserializeOwned>(
 
 /// `as_family` for a form whose operands change family with it.
 fn cast<T: serde::de::DeserializeOwned>(
-    value: &impl Serialize,
+    value: &(impl Serialize + Sync),
     families: &[(&'static str, &'static str)],
 ) -> Option<T> {
     let mut inspected = crate::inspect::value(value).ok()?;
