@@ -10,7 +10,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "37493d84913aae13d734ec564d905a2352e77493ebc01f10b5c0ba5ecde995c7"
+    "grammars/english_grammar.json5": "e2175b457083881ab7f44c1037fbfd09ef72ddffe5e724befc503ef172220e63"
   },
   "source_order": [
     "grammars/english_grammar-INPUT.json5",
@@ -36,7 +36,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "37493d84913aae13d734ec564d905a2352e77493ebc01f10b5c0ba5ecde995c7",
+    "grammars/english_grammar.json5": "e2175b457083881ab7f44c1037fbfd09ef72ddffe5e724befc503ef172220e63",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -46,10 +46,10 @@
     "grammars/mtgish_grammar-mana.json5": "1212a7f06a53ba3032673c18d129267f1256384e0c6c3fa604aff846de1960bb",
     "grammars/mtgish_grammar-named_cards.json5": "20cf1602077a3e3864f0b6a3e74bb933a547f58d5c129b81812d5c5f635199a0",
     "grammars/mtgish_grammar-put_counters.json5": "77425da052f6e30ba54e23b90f41e440a3e484a72f2cb28bd39d22ce24fe6c23",
-    "grammars/mtgish_grammar-triggers.json5": "96b070faa84d9a5cad36071d156a01e6139a8590a57f3b51a9b94fca9c1dff24",
+    "grammars/mtgish_grammar-triggers.json5": "a1223b99a63f094455b8e4bddd8ec37ad05a5c26d013b118c5345d658e7719f7",
     "grammars/mtgish_grammar-type_line.json5": "27f424e58808988f4317eacf3f6aee9ace7d360ca886e034f099e7e1c10a81ae",
     "grammars/mtgish_grammar-vote_option.json5": "93e2f2472543b1a6865d80c7d45032788759dfc365c41d5dfb0a424cd65587e3",
-    "grammars/mtgish_grammar.json5": "af1519c322433772305f53bcfe9542fdf54b2bed6ac0c7526c899c6973ae8baf",
+    "grammars/mtgish_grammar.json5": "add64f7076e0f81f7700d0fcab70f3977fc15c78c3ad74b4f6568f9c6f361769",
     "grammars/short_names.json5": "dd44ee8da0d0546722fa3b83de3d042c5f147cbe7553ad8e200c3b572b2c76a3"
   },
   "parsed_cards": 33529,
@@ -5656,7 +5656,7 @@
       "review_reason": "Tainted Pact stops when a newly exiled card shares a name with an earlier card; the captured two restates that duplicate-name stopping condition."
     },
     {
-      "id": "48fc9cea695bbac89f96672d2187f958eb24c995072766f4dc2139700d2d5980",
+      "id": "f9dbf0b3354a8fea922f1fb4f046f49856e6aa08640022ced912cb503de26cab",
       "file": "grammars/english_grammar.json5",
       "line": 16875,
       "rule": "SpellActions",
@@ -5664,7 +5664,7 @@
       "severity": "error",
       "capture": "Hasable[1]",
       "input": "Return target {{SpecificCard}} from your graveyard to the battlefield. That creature gains {{Hasable}}. Return it to your hand at the beginning of the next end step.\nYou may put {{a}} {{CreatureCard}} from your hand onto the battlefield. That creature gains {{Hasable}}. Its controller sacrifices it at the beginning of the next end step",
-      "output": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([MustCost(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), If(CostWasPaid, [CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]), MayActions([PutACardFromHandOnBattlefield({{CreatureCard[0]}}, [EntersNormally]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ControllersSacrificeEachPermanent(SinglePermanent(ThePermanentPutOnTheBattlefieldThisWay))]))])]))",
+      "output": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([MustCost(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), If(CostWasPaid, [CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]), MayCost(PutACardFromHandOnBattlefield({{CreatureCard[0]}}, [EntersNormally])), If(CostWasPaid, [CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ControllersSacrificeEachPermanent(SinglePermanent(ThePermanentPutOnTheBattlefieldThisWay))]))])]))",
       "reason": "the output never references this semantic capture occurrence; review any intentional hardcoded equivalent",
       "usage": [
         {
@@ -5687,7 +5687,7 @@
           }
         }
       ],
-      "review_reason": "Rechecked 2026-11-04 after the prior MustCost correction: Cauldron Dance is the only use and both Hasable captures are Haste; both grants preserve that value."
+      "review_reason": "Rechecked 2026-11-13 after the existing MayCost/If rewrite: Cauldron Dance remains the only matched card and both Hasable captures are haste; this equivalence applies only to the current corpus, not unequal abilities."
     },
     {
       "id": "4fa5ac304e5250b0ee3c5a106f553b7c4947d3649396dc324cfaee32ca28c3aa",
