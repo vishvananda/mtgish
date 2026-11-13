@@ -86,6 +86,30 @@ fn activation_costs_and_timing_are_not_resolving_effects() {
 }
 
 #[test]
+fn attack_and_resolving_cost_predicates_do_not_claim_to_be_spell_casting_costs() {
+    for name in ["Flooded Woodlands", "Leviathan"] {
+        let found = docs(&modules()[name], |name| name.contains("rule_cost") || name.starts_with("paid_"));
+        assert!(!found.is_empty(), "{name}: {}", modules()[name]);
+        for doc in found {
+            assert!(doc.contains("CR 118.1"), "{name}: {doc}");
+            assert!(!doc.contains("601.2h"), "{name}: {doc}");
+        }
+    }
+}
+
+#[test]
+fn granted_static_callbacks_cite_static_abilities() {
+    let found = docs(&modules()["Glyph of Delusion"], |name| name.ends_with("_keyword"));
+    assert_eq!(found.len(), 1);
+    assert!(found[0].contains("CR 604.1"), "{}", found[0]);
+    assert!(!found[0].contains("608.2"), "{}", found[0]);
+    // The granted upkeep effect still resolves, and must retain its own role.
+    let resolving = docs(&modules()["Glyph of Delusion"], |name| name == "granted_3");
+    assert_eq!(resolving.len(), 1);
+    assert!(resolving[0].contains("CR 608.2"), "{}", resolving[0]);
+}
+
+#[test]
 fn nonstandard_callbacks_with_ambiguous_names_follow_the_api_position() {
     use cantrip::pr_form::{render, Characteristics};
     let filter = "fn filter(q: &dyn Query, _: &Asker, t: Target) -> bool { matches!(t, Target::Object(id) if q.chars(id).power.unwrap_or(0) > 7) }";
@@ -141,7 +165,8 @@ pub static CARD: CardDef = CardDef {{ abilities: &[ability({constructor}(1, pred
         let output = render(&raw, "Fixture", "An activated ability.", Characteristics::Oracle).unwrap();
         let filter = docs(&output, |name| name == "predicate");
         assert_eq!(filter.len(), 1, "{constructor}: {output}");
-        assert!(filter[0].contains("CR 118.1") && filter[0].contains("601.2h"), "{constructor}: {output}");
+        assert!(filter[0].contains("CR 118.1"), "{constructor}: {output}");
+        assert!(!filter[0].contains("601.2h"), "{constructor}: {output}");
         assert!(!filter[0].contains("608.2"), "{constructor}: {output}");
     }
 }

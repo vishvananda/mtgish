@@ -4024,6 +4024,11 @@ fn callback_roles(file: &File) -> BTreeMap<String, Role> {
                     Some("granted_regeneration_ban") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::Static); }
                     }
+                    Some("static_ability") => {
+                        for callback in call.args.iter().skip(1).take(2) {
+                            self.mark(callback, Role::Static);
+                        }
+                    }
                     Some("with_others") if path.path.segments.iter().rev().nth(1).is_some_and(|s| s.ident == "banding") => {
                         if let Some(callback) = call.args.first() { self.mark(callback, Role::Banding); }
                     }
@@ -4306,7 +4311,8 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Replacement => "614.1a",
         Role::Effect => "608.2",
     }];
-    if role == Role::Cost { cited.push("601.2h"); }
+    // A cost predicate can also pay for an attack or a resolving ability. CR 601.2h
+    // specifically governs casting a spell, so the general cost role cites CR 118.1.
     if entering && writes.tapped && writes.other { cited.push("614.1d"); }
     let body = text_of(&function.block);
     if entering && body.contains("entering . counters") {
