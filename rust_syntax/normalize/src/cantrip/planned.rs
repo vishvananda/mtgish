@@ -44,6 +44,8 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     // `DuringItsControllersNextUntapStep` and `DuringNextUntapStepOf`: Cantrip
     // PR #897. Its rules on open sets are `plan_switched` holes, not landed ids:
     // a rule it has no `LastingRuleKind` for shares their requirement.
+    ("battlefield-source-enchantment", "fn battlefield_source_is_enchanted(&self, source: ObjectId) -> bool", &["last-known-battlefield-source-enchantment"]),
+    ("optional-lasting-replacements", "pub const fn optional(self, question: &'static Question) -> GrantedReplacementDef", &[]),
     ("source-control-intervals", "WhileSourceControlled,", &[]),
     ("lasting-rules", "fn add_lasting_rule", &["continuous-rule-untap-step", "duration-during-controllers-next-untap-step", "duration-during-next-untap-step"]),
     ("rampage", "pub mod rampage;", &["engine-no-rampage"]),

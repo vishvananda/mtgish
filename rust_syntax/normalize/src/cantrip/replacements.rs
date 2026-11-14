@@ -1234,7 +1234,13 @@ impl Compiler {
                 "g.add_effect(item.object, about, EffectKind::Prevention {{ card: item.ability.card, index: {index}, to, shield: {shield_value} }}, DURATION);"
             )));
         }
-        if self.replacing.may.is_some() {
+        // Only the global, lasting damage rule is lowered here. Other optional
+        // granted forms retain their hold until their own semantics are verified.
+        if self.replacing.may.is_some()
+            && (!planned::switched_on("optional-lasting-replacements")
+                || arms[0].kind != "Damage" || to || about || shield.is_some() || self.granting
+                || !matches!(limit, ReplacementLimit::UntilExpired))
+        {
             return Err(gap("engine: optional granted replacement needs a choice"));
         }
         if to && !self.granting {
@@ -1259,6 +1265,9 @@ impl Compiler {
             self.reshaping(label, &arms, frame, &extra, &changes, remaining, true)?;
         let mut def =
             format!("granted_replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
+        if let Some(question) = self.replacing.may.take() {
+            def.push_str(&format!(".optional(&{question})"));
+        }
         if let Some(damage) = damage {
             def.push_str(&format!(".with_damage({damage})"));
         }

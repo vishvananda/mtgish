@@ -1060,6 +1060,7 @@ impl Compiler {
                     chars: "q.token_chars(t.token, t.copy)".into(),
                     controller: "t.controller".into(),
                     announced: None,
+                    damage_source: None,
                     entry_from: false,
                 };
                 if !chars_only(tokens) {
@@ -4101,6 +4102,7 @@ impl Compiler {
             chars: "(*by_source)".into(),
             controller: "by.controller".into(),
             announced: None,
+            damage_source: None,
             entry_from: false,
         };
         Ok(match filter {

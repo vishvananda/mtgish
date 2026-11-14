@@ -1512,7 +1512,10 @@ impl Compiler {
             ObjectKind::Card => "!q.state().obj(source).token".to_string(),
             other => return Err(gap(format!("damage source kind {}", form(other)))),
         });
-        tests.push(self.matching(frame, |c| c.filter(sources, &Candidate::of("source")))?);
+        tests.push(self.matching(frame, |c| c.filter(sources, &Candidate {
+            damage_source: Some(matches!(source_kind, ObjectKind::Permanent)),
+            ..Candidate::of("source")
+        }))?);
         tests.push(self.matching(frame, |c| match recipients {
             DamageRecipients::Any => Ok("true".to_string()),
             DamageRecipients::Players(players) => Ok(format!(

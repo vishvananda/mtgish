@@ -28,6 +28,8 @@ pub(super) struct Candidate {
     pub id: String,
     pub chars: String,
     pub controller: String,
+    /// An event damage source, distinguished from an ordinary live candidate.
+    pub damage_source: Option<bool>,
     /// Where the targets of a spell not on the stack yet are, if it has any
     /// to speak of: `None` for one that is.
     pub announced: Option<String>,
@@ -41,6 +43,7 @@ impl Candidate {
             chars: format!("q.chars({id})"),
             controller: format!("q.controller({id})"),
             announced: None,
+            damage_source: None,
             entry_from: false,
         }
     }
@@ -50,6 +53,7 @@ impl Candidate {
             chars: "(*so_far)".into(),
             controller: "q.controller(affected)".into(),
             announced: None,
+            damage_source: None,
             entry_from: false,
         }
     }
@@ -2491,6 +2495,14 @@ impl Compiler {
             }
             ObjectFilter::State(ObjectState::Saddled) => {
                 format!("q.state().obj({id}).marks.saddled_turn == q.state().turn.number")
+            }
+            // A permanent source may have left before its damage is processed (CR 608.2h).
+            // The native query deliberately covers battlefield sources only, not graveyard-card Auras.
+            ObjectFilter::State(ObjectState::Enchanted) if c.damage_source.is_some() => {
+                if c.damage_source != Some(true) {
+                    return Err(gap("engine: enchanted damage sources outside battlefield need their own last-known view"));
+                }
+                planned::planned_value("last-known battlefield source enchantment", "false", &format!("q.battlefield_source_is_enchanted({id})"))
             }
             // Attachments are read as a layer may: by the state, and by what
             // the layers before it have made the attachment.

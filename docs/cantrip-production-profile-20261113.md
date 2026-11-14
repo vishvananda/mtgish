@@ -96,3 +96,13 @@ outcome is preserved without counting the approved card as unfinished.
 The separate named-turn model proposal in Oracle Grammar PR #3 is not yet a
 published dependency of this generator. Arboria's actor/controller correction
 awaits that registry release and consumer adoption.
+
+The generator also recognizes two newer native interfaces by their distinct
+signatures. `battlefield-source-enchantment` reads current or last-known Aura
+attachments for a permanent damage source; ordinary enchanted-object filters
+continue to read the live battlefield. Other damage-source zones remain held.
+`optional-lasting-replacements` permits the optional global lasting damage
+replacement used by Blood of the Martyr, with the effect controller's choice;
+other optional lasting forms remain held pending their own validation. Both
+features remain disabled for the frozen native foundation until its vocabulary
+is deliberately refreshed against a native tree that provides them.
