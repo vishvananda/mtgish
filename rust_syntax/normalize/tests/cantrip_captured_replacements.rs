@@ -32,6 +32,8 @@ fn lamp_captures_x_at_creation_and_passes_it_to_the_waiting_callbacks() {
         assert!(code.contains("i64::from(created_x)"), "{code}");
         assert!(code.contains("created_x: u32"), "{code}");
         assert!(!code.contains("q.obj(asker.source).x"), "{code}");
+        assert!(!code.contains("Purpose::ChooseAsEnters"), "library selection is not entering: {code}");
+        assert!(code.contains("Purpose::Choose,"), "ordinary selection: {code}");
         assert!(!code.contains("planned!"), "{code}");
     });
 }

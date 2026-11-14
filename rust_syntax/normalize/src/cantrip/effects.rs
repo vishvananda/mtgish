@@ -1374,15 +1374,17 @@ impl Compiler {
                 if self.object_as_it_enters(objects, count, rest, result, out)? {
                     return Ok(());
                 }
+                // A later use does not make this an entry-time choice.
+                let plain = self.neutral_choice_purpose();
                 // CR 609.7a: what the source does later is not what it is chosen for.
                 let purpose = lane_n::chooses_a_source(objects)
                     .or_else(|| purpose(result, rest))
                     .or_else(|| purpose(result, &self.after))
-                    .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
-                    .or_else(|| referred_to(result, &self.after).then_some("ChooseAsEnters"))
-                    .or_else(|| lane_l::plain_purpose(result, rest))
-                    .or_else(|| lane_l::plain_purpose(result, &self.after))
-                    .or_else(|| self.read_later(result).then_some("ChooseAsEnters"))
+                    .or_else(|| referred_to(result, rest).then_some(plain))
+                    .or_else(|| referred_to(result, &self.after).then_some(plain))
+                    .or_else(|| lane_l::plain_purpose(result, rest, plain))
+                    .or_else(|| lane_l::plain_purpose(result, &self.after, plain))
+                    .or_else(|| self.read_later(result).then_some(plain))
                     // Nothing it says yet happens to them: the prompt's plain word.
                     .unwrap_or("Choose");
                 // Library prompt captions say "your library". A different
@@ -1928,6 +1930,9 @@ impl Compiler {
                 )
             }
         })
+    }
+    pub(super) fn neutral_choice_purpose(&self) -> &'static str {
+        if self.event_at == EventAt::Entering { "ChooseAsEnters" } else { "Choose" }
     }
     pub(super) fn choose(
         &mut self,
@@ -5061,5 +5066,41 @@ pub(super) fn rule_name(rule: &RuleChange) -> String {
         RuleChange::Prohibit(action) => format!("Prohibit {}", form(action)),
         RuleChange::RequireCombat { action, .. } => format!("RequireCombat {}", form(action)),
         other => form(other),
+    }
+}
+
+#[cfg(test)]
+mod choice_context_tests {
+    use super::*;
+
+    #[test]
+    fn later_references_and_constraints_do_not_make_a_choice_entering() {
+        for entering in [false, true] {
+            for constrained in [false, true] {
+                let mut compiler = Compiler::new();
+                if entering { compiler.event_at = EventAt::Entering; }
+                let body = Program { instructions: vec![
+                    Instruction::Effect { result: ResultId(0), operation: Operation::ChooseObjects {
+                        player: PlayerRef::AbilityController,
+                        objects: ObjectSet::One(ObjectRef::Source),
+                        count: Count::AsManyAsCan(Expr::Constant(1)),
+                        constraints: if constrained {
+                            vec![SelectionConstraint::OneForEach(vec![ObjectFilter::Any])]
+                        } else { vec![] },
+                    } },
+                    Instruction::Effect { result: ResultId(1), operation: Operation::NoteObjects {
+                        objects: ObjectSet::Selected(ResultId(0)),
+                    } },
+                ] };
+                let mut code = String::new();
+                compiler.instruction(&body, 0, &body.instructions[0], &mut code).unwrap();
+                if entering {
+                    assert!(code.contains("Purpose::ChooseAsEnters,"), "{code}");
+                } else {
+                    assert!(code.contains("Purpose::Choose,"), "{code}");
+                    assert!(!code.contains("ChooseAsEnters"), "{code}");
+                }
+            }
+        }
     }
 }

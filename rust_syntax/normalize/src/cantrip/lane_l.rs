@@ -247,7 +247,7 @@ fn had_to_do(player: &PlayerRef, body: &[Operand]) -> Option<Program> {
 /// The prompt of a choice that nothing does anything to by name: "chooses three
 /// permanents, then sacrifices the rest" keeps what it chooses, and any other
 /// choice a later instruction reads is a plain choice.
-pub(super) fn plain_purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
+pub(super) fn plain_purpose(result: &ResultId, rest: &[Instruction], neutral: &'static str) -> Option<&'static str> {
     let unselected = format!("Unselected(ResultId({}))", result.0);
     let earlier = "Earlier { what: Selected";
     rest.iter().find_map(|instruction| {
@@ -255,7 +255,7 @@ pub(super) fn plain_purpose(result: &ResultId, rest: &[Instruction]) -> Option<&
         if text.contains(&unselected) {
             Some("Keep")
         } else if text.contains(earlier) {
-            Some("ChooseAsEnters")
+            Some(neutral)
         } else {
             None
         }
@@ -590,7 +590,7 @@ impl Compiler {
                 format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(|&kind| (o, kind, from_{id}.iter().map(|&f| {copy_counter_read}).{sum})).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);", copy_counter_read = Quantity::CounterPlacement.from_stored("g.obj(f).counter_array()[kind as usize]"))
             },
             C::OneOfEachKind => format!("let puts: Vec<(ObjectId, CounterKind, {counter_ty})> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(move |&kind| (o, kind, 1{counter_ty})).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);", counter_ty = Quantity::CounterPlacement.kind()),
-            C::OneOfEachKindDistributed => format!("for kind in kinds_{id}.clone() {{ if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::ChooseAsEnters, to_{id}.clone())? {{ g.add_counters(object, kind, 1); }} }}"),
+            C::OneOfEachKindDistributed => { let purpose = self.neutral_choice_purpose(); format!("for kind in kinds_{id}.clone() {{ if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::{purpose}, to_{id}.clone())? {{ g.add_counters(object, kind, 1); }} }}") },
             C::One => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; {} }}", each(false)),
             C::OneMissing => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; {} }}", each(true)),
             C::UpToOne => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; if {M}::effects::ask_may(g, asker.controller, asker.source, Purpose::Optional)? {{ {} }} }}", each(false)),
@@ -3458,9 +3458,10 @@ impl Compiler {
         rest: &[Instruction],
         out: &mut String,
     ) -> Result<()> {
+        let plain = self.neutral_choice_purpose();
         let purpose = effects::purpose(result, rest)
-            .or_else(|| plain_purpose(result, rest))
-            .unwrap_or("ChooseAsEnters");
+            .or_else(|| plain_purpose(result, rest, plain))
+            .unwrap_or(plain);
         if self.from_outside(objects) {
             self.notes.outside.insert(result.0);
         }

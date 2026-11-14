@@ -33,17 +33,40 @@ second-user proof; no complete Taii card implementation is claimed.
 The full supported Rust workspace passes 2,090 tests with 21 ignored. The focused
 tests cover old-target gating, complete Lamp generation, the isolated Taii
 activated replacement, and explicit helper scope safety. Against reviewed native engine `f8781d78d8321dcc126e394af10620cd66de3065`,
-the corrected Lamp PR-form export compiled and passed three forced scenarios,
-including both orders of same-source effects with different X values. The exact
+the final Lamp PR-form export compiled and passed nine forced scenarios,
+including both orders of same-source effects with different X values, source
+control change, cleanup expiry, a short and empty library, nested draws and a
+real draw trigger. The exact
 isolated Taii activated-replacement PR form type-checked in that same build,
 using temporary synthetic Oracle characteristics; no Taii runtime or complete
 card result is claimed. Probe-only files are removed before native card work.
 
 The tested Lamp export SHA256 is
-`ecf0c05adb0377694d270f38b6d7a345f7459c6c418a57e9889e0da85881d14e`;
+`43d2642ec868a831e41216eea16c24b901579ad577ad77e9a91ef497923655fb`;
 isolated Taii is
 `dcc6dcfba95dc9319d7d7b875045d68e7d08ee43158cabbfb5dd1ebb42233584`.
 Local source/input/log receipts are under
 `/mnt/vizier/ice-age-completion-20261114/draw-packet/lamp-reference/` and
 `lamp-author/`. Native card completeness, independent card review and the
 combined native/managed gate remain separate pending work.
+
+
+A follow-up client inspection found that generic choices whose results are read
+later were labeled `ChooseAsEnters`, even during ordinary resolution. That
+purpose adds entry and battlefield wording inappropriate to a library choice.
+The generator now derives that neutral purpose from the actual entry callback
+context. Constrained choices, earlier references and counter distribution use
+the same context. Real entry choices keep their entry wording; ordinary choices
+use the truthful neutral `Choose`. The hand-written Lamp can additionally name
+the choice as a card to leave on top, but no presentation field or new semantic
+AST variant is needed to correct the generator.
+
+The 2,090-test full run applies to the captured-X baseline77c7afe7. After the
+prompt follow-up, focused validation passes94 library unit tests,3 captured
+replacement tests and1 counter test, including ordinary versus actual entry
+contexts with and without selection constraints. The final native9-scenario
+probe above uses the corrected prompt. Its PR-form source differs from the
+previous three-scenario probe only by `ChooseAsEnters` becoming `Choose`;
+the isolated Taii form is unchanged. Earlier runtime passes alone did not
+validate the old prompt's meaning. This is our backend inference bug, with no
+additional upstream Source reference or portable AST change required.
