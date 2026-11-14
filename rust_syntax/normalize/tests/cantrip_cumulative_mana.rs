@@ -57,3 +57,41 @@ fn cumulative_support_does_not_unlock_other_payment_purposes_or_bundle_choices()
             gap.feature == "mana choice among different bundles"));
     });
 }
+
+#[test]
+fn finite_recipe_generates_the_whole_unicorn_without_an_opaque_mana_callback() {
+    cantrip::planned::with_features(&["cumulative-upkeep-mana", "mana-bundle-choices"], || {
+        let card = unicorn();
+        validate::card(&card).unwrap();
+        assert!(cantrip::gaps(&card).is_empty(), "{:?}", cantrip::gaps(&card));
+        let code = cantrip::module(&card).unwrap();
+        syn::parse_file(&code).unwrap();
+        let dense: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(dense.contains("add_one_bundle_of(&[ManaPool([0,1,0,0,0,0]),ManaPool([0,1,0,0,0,1])],0).only_for(ManaRestriction::CumulativeUpkeep)"), "{code}");
+        assert!(!code.contains("add_by("), "{code}");
+        assert!(code.contains("Add {U}"), "{code}");
+        assert!(code.contains("Add {U}{C}"), "{code}");
+        assert!(!code.contains("planned!"), "{code}");
+    });
+}
+
+#[test]
+fn bundle_labels_stay_distinct_between_abilities() {
+    cantrip::planned::with_features(&["cumulative-upkeep-mana", "mana-bundle-choices"], || {
+        let mut card = unicorn();
+        card.abilities.push(card.abilities[0].clone());
+        let code = cantrip::module(&card).unwrap();
+        syn::parse_file(&code).unwrap();
+        let dense: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(dense.contains("ManaPool([0,1,0,0,0,1])],0)"), "{code}");
+        assert!(dense.contains("ManaPool([0,1,0,0,0,1])],2)"), "{code}");
+    });
+}
+
+#[test]
+fn a_bundle_recipe_does_not_supply_an_unavailable_spending_purpose() {
+    cantrip::planned::with_features(&["mana-bundle-choices"], || {
+        assert!(!cantrip::gaps(&unicorn()).is_empty());
+        assert!(cantrip::module(&unicorn()).is_err());
+    });
+}

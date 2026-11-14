@@ -35,11 +35,29 @@ The default private API snapshot does not enable that capability. Focused tests
 check the positive mapping, refusal on old targets, and that other payment
 purposes are not accidentally unlocked.
 
-This mapping alone does not finish either card. Adarkar Unicorn still needs
-generation of the distinct `{U}` versus `{C}{U}` bundles. Snowfall still needs
-whole-card validation of optional, conditional, restricted triggered mana,
-including its preview and actual production routes. Neither card is counted
-complete from an isolated restriction test.
+The distinct `{U}` versus `{C}{U}` bundles now generate through the native
+`add_one_bundle_of(&[ManaPool(...)], first_label)` recipe, behind the separate
+`mana-bundle-choices` capability detected from that constructor. Both capabilities
+remain off in the default pinned snapshot. The recipe owns production and
+advice from one definition; generation does not attach a guessed yield to an
+opaque callback or split one ability into two. Only fixed, full-width,
+nonnegative bundles with no additional instructions or extended lifetime use
+this path. Existing equal-amount color choices retain their compact recipe.
+Label offsets let multiple abilities retain distinct choice words.
+
+Six focused generation tests cover purpose and bundle capabilities separately,
+the whole Unicorn, and multiple abilities. The complete supported-feature Rust
+workspace passes: 2,083 tests, zero failures, 21 ignored. The tracked candidate
+has no Unicorn gaps and produces its normal `..oracle::ADARKAR_UNICORN` card
+file. Native review, compilation of the final card, scenarios and publication
+remain separate gates; this is not a completed-card claim.
+
+Snowfall still needs generator support for optional, conditional triggered
+mana and a choice of different amounts. These remain explicit gaps. Its
+one-blue option for snow was separately corrected in the Source parser and
+reference export; see [the decision](snowfall-optional-mana-20261114.md).
+Whole-card native validation, including preview and actual production, is still
+required for both cards. Neither is counted complete from a restriction test.
 
 Frozen Oracle and rulings files already exist under
 `/home/vishvananda/card-lane/scryfall`. The native tools' expected

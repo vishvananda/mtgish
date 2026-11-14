@@ -35,6 +35,7 @@ mod lane_n;
 mod lane_o;
 mod lane_p;
 mod lane_q;
+mod mana_bundles;
 mod mechanics;
 mod native_api;
 mod option_words;
@@ -2163,6 +2164,9 @@ impl Compiler {
             return self.mana_program(body, label);
         };
         if let Some(adds) = self.mana_beyond(mana, restriction.as_ref(), rest, label)? {
+            return Ok(adds);
+        }
+        if let Some(adds) = self.fixed_mana_bundles(mana, restriction.as_ref(), rest)? {
             return Ok(adds);
         }
         // What no plan names is said by the instruction, and that is the program.
