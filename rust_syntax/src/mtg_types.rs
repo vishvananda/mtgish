@@ -1865,6 +1865,7 @@ pub enum ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction {
   PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder,
   PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder,
   PutTheRemainingCardsOnTopOfLibraryInAnyOrder,
+  LeaveAGenericCardOnTopOfLibrary,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
@@ -6702,6 +6703,8 @@ pub enum LookAtTopOfLibraryAction {
   MayPutUptoNumberCardsOntoTheBattlefield(Box<GameNumber>, Box<Cards>, Vec<EnterFlag>),
   GainLife(Box<GameNumber>),
   ExileAGenericCardFaceDownWithACounter(CounterType),
+  // Select a card to leave in place; this does not put or reorder it.
+  LeaveAGenericCardOnTopOfLibrary,
 }
 
 

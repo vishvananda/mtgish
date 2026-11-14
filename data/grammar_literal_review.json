@@ -9816,6 +9816,17 @@
    "template": "{{~Permanent}}'s power is equal to the last chosen number and its toughness is equal to {{Digits}} minus that number",
    "result": "CDA_PowerToughness(TheChosenNumber, Minus({{Digits[0]}}, TheChosenNumber))",
    "reason": "Reviewed 2026-11-13: the English defines power and toughness in two singular “is equal to” clauses. That is a CDA (CR 604.3/604.3a/613.4a), despite lacking the plural word “are”. The counterexample proves the old ordinary static fails in hand and the corrected CDA passes. Oracle Grammar #18. Only this exact template/output finding is approved."
+  },
+  {
+   "id": "d010a98e2101fd6eb16d0de16b25f8152b5c64a3f602d14a7e80a4c6c1aea113",
+   "kind": "mined_token",
+   "rule": "SpellActions",
+   "token": "PutAGenericCardOnTopOfLibrary",
+   "word": "rest",
+   "support": "9/10",
+   "template": "Look at the top three cards of your library. Put one of those cards into your hand, one on top of your library, and one on the bottom of your library",
+   "result": "ActionList([LookAtTheTopNumberCardsOfLibrary(Integer(3), [PutAGenericCardIntoHand, PutAGenericCardOnTopOfLibrary, PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder])])",
+   "reason": "Reviewed 2026-11-14 after correcting Aladdin: statistical token/word correlation only. This template explicitly puts one of three cards on top, so PutAGenericCardOnTopOfLibrary is required even though it says one, not rest. It also moves the remaining card to the bottom. No detector rule is weakened."
   }
  ]
 }

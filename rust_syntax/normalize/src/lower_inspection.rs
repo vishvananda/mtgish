@@ -496,6 +496,9 @@ impl Context {
                     None,
                 ))
             }
+            S::LeaveAGenericCardOnTopOfLibrary => {
+                choice = Some((ObjectFilter::Any, count(one(), false), false, None, None));
+            }
             S::PutAGenericCardOnTopOfLibrary
             | S::PutAGenericCardOnBottomOfLibrary
             | S::PutAnyNumberOfGenericCardsOnBottomOfLibraryAnyOrder
@@ -588,6 +591,10 @@ impl Context {
                     state,
                     instructions,
                 );
+            } else if matches!(action, S::LeaveAGenericCardOnTopOfLibrary) {
+                // The retained card stays in place. Only exclude it from the
+                // following remaining-card step; no movement result exists.
+                state.assigned.push(selected);
             }
             return Ok(());
         }
