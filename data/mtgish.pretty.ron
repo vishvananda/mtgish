@@ -604225,15 +604225,15 @@ Card(
         IsCardtype(Creature),
       ])),
       ActionList([
-        CreatePreventDamageUntil(
-          CombatDamageWouldBeDealtByACreature(And([
+        ActionForEachPermanent(
+          And([
             IsAttacking,
             IsColor(Red),
             IsCardtype(Creature),
-          ])),
+          ]),
           [
             PlayerMayCost(
-              WouldDealDamage_ControllerOfDamageSource,
+              ControllerOfPermanent(EachablePermanent),
               PayMana([
                 ManaCostGeneric(2),
                 ManaCostR,
@@ -604242,11 +604242,16 @@ Card(
             Unless(
               CostWasPaid,
               [
-                PreventThatDamage,
+                CreatePreventDamageUntil(
+                  CombatDamageWouldBeDealtByCreature(EachablePermanent),
+                  [
+                    PreventThatDamage,
+                  ],
+                  UntilEndOfTurn,
+                ),
               ],
             ),
           ],
-          UntilEndOfTurn,
         ),
       ]),
     ),

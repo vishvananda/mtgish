@@ -5194,7 +5194,7 @@
 "crates/cantrip-api/src/replace.rs:304"
 ],
 "how": "Cantrip has to let a replacement or prevention effect ask its controller to pay a cost while the damage is being dealt (CR 615), and prevent the damage only if they pay.",
-"note": "New form, split from event-change-in-the-program-of-another-event for Heroism ('unless that creature's controller pays {2}{R}'). ReplacementApply and GrantedApply are pure functions, and the only choice an optional replacement can make is a yes/no Question, so no payment can be asked for.",
+"note": "Applies only to payments genuinely requested as damage would happen. Heroism is not an example: its ruling places payment at ability resolution, before the shield is created; the source template is corrected. ReplacementApply and GrantedApply are pure functions, and optional replacement questions do not themselves pay costs.",
 "partial": "",
 "verdict": "gap"
 },

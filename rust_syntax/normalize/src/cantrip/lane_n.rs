@@ -662,9 +662,10 @@ impl Compiler {
                 return Ok(());
             }
             if let Some((variant, binding, frame)) = self.replacing.event {
-                // "Prevent all combat damage that would be dealt by that creature
-                // this turn unless its controller pays {2}{R}" (Heroism): a payment
-                // asked as the damage would be dealt, which decides the prevention.
+                // A payment genuinely asked as damage would be dealt needs
+                // authority to resume the pending prevention decision. Heroism
+                // pays at ability resolution, before creating its shield, and
+                // therefore does not require this interface.
                 let feature = match (variant, change) {
                     ("Damage", EventChange::PreventDamage | EventChange::PreventSomeDamage(_)) => {
                         "damage prevented by what the effect asks as it would be dealt"

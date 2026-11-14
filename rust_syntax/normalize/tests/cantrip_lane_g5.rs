@@ -17,6 +17,9 @@ const CARDS: &[(&str, &str, bool)] = &[
     // the lands they control.
     ("Demonic Hordes", "cantrip_mechanics::choose::player(g, asker.controller", true),
     ("Demonic Hordes", "Some(asker.controller) == Some(q.controller(id))", true),
+    // Heroism's payment occurs at ability resolution, before its shield exists.
+    ("Heroism", "g.may_pay(", true),
+    ("Heroism", "EffectKind::Prevention", true),
     // "Each foe chooses one untapped creature they control, then taps the rest."
     ("Regna's Sanction", "Purpose::Keep, selected_", true),
     // "If you controlled ... as you cast this spell": kept as it is cast.
@@ -38,7 +41,6 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Tallowisp", "object filter CouldEnchant", false),
     ("Hordewing Skaab", "the players a one-or-more damage trigger's batch dealt damage to", false),
     ("Malcolm, Keen-Eyed Navigator", "the players a one-or-more damage trigger's batch dealt damage to", false),
-    ("Heroism", "damage-prevented-by-what-the-effect-asks-as-it-would-be-dealt", false),
     // The data says something other than the Oracle text.
     (
         "Ecological Appreciation",
