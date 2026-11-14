@@ -12,8 +12,16 @@ creates a prevention effect about that exact creature. The existing AST uses
 `ForEachObject`, `PayCost`, `If`, and `CreateReplacement` with
 `SameObject(Bound(...))`. Its waiting body contains only `PreventDamage`.
 
-No new AST variant, schema version, numeric domain or Cantrip engine feature is
-required. The current backend accepts that corrected program. The old comment
+The native engine already supports the handwritten implementation. A subsequent
+native preflight exposed a remaining IR/backend question: the object loop does
+not encode APNAP payment choices, each controller's choice of order (CR 101.4c),
+or gathering unpaid creatures before creating the shields. With two differently
+powered red attackers and only one affordable payment, battlefield iteration
+must not decide which creature's payment is offered first. The backend now keeps
+this program explicitly held instead of claiming that the timing correction
+alone makes automatic generation correct. Oracle Grammar owns the decision about
+representing the remaining choice and batching semantics; no schema or numeric
+domain was changed here. The old comment
 in `cantrip/lane_n.rs` is not evidence that Heroism needs a new damage-time
 payment API; that API remains a gap for any actual card that requires it.
 
@@ -38,4 +46,5 @@ its normal independently pinned adapter-update process.
 The parser regression checks the actual English parse against the corrected
 source fixture. The IR regression verifies that payment precedes shield creation
 and that the waiting body cannot ask for late payment. A backend regression
-checks that the existing prevention interface accepts the program.
+checks that automatic generation retains the explicit ordering gap, including
+when the exact same program is given a different card name.

@@ -17,9 +17,9 @@ const CARDS: &[(&str, &str, bool)] = &[
     // the lands they control.
     ("Demonic Hordes", "cantrip_mechanics::choose::player(g, asker.controller", true),
     ("Demonic Hordes", "Some(asker.controller) == Some(q.controller(id))", true),
-    // Heroism's payment occurs at ability resolution, before its shield exists.
-    ("Heroism", "g.may_pay(", true),
-    ("Heroism", "EffectKind::Prevention", true),
+    // Payment timing is corrected, but a fixed object loop still cannot enforce
+    // each controller's choice order and gather the later shields (CR 101.4c).
+    ("Heroism", "per-object-controller-payment-choice-order-and-simultaneous-follow-up", false),
     // "Each foe chooses one untapped creature they control, then taps the rest."
     ("Regna's Sanction", "Purpose::Keep, selected_", true),
     // "If you controlled ... as you cast this spell": kept as it is cast.

@@ -1772,6 +1772,22 @@ impl Compiler {
                 writeln!(out, "}}").unwrap();
                 Ok(())
             }
+            // Multiple payments offered to each object's controller are choices
+            // under CR 101.4/101.4c, not a fixed battlefield-order loop. Heroism
+            // reaches this with differently powered attackers and one payment.
+            // The source timing correction alone does not encode the choice
+            // ordering or gathering the follow-up shields after those choices.
+            Instruction::ForEachObject { binding, body, .. }
+                if body.instructions.iter().any(|step| matches!(step,
+                    Instruction::Effect {
+                        operation: Operation::PayCost {
+                            player: PlayerRef::ControllerOf(object), optional: true, ..
+                        }, ..
+                    } if matches!(object.as_ref(), ObjectRef::Bound(bound) if bound.0 == binding.0)
+                )) =>
+            {
+                Err(gap("per-object controller payment choice order and simultaneous follow-up"))
+            }
             // "For each land, destroy that land unless any player pays 1 life": all
             // the payments come first, and what no one paid for is then done at once.
             Instruction::ForEachObject {
