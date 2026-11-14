@@ -693,6 +693,10 @@ Correcting a caption or selecting an already-rendered choice kind does not by it
 Verify wording and structured choice metadata with focused engine probes and inspect the existing presenter;
 do not block on a missing .NET SDK solely for those edits. A genuinely new client capability still needs its
 client change and browser evidence, and stays blocked here. Do not claim an unrun browser check passed.
+Waiting-effect metadata must use the relevant printed Oracle words, not a paraphrased UI caption: delayed
+ability text and granted replacement/prevention `.text(...)` drive source-reference detection (CR 609.7a).
+A granted replacement's constructor takes a hint; it still needs `.text(...)`. Preserve which waiting effects
+name their own source, and check the waiting-text contract when changing these fields.
 
 Review every printed line, target, trigger, amount, duration, ordering, LKI, ruling and citation; check LOOKs,
 overlap, client implications and sufficiency. Fix what is needed. No new corner-case checklist without a reason.
