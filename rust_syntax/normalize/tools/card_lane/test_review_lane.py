@@ -46,10 +46,14 @@ Mox Ruby
 [Actions]
 Bot1.Pass
 ", "third");
+        let included = include_str!("fixtures/phasing.cantrip");
 ''')
+        fixture = path.parent/'fixtures/phasing.cantrip'
+        fixture.parent.mkdir()
+        fixture.write_text('[Bot1 Deck]\nJihad\n[Bot2 Deck]\nOubliette\n[Actions]\nBot1.Pass\n')
         self.assertEqual(lane.integration_decks(card_lane, self.root,
             {('cantrip-script', 'sentinel_source_leaves')}),
-            ['Sentinel', "Ashnod's Altar", 'Island', 'Black Lotus', 'Grizzly Bears', 'Mox Ruby'])
+            ['Sentinel', "Ashnod's Altar", 'Island', 'Black Lotus', 'Grizzly Bears', 'Mox Ruby', 'Jihad', 'Oubliette'])
 
     def test_packet_handles_moved_scenario_and_includes_owned_rust_fixture(self):
         tree=self.root/'tree';tree.mkdir()

@@ -848,15 +848,19 @@ def native_mutant_check(lane, card, mutant, tests, allowed_tests, folder):
 
 
 def integration_decks(lane, tree, tests):
-    """Inline native scenario decks are part of a focused integration test's registry."""
+    """Native scenario decks, inline or included, belong in the focused registry."""
     cards = []
     for package, target in sorted(tests):
         path = tree / 'crates' / package / 'tests' / (target + '.rs')
         if not path.is_file():
             continue
         text = path.read_text(encoding='utf-8')
-        scripts = re.findall(r'r(#*)"(.*?)"\1', text, re.S)
-        for script in [text, *(body for _, body in scripts)]:
+        scripts = [text, *(body for _, body in re.findall(r'r(#*)"(.*?)"\1', text, re.S))]
+        for relative in re.findall(r'include_str!\s*\(\s*"([^"]+)"\s*\)', text):
+            included = path.parent / relative
+            if included.is_file():
+                scripts.append(included.read_text(encoding='utf-8'))
+        for script in scripts:
             cards.extend(lane.deck_names(script))
     return list(dict.fromkeys(cards))
 
