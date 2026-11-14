@@ -45,8 +45,40 @@ remain necessary before calling any particular card supported.
 
 ## Other findings
 
+Runtime preflight supersedes the source-only Stangg candidate assessment. One
+delay must watch the entire multiplied token group and trigger only once. A
+separate delay per token is observably wrong when both leave in separate events
+and the first sacrifice trigger is countered. The existing member-carrying
+source watcher covers Stangg leaving, but cannot match an inverse group departure.
+`UntilEvent` also has immediate waiting-effect timing, not Stangg's ordinary
+delayed-trigger stack timing. The gap is tracked by Cantrip issue #3028.
+
+The backend now has a target-gated path for the proposed narrow native
+`DelayedWhen::AnyOfObjectsLeaves` mode. It matches an immediate, unexpired,
+unconditional `LeavesBattlefield` event over `InSet` of a snapshot group. The
+waiting body receives no selected-event identity/data; an additional distinct
+closed-over set remains a gap. It creates one group watcher, never a per-token
+loop. The ordinary source-departure watcher remains a separate `WhenEvent`.
+
+This feature stays **off in the pinned vocabulary** until an actual reviewed
+native implementation is adopted. Positive generator tests exercise the future
+interface explicitly; they are not a claim that current Cantrip already runs it.
+Tests also keep older profiles and Mechtitan Core's additional capture needs
+explicitly held. The portable AST and schema do not change.
+
+The two delayed abilities also retain their own printed captions: "Exile that
+token when Stangg leaves the battlefield" and "Sacrifice Stangg when that token
+leaves the battlefield." Suffix `when` clauses are recognized, and a body-action
+word distinguishes the two sentences instead of assigning the original enters
+trigger's text to both. The printed-data regression writes the emitted module
+for subsequent checks against the native engine packet.
+
 Heroism's source-template correction is documented separately in
 [reference-heroism-20261114.md](reference-heroism-20261114.md).
+Its source timing correction does not finish automatic generation: per-object
+controller payments still need a generic choice-order and batching contract.
+That structural program remains an explicit backend gap; the manually written
+native card implements the choices directly.
 
 Infernal Denizen's current IR still conflates the chosen opponent's action with
 the original controller's `you control` filter. It also represents the mandatory

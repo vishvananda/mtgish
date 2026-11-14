@@ -66,6 +66,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("resolving-counter-costs", "pub fn may_pay_on_one(", &[]),
     ("aura-graveyard-identity", "fn found_aura_after_enchanted_left(", &[]),
     ("delayed-subject-members", "fn delayed_trigger_with(", &[]),
+    ("group-departure-delays", "AnyOfObjectsLeaves,", &[]),
     ("counter-placement-ceiling", "fn add_counters_with_limit(", &[]),
     ("divide-reads-context", "pub reads: Option<fn(&dyn crate::Query, &Asker, u32) -> u32>,", &[]),
     ("typed-prevention-amount", "pub enum PreventionAmount {", &[]),

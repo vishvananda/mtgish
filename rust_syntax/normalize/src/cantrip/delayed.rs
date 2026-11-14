@@ -1522,6 +1522,48 @@ impl Compiler {
         if self.reader != Reader::Resolution {
             return Err(gap("delayed trigger outside a resolving ability"));
         }
+        // A single delayed ability for the first departure of any member of a
+        // captured group (CR 603.7b-c), not one ability for each object. This
+        // native mode exposes no selected-event subject or data. Other capture
+        // layouts remain explicit gaps rather than sharing a member span by
+        // accident (Stangg's tokens versus Mechtitan Core's paid exile set).
+        if let (
+            EventSpec::Object {
+                event: ObjectEvent::LeavesBattlefield,
+                objects: ObjectFilter::InSet(watched),
+            },
+            DelayedStart::Immediately,
+            None,
+            None,
+        ) = (event, start, expires, intervening_if)
+        {
+            if planned::switched_on("group-departure-delays") {
+                if reads_event_stack_object(body) {
+                    return Err(gap("group departure delay with selected-event data"));
+                }
+                let watched = self.objects(watched)?;
+                let label = format!("delayed_{}", self.fresh());
+                let (outer, _) = self.closure(&label, false, false, None, &None, body)?;
+                let captured = outer.objects.borrow();
+                if !(captured.is_empty() || captured.as_slice() == [watched.clone()])
+                    || outer.player.borrow().is_some()
+                    || !outer.parts.borrow().is_empty()
+                    || outer.count.borrow().is_some()
+                {
+                    return Err(gap("group departure delay with additional closed-over values"));
+                }
+                if !captured.is_empty() {
+                    self.helpers.insert("about");
+                }
+                let text = self.delayed_words(false, ability_text(body));
+                self.delayed.push(format!("delayed_trigger({label}, {})", quoted(&text)));
+                let index = self.delayed.len() - 1;
+                let (source, controller, card) = self.maker();
+                let watched = self.fetch(watched);
+                writeln!(out, "{{ let watched: Vec<ObjectId> = {watched}; g.delayed_trigger_about(DelayedWhen::AnyOfObjectsLeaves, {source}, {controller}, AbilityRef::delayed({card}, {index}), &watched); }}").unwrap();
+                return Ok(());
+            }
+        }
         if lane_n::waits_for_an_event(event, expires) {
             return self.delayed_on_event(event, start, expires, intervening_if, body, out);
         }

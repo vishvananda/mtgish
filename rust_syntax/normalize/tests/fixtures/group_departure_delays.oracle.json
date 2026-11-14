@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Mechtitan Core",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Mechtitan Core",
+        "manaCost": "{2}",
+        "type": "Artifact — Vehicle",
+        "text": "{5}, Exile this Vehicle and four other artifact creatures and/or Vehicles you control: Create Mechtitan, a legendary 10/10 Construct artifact creature token with flying, vigilance, trample, lifelink, and haste that's all colors. When that token leaves the battlefield, return all cards exiled with this Vehicle except this card to the battlefield tapped under their owners' control.\nCrew 2",
+        "power": "2",
+        "toughness": "4"
+      }
+    ]
+  },
+  {
+    "name": "Stangg",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Stangg",
+        "manaCost": "{4}{R}{G}",
+        "type": "Legendary Creature — Human Warrior",
+        "text": "When Stangg enters, create Stangg Twin, a legendary 3/4 red and green Human Warrior creature token. Exile that token when Stangg leaves the battlefield. Sacrifice Stangg when that token leaves the battlefield.",
+        "power": "3",
+        "toughness": "4"
+      }
+    ]
+  }
+]

@@ -2249,7 +2249,7 @@ impl Compiler {
                             "at the beginning of",
                             "at end of combat",
                             "at the end of",
-                            ", when",
+                            " when ",
                             "the next time",
                         ]
                         .iter()
@@ -2258,6 +2258,7 @@ impl Compiler {
             }
         };
         let mut first = None;
+        let mut delayed_sentences = Vec::new();
         for (kind, block, own_line) in &blocks {
             let sentences = effect_sentences(*kind, block);
             for at in 0..sentences.len() {
@@ -2271,8 +2272,25 @@ impl Compiler {
                     first.get_or_insert(words);
                     continue;
                 }
-                return words;
+                delayed_sentences.push(words);
             }
+        }
+        // Several delayed abilities may be created by one printed ability.
+        // Suffix triggers such as "Exile that token when ..." and "Sacrifice
+        // this permanent when ..." must not both inherit the first sentence.
+        // Prefer the sentence naming this body's action; this only selects
+        // wording and never decides a trigger's runtime semantics.
+        if !reflexive {
+            if let Some(verb) = fallback.split_whitespace().next() {
+                if let Some(words) = delayed_sentences.iter().find(|words| words
+                    .split(|c: char| !c.is_alphabetic())
+                    .any(|word| word.eq_ignore_ascii_case(verb))) {
+                    return words.clone();
+                }
+            }
+        }
+        if let Some(words) = delayed_sentences.into_iter().next() {
+            return words;
         }
         first.unwrap_or_else(|| self.said(Said::Triggered, fallback))
     }

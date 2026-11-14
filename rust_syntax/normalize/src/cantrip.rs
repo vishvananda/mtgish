@@ -2335,6 +2335,9 @@ fn ability_text(body: &Program) -> String {
                 Operation::SetTapped { tapped: true, .. } => "Tap the chosen permanents.".into(),
                 Operation::SetTapped { tapped: false, .. } => "Untap the chosen permanents.".into(),
                 Operation::Destroy { .. } => "Destroy the chosen permanents.".into(),
+                Operation::Sacrifice { objects: ObjectSet::One(ObjectRef::Source), .. } =>
+                    "Sacrifice this permanent.".into(),
+                Operation::Sacrifice { .. } => "Sacrifice the specified permanents.".into(),
                 Operation::Move { destination, .. } => match destination.address() {
                     Destination::OwnersHand | Destination::Hand(_) => {
                         "Return the chosen permanents to their owners' hands."
