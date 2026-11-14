@@ -45,6 +45,18 @@ fn could_add_mana(body: &Program) -> bool {
     let mut find = Find(false);body.walk(&mut find);find.0
 }
 
+/// Conditional and optional instructions do not stop a targetless mana trigger
+/// being a mana ability (CR 605.1b). Keep unrelated mixed-action shapes held.
+fn only_mana_instructions(body: &Program) -> bool {
+    body.instructions.iter().all(|instruction| match instruction {
+        Instruction::Effect { operation: Operation::AddMana { .. }, .. } => true,
+        Instruction::Group(body) | Instruction::Optional { body, .. } => only_mana_instructions(body),
+        Instruction::If { then, otherwise, .. } =>
+            only_mana_instructions(then) && only_mana_instructions(otherwise),
+        _ => false,
+    })
+}
+
 /// Whether simultaneous damage is one event of its total to this subject
 /// (CR 120.2): all a source dealt, or all that was dealt to a recipient.
 fn sums_damage(damage: &DamageEvent) -> bool {
@@ -2119,15 +2131,6 @@ impl Compiler {
             }
         }
         let matched = matched?;
-        let adds_mana = |i: &Instruction| {
-            matches!(
-                i,
-                Instruction::Effect {
-                    operation: Operation::AddMana { .. },
-                    ..
-                }
-            )
-        };
         let mut matched = matched;
         if let Some(outer) = self.outer.as_ref().filter(|outer| outer.separate_watcher) {
             matched.frame.subject_is_source = false;
@@ -2136,7 +2139,7 @@ impl Compiler {
         if matched.mana
             && (announcement.modes.is_some()
                 || !announcement.targets.is_empty()
-                || !body.instructions.iter().all(adds_mana))
+                || !could_add_mana(body) || !only_mana_instructions(body))
         {
             matched.mana = false;
             // Ordinary triggers use the stack, after the mana activation completes.

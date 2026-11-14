@@ -2149,7 +2149,9 @@ impl Compiler {
             } => match mana_plan(mana) {
                 Ok(plan) => self.emit_mana(&plan, players, restriction.as_ref(), None, out)?,
                 Err(failed) => {
-                    self.stated_mana(players, mana, restriction.as_ref(), failed, out)?
+                    if !self.emit_bundle_choice(players, mana, restriction.as_ref(), out)? {
+                        self.stated_mana(players, mana, restriction.as_ref(), failed, out)?
+                    }
                 }
             },
             Operation::ChooseValue {

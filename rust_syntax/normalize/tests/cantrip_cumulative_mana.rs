@@ -95,3 +95,24 @@ fn a_bundle_recipe_does_not_supply_an_unavailable_spending_purpose() {
         assert!(cantrip::module(&unicorn()).is_err());
     });
 }
+
+#[test]
+fn snowfall_generates_optional_conditional_mana_with_an_unknown_restricted_yield() {
+    cantrip::planned::with_features(&["cumulative-upkeep-mana"], || {
+        let source: OracleCard = ron::from_str(
+            include_str!("fixtures/snowfall_optional_mana.ronl").trim(),
+        ).unwrap();
+        let card = lower::card(&source).unwrap();
+        validate::card(&card).unwrap();
+        assert!(cantrip::gaps(&card).is_empty(), "{:?}", cantrip::gaps(&card));
+        let code = cantrip::module(&card).unwrap();
+        syn::parse_file(&code).unwrap();
+        let dense: String = code.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(dense.contains(".mana_ability(TriggeredMana::Unstated)"), "{code}");
+        assert!(!dense.contains("TriggeredMana::One(Mana::U)"), "{code}");
+        assert!(dense.contains("ManaPool([0,1,0,0,0,0]),ManaPool([0,2,0,0,0,0])"), "{code}");
+        assert!(code.contains("cantrip_mechanics::choose::one_of"), "{code}");
+        assert!(code.contains("ManaRestriction::CumulativeUpkeep"), "{code}");
+        assert!(!code.contains("planned!"), "{code}");
+    });
+}

@@ -47,17 +47,36 @@ Label offsets let multiple abilities retain distinct choice words.
 
 Six focused generation tests cover purpose and bundle capabilities separately,
 the whole Unicorn, and multiple abilities. The complete supported-feature Rust
-workspace passes: 2,083 tests, zero failures, 21 ignored. The tracked candidate
+workspace passes: 2,084 tests, zero failures, 21 ignored. The tracked candidate
 has no Unicorn gaps and produces its normal `..oracle::ADARKAR_UNICORN` card
 file. Native review, compilation of the final card, scenarios and publication
 remain separate gates; this is not a completed-card claim.
 
-Snowfall still needs generator support for optional, conditional triggered
-mana and a choice of different amounts. These remain explicit gaps. Its
-one-blue option for snow was separately corrected in the Source parser and
-reference export; see [the decision](snowfall-optional-mana-20261114.md).
-Whole-card native validation, including preview and actual production, is still
-required for both cards. Neither is counted complete from a restriction test.
+Snowfall now also generates its conditional optional mana and the choice of
+different amounts. Targetless tapped-for-mana triggers containing only mana
+instructions, including `Group`, `If` and `Optional` wrappers, retain immediate
+mana-ability classification. Mixed-action shapes remain held. Restricted or
+conditional output uses `TriggeredMana::Unstated`; it is never advertised as an
+unconditional, unrestricted blue. Its callback makes the recipient's finite
+bundle choice using the existing choice API. Activated mana abilities still
+require the native recipe instead of an opaque callback with guessed advice.
+The shared bundle-label allocator and full-width constant parser serve both
+paths, and the helper is included in the generator fingerprint.
+
+The Snowfall PR-form compiles against the actual current native API. Native
+card-library tests pass 5/5, and an adapted runtime scenario passes for snow
+zero/one/two, the opponent controller/recipient, nonsnow one, cumulative upkeep,
+restricted pools, and mana source/snow provenance. The generated snow branch
+asks decline/accept followed by one/two; the idiomatic handwritten card may
+combine those into one three-way choice. This proof does not claim every
+unusual interaction has been reviewed.
+
+Snowfall's one-blue option for snow was separately corrected in the Source
+parser and reference export; see [the decision](snowfall-optional-mana-20261114.md).
+Both tracked candidates now have zero gaps and normal Oracle-based card files.
+Old targets without the cumulative-upkeep purpose remain held. Independent card
+reviews, the combined native/client gate, and publication are separate from
+generator validation; neither card is counted complete from a restriction test.
 
 Frozen Oracle and rulings files already exist under
 `/home/vishvananda/card-lane/scryfall`. The native tools' expected

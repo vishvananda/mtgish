@@ -136,6 +136,10 @@ fn generator_fingerprint() -> &'static str {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
             (
+                "cantrip/mana_bundles.rs",
+                include_bytes!("cantrip/mana_bundles.rs").as_slice(),
+            ),
+            (
                 "cantrip/quantity.rs",
                 include_bytes!("cantrip/quantity.rs").as_slice(),
             ),
