@@ -19,6 +19,38 @@ class QueueTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_focused_integration_includes_each_inline_scenario_deck(self):
+        import card_lane
+        path = self.root/'crates/cantrip-script/tests/sentinel_source_leaves.rs'
+        path.parent.mkdir(parents=True)
+        path.write_text('''
+        let first = GameScript::parse(r#"
+[Bot1 Deck]
+Sentinel
+Ashnod's Altar
+Island x20
+[Actions]
+Bot1.Pass
+"#, "first");
+        let second = GameScript::parse(r##"
+[Bot1 Deck]
+Black Lotus
+[Bot2 Deck]
+Grizzly Bears
+[Actions]
+Bot2.Pass
+"##, "second");
+        let third = GameScript::parse(r"
+[Bot1 Deck]
+Mox Ruby
+[Actions]
+Bot1.Pass
+", "third");
+''')
+        self.assertEqual(lane.integration_decks(card_lane, self.root,
+            {('cantrip-script', 'sentinel_source_leaves')}),
+            ['Sentinel', "Ashnod's Altar", 'Island', 'Black Lotus', 'Grizzly Bears', 'Mox Ruby'])
+
     def test_packet_handles_moved_scenario_and_includes_owned_rust_fixture(self):
         tree=self.root/'tree';tree.mkdir()
         source=dict(name='Test Card',commit='author',issue=42,packet=str(self.root/'author'))
@@ -1223,7 +1255,7 @@ class CliTests(unittest.TestCase):
             tools=mock.Mock(return_value=(0,'matches Scryfall'))
             shell=mock.Mock(return_value=(0,'1 passed; 0 failed'))
             fake=SimpleNamespace(card_dir=lambda _:root/'state',card_file=lambda _:card,
-                card_scenarios=lambda _:[],focus_cards=lambda _:None,full_environment=lambda:{},
+                card_scenarios=lambda _:[],focus_cards=lambda _:None,full_environment=lambda:{},deck_names=lambda _:[],
                 run_corpus=lambda _:(0,'1 pass, 0 fail, 0 known bugs, 0 need cards'),
                 tool=tools,shell=shell,Gates=lambda *args:SimpleNamespace(failures=lambda:[],results=[]),
                 mutation_gates=lambda *args:{})

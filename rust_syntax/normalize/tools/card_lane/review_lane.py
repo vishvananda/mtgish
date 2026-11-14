@@ -847,6 +847,20 @@ def native_mutant_check(lane, card, mutant, tests, allowed_tests, folder):
     return None
 
 
+def integration_decks(lane, tree, tests):
+    """Inline native scenario decks are part of a focused integration test's registry."""
+    cards = []
+    for package, target in sorted(tests):
+        path = tree / 'crates' / package / 'tests' / (target + '.rs')
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding='utf-8')
+        scripts = re.findall(r'r(#*)"(.*?)"\1', text, re.S)
+        for script in [text, *(body for _, body in scripts)]:
+            cards.extend(lane.deck_names(script))
+    return list(dict.fromkeys(cards))
+
+
 def checks(root):
     assignment = current(root)
     tree, folder = Path(assignment["tree"]), Path(assignment["folder"])
@@ -905,6 +919,9 @@ def checks(root):
                     if path.stem == stem or path.stem.startswith(stem+'_'):
                         integration_tests.add((package, path.stem))
     declared_tests = set(read(folder/'input.json').get('source', {}).get('card_test_paths', [])) if (folder/'input.json').exists() else set()
+    extra_decks = integration_decks(lane, tree, integration_tests)
+    if extra_decks:
+        lane.focus_cards(affected, extra_decks=extra_decks)
     for package, test in sorted(integration_tests):
         record(package.removeprefix('cantrip-')+' test '+test,
                lambda p=package,t=test: lane.shell('cargo','test','--profile','checked','-p',
