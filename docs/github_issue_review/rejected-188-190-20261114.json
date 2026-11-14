@@ -1,0 +1,19 @@
+{
+  "change": "MTGish190 sourcegrammarreverted; generalrepetitioncountloweringcorrected;188correctpayment-resultloweringretainedperuser",
+  "schema_changed": false,
+  "upstream_pulled": false,
+  "oracle_snapshot_changed": false,
+  "rust_passed": 1666,
+  "rust_ignored": 21,
+  "targets": 222,
+  "log": "/mnt/vizier/early-set-campaign-plan-20261113/mtgish-190-full-rust-final.log",
+  "log_sha256": "42237f4f863fa0ec3164f818bf813036e248df7c7f7bf33810bc679db9ed7b4b",
+  "go_log": "/mnt/vizier/early-set-campaign-plan-20261113/mtgish-190-go-tests.log",
+  "go_log_sha256": "3b28a3ecc3acc592b60c92db71cc641c5802c3f79fa18c014b42fc4667fd1632",
+  "source_records": 33529,
+  "raw_source_cards_changed": [
+    "Johtull Wurm",
+    "Jungle Wurm"
+  ],
+  "audit_reviewed_findings_unchanged": 182
+}

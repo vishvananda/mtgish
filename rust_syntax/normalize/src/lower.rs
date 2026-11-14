@@ -2562,7 +2562,29 @@ impl Context {
                         }]
                     }
                     S::AdjustPTForEach(power, toughness, n) => {
-                        let n = self.number(n)?;
+                        // MTGish #190: "for each" repeats an adjustment; a
+                        // negative count performs it zero times. Signed PT
+                        // arithmetic itself must keep its ordinary meaning.
+                        let n = match self.number(n)? {
+                            Expr::Constant(n) => Expr::Constant(n.max(0)),
+                            // These expressions are cardinalities already.
+                            n @ (Expr::CountObjects(_)
+                            | Expr::CountPlayers(_)
+                            | Expr::CountCounters { .. }
+                            | Expr::Stickers {
+                                measure: StickerMeasure::Names
+                                    | StickerMeasure::NamesOfLength(..)
+                                    | StickerMeasure::NamesBeginningWith(..)
+                                    | StickerMeasure::Letter(..)
+                                    | StickerMeasure::UniqueVowels,
+                                ..
+                            }) => n,
+                            n @ Expr::Maximum(_, _)
+                                if matches!(&n, Expr::Maximum(a, b)
+                                    if matches!(a.as_ref(), Expr::Constant(v) if *v >= 0)
+                                    || matches!(b.as_ref(), Expr::Constant(v) if *v >= 0)) => n,
+                            n => Expr::Maximum(Box::new(Expr::Constant(0)), Box::new(n)),
+                        };
                         vec![Change::Pump {
                             power: Expr::multiply(Expr::Constant((*power).into()), n.clone()),
                             toughness: Expr::multiply(Expr::Constant((*toughness).into()), n),

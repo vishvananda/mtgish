@@ -39,5 +39,10 @@
     "generator_revision": "4e1258220625cc97ffb77d475f6418fc4440a6fa",
     "evidence": "~/card-lane/pipeline-unlimited-20261103/integration/stopped-generator-recovery-20261104/recovery.json",
     "card_approval": false
+  },
+  "superseded_by_maintainer_review_20261114": {
+    "upstream": "https://github.com/i5jb/mtgish/issues/190",
+    "decision": "Sourcegrammarwasvalid;AdjustPTForEachimplicitlyperformsmax(0,n)repetitions. RevertedsourcepatchandmovedzeroclampintogeneralASTlowering.",
+    "current_decision_document": "docs/github_issue_review/rejected-188-190-20261114.md"
   }
 }
