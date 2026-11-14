@@ -42,3 +42,37 @@ not expand the common foundation to absorb these later features. Necessary
 publication conflict repairs preserve this feature boundary and require the
 appropriate validation; locking the feature set is not a reason to discard
 upstream work or leave publication conflicts unresolved.
+
+## Published packets
+
+All 201 confirmed cards are published and ready for joint review with #2875.
+The final audit read each actual upstream PR and verified its expected head,
+base, readiness, maintainer editing, reservation-closing lines, one card commit
+per card, isolated validation receipt and publication database entry.
+
+| Batch | New cards | PR |
+| --- | --- | --- |
+| 01 | 20 | [#2993](https://github.com/cantrip-rs/cantrip-rs/pull/2993) |
+| 02 | 20 | [#2994](https://github.com/cantrip-rs/cantrip-rs/pull/2994) |
+| 03 | 20 | [#2995](https://github.com/cantrip-rs/cantrip-rs/pull/2995) |
+| 04 | 20 | [#2996](https://github.com/cantrip-rs/cantrip-rs/pull/2996) |
+| 05 | 20 | [#2997](https://github.com/cantrip-rs/cantrip-rs/pull/2997) |
+| 06 | 20 | [#2998](https://github.com/cantrip-rs/cantrip-rs/pull/2998) |
+| 07 | 20 | [#2999](https://github.com/cantrip-rs/cantrip-rs/pull/2999) |
+| 08 | 20 | [#3000](https://github.com/cantrip-rs/cantrip-rs/pull/3000) |
+| 09 | 20 | [#3001](https://github.com/cantrip-rs/cantrip-rs/pull/3001) |
+| 10 | 21 | [#3002](https://github.com/cantrip-rs/cantrip-rs/pull/3002) |
+
+The complete export passed `tools/test.sh --engine`: 24,872 Rust tests across
+301 targets, with 15 ignored and no failures. Every packet separately passed its
+changed scenarios, focused card corpuses, native fixtures and layer contract.
+All 45 pairs of sibling branches merge cleanly. The frozen foundation is unchanged.
+
+Publication checks repaired Oracle-word metadata in Chaos Moon and Seraph,
+restored Rabid Wombat’s independently approved synthetic-board test entry, and
+made the three Tron probe registries explicitly shadow the real companion cards.
+These repairs are folded into their respective card commits.
+
+Twenty reserved cards remain outside these ten PRs. Their engine or generator
+work proceeds as the focused manual packets described above; the broader card
+completion goal remains active.
