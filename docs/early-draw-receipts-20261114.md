@@ -21,6 +21,14 @@ draw and a result used only as an actual draw count continue using the existing
 draw and history interfaces. A draw cost's requested count and payment decision
 remain separate from its original-card receipt.
 
+Independent Terra review found two further backend corrections for these two
+printed consumers. Draw-and-reveal must finish before the instruction boundary;
+the conditional discard must use `discard_revealed`, preserving the revelation
+through a replacement into a hidden zone (CR 701.20a). The backend now recognizes
+the complete draw/reveal/land-test/discard data flow with the same result and
+incarnation throughout. It does not mark an unrelated discard as revealed merely
+because an earlier action revealed something.
+
 The isolated native implementation is committed at
 [`5b73d5c62`](https://github.com/vishvananda/cantrip-rs/commit/5b73d5c6276b30e39b0afd84d480525d31be9aba),
 on `packet/early-set-draw-followups-20261114`, directly above frozen foundation
@@ -32,18 +40,30 @@ numeric domain changes are introduced.
 
 Validation so far:
 
-- Full generator suite: 1,657 passed, 21 ignored, across 221 targets.
-- Three focused generator tests cover both printed consumers, explicit missing
-  native support, ordinary draws and count-only results.
+- Full generator suite: 1,658 passed, 21 ignored, across 221 targets.
+- Four focused generator tests cover both printed consumers, explicit missing
+  native support, ordinary draws, count-only results and an unrelated discard.
 - Eight native draw-receipt tests pass, covering exact identities/order,
   replacement draws, a later unreplaced draw, nondraw replacements, unchanged
   replacement counts, optional decline, unrelated replacements, limits and empty
   libraries.
 - Three native Sindbad controls pass with the actual generated callback and
   forced scenarios, including reveal/discard event identity and ordering.
+- The committed engine alone passes the full native and managed suite: 23,970
+  Rust tests, 15 ignored, across 250 targets, and 1,526 managed tests.
+- Three interleaved normal-runtime benchmark pairs preserve 29.34 KB allocated
+  per decision in all six runs. Median engine time is 84.58 microseconds before
+  and 78.68 after; shared-host variation does not establish a speedup.
+- Terra independently reviewed the engine and card, fixed the two card-level
+  issues above, and added casting-color, source-removal and revealed-discard
+  replacement controls. Its five scenarios, four integration tests and all 11
+  instrumented card lines pass. Replacing `discard_revealed` with ordinary
+  discard is caught by the new interaction test.
 
-The card is not yet independently approved or published. Full packet checks and
-the core benchmark remain required. The production lane's rows and default
+The card has conditional independent approval and passes the deterministic
+corpus, Oracle, lint, citation, coverage and mutation gates. Full final-packet
+validation is still required before publication. The
+production lane's rows and default
 worker base are unchanged; do not roll this interface into the locked shared
 foundation. Publish the focused engine commit followed by its reviewed consumer
 card commit in a separate packet. No AST schema, Oracle source or face bundle

@@ -20,6 +20,11 @@ fn draw_and_reveal_cards_require_the_original_draw_receipt() {
         let generated = cantrip::planned::with_additional_features(&[FEATURE], || cantrip::module(&card)).unwrap();
         syn::parse_file(&generated).unwrap();
         assert!(generated.contains("g.draw_with_receipt("), "{name}: {generated}");
+        assert!(generated.contains("g.discard_revealed("), "{name}: {generated}");
+        assert!(!generated.contains("g.discard_together("), "{name}: {generated}");
+        let draw = generated.find("g.draw_with_receipt(").unwrap();
+        let reveal = generated[draw..].find("g.reveal(").unwrap() + draw;
+        assert!(!generated[draw..reveal].contains("end_sentence"), "{name}: {generated}");
         assert!(!generated.contains("let held =") && !generated.contains("!held.contains"), "{name}: {generated}");
         if let Ok(folder) = std::env::var("MTGISH_DRAW_RECEIPT_OUTPUT") {
             let unified = mtgish_ast::unified::lower(&source).card;
@@ -27,6 +32,22 @@ fn draw_and_reveal_cards_require_the_original_draw_receipt() {
             std::fs::write(std::path::Path::new(&folder).join(format!("{}.rs", name.replace(' ', "_"))), whole).unwrap();
         }
     }
+}
+
+#[test]
+fn revealing_a_draw_does_not_mark_an_unrelated_discard_as_revealed() {
+    let mut card = lower::card(&source("Sindbad")).unwrap();
+    let Ability::Activated { body, .. } = &mut card.abilities[0] else { panic!() };
+    let Instruction::If { then, .. } = &mut body.instructions[2] else { panic!() };
+    let Instruction::Effect { operation: Operation::DiscardObjects { objects }, .. } = &mut then.instructions[0] else { panic!() };
+    *objects = ObjectSet::Zone {
+        scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(PlayerRef::AbilityController) },
+        kind: ObjectKind::Card,
+        filter: ObjectFilter::Any,
+    };
+    let generated = cantrip::planned::with_additional_features(&[FEATURE], || cantrip::module(&card)).unwrap();
+    assert!(generated.contains("g.discard_together("), "{generated}");
+    assert!(!generated.contains("g.discard_revealed("), "{generated}");
 }
 
 #[test]

@@ -436,6 +436,59 @@ fn basic_plains(filter: &ObjectFilter) -> bool {
 
 impl Compiler {
     pub(super) fn sequence_recipe(&mut self, body: &Program, out: &mut String) -> Result<bool> {
+        // Sindbad and Fa'adiyah Seer: the original draw is revealed as part of
+        // that instruction, and stays revealed through its conditional discard
+        // (CR 121.6c, 701.20a). Match the complete data flow, including the exact
+        // result/phase, rather than treating every discard after any reveal as
+        // public or joining unrelated instructions.
+        if let [
+            Instruction::Effect {
+                result: drawn,
+                operation: Operation::Draw {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    amount: Expr::Constant(1),
+                },
+            },
+            Instruction::Effect {
+                operation: Operation::Reveal {
+                    objects: ObjectSet::Transition { result: revealed, phase: ObjectPhase::After },
+                },
+                ..
+            },
+            Instruction::If { condition: Condition::Not(condition), then, otherwise },
+        ] = ungroup(body).instructions.as_slice()
+        {
+            if let Condition::Compare {
+                left: Expr::CountObjects(objects),
+                test: NumberTest::Compare { comparison: Comparison::GreaterOrEqual, value: Expr::Constant(1) },
+            } = condition.as_ref()
+            {
+                if let ObjectSet::Matching {
+                    objects,
+                    filter: ObjectFilter::CardType(crate::mtg_types::CardType::Land),
+                } = objects.as_ref()
+                {
+                    if let (
+                        ObjectSet::Transition { result: tested, phase: ObjectPhase::After },
+                        [Instruction::Effect {
+                            operation: Operation::DiscardObjects {
+                                objects: ObjectSet::Transition { result: discarded, phase: ObjectPhase::After },
+                            },
+                            ..
+                        }],
+                    ) = (objects.as_ref(), ungroup(then).instructions.as_slice())
+                    {
+                        if [revealed, tested, discarded].iter().all(|r| r.0 == drawn.0)
+                            && otherwise.instructions.is_empty()
+                        {
+                            let receipt = native_api::draw_receipt("asker.controller", "1");
+                            writeln!(out, "let drawn = {receipt}; g.reveal(asker.controller, &drawn); g.end_sentence(); if !drawn.iter().any(|&card| g.chars(card).is(CardType::Land)) {{ g.discard_revealed(&drawn); }}").unwrap();
+                            return Ok(true);
+                        }
+                    }
+                }
+            }
+        }
         if !effects::only_plain_moves(body) {
             return Ok(false);
         }
