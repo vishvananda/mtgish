@@ -2229,9 +2229,19 @@ impl Compiler {
                     writeln!(out, "let drawing_{id}: Vec<PlayerId> = players_{id}.into_iter().collect(); let players_{id}: Vec<PlayerId> = g.state().apnap().filter(|p| drawing_{id}.contains(p)).collect();").unwrap();
                 }
                 if matches!(op, Operation::Draw { .. }) && self.read_later(result) {
-                    writeln!(out, "let mut done_{id}: i64 = 0; let mut drawn_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ let before = g.history().drawn(player) as i64; let held = g.state().zone(Zone::hand(player)).to_vec(); g.draw(player, amount_{id}); done_{id} += g.history().drawn(player) as i64 - before; drawn_{id}.extend(g.state().zone(Zone::hand(player)).iter().copied().filter(|c| !held.contains(c))); }}").unwrap();
+                    let objects = lane_n::read_as_objects(&self.after, result);
+                    let draw = if objects {
+                        let receipt = native_api::draw_receipt("player", &format!("amount_{id}"));
+                        format!("drawn_{id}.extend({receipt});")
+                    } else {
+                        format!("g.draw(player, amount_{id});")
+                    };
+                    if objects {
+                        writeln!(out, "let mut drawn_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+                        self.moved.insert(result.0, format!("drawn_{id}"));
+                    }
+                    writeln!(out, "let mut done_{id}: i64 = 0; for player in players_{id} {{ let before = g.history().drawn(player) as i64; {draw} done_{id} += g.history().drawn(player) as i64 - before; }}").unwrap();
                     self.performed.insert(result.0, format!("done_{id}"));
-                    self.moved.insert(result.0, format!("drawn_{id}"));
                 } else if self.read_later(result) {
                     let measure = "i64::from(g.state().player(player).life)";
                     writeln!(out, "let mut done_{id}: i64 = 0; for player in players_{id} {{ let before = {measure}; g.{method}(player, amount_{id}); done_{id} += ({measure} - before).abs(); }}").unwrap();
@@ -3093,8 +3103,13 @@ impl Compiler {
                 self.requested_draws.insert((result.0, vec![0]), format!("requested_draw_{id}"));
                 // The draw operation may also need an actual-card receipt. Keep
                 // that receipt separate from both the choice and requested count.
-                writeln!(out, "let mut drawn_{id}: Vec<ObjectId> = Vec::new(); if paid_{id} {{ let held = g.state().zone(Zone::hand(payer_{id})).to_vec(); g.draw(payer_{id}, draw_count_{id}); drawn_{id}.extend(g.state().zone(Zone::hand(payer_{id})).iter().copied().filter(|c| !held.contains(c))); }}").unwrap();
-                self.moved.insert(result.0, format!("drawn_{id}"));
+                if lane_n::read_as_objects(&self.after, result) {
+                    let receipt = native_api::draw_receipt(&format!("payer_{id}"), &format!("draw_count_{id}"));
+                    writeln!(out, "let mut drawn_{id}: Vec<ObjectId> = Vec::new(); if paid_{id} {{ drawn_{id}.extend({receipt}); }}").unwrap();
+                    self.moved.insert(result.0, format!("drawn_{id}"));
+                } else {
+                    writeln!(out, "if paid_{id} {{ g.draw(payer_{id}, draw_count_{id}); }}").unwrap();
+                }
             }
             // These parts have no cost of the engine's: the instruction itself is
             // what the player may do, and "if you do" reads whether it happened.

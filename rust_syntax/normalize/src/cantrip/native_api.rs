@@ -1,6 +1,16 @@
 //! Versioned native interfaces; no changes to the IR or engine quantity limits.
 use super::*;
 
+/// A later action on the drawn cards uses the original instruction's receipt (CR 121.6c), not a hand diff or all
+/// nested draw events. Keep that capability explicit for native targets that do not expose the receipt yet.
+pub(super) fn draw_receipt(player: &str, count: &str) -> String {
+    planned::planned_value(
+        "original-draw-card-receipts",
+        &format!("{{ g.draw({player}, {count}); Vec::<ObjectId>::new() }}"),
+        &format!("g.draw_with_receipt({player}, {count})"),
+    )
+}
+
 pub(super) fn permanent_cost_fields() -> &'static str {
     if planned::switched_on("permanent-cost-exclusions") { ", excluded: None" } else { "" }
 }
