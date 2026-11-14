@@ -21,6 +21,13 @@ group has the same foundation parent; no group depends on a sibling card group.
 Validate the combined approved export and each group's actual card scenarios and
 native test fixtures. Do not repeat the completed semantic card reviews.
 
+Open validated card packets ready for joint review with the foundation. The
+maintainer's November 13 comment on #2875 explicitly holds foundation review
+until its first consuming card PR arrives. Keeping all card PRs draft until the
+foundation merges would prevent that review. Link the actual card PRs from the
+foundation description as they are published, retaining a card-only comparison
+in each packet so the shared engine changes can be reviewed with their consumers.
+
 The integration branch is an assembly workspace, not the publication manifest:
 it still contains a withdrawn Reality Twist candidate. Exclude all unconfirmed
 files from the export. Its four existing-card sharing migrations (Life Chisel,
