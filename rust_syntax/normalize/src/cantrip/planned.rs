@@ -101,6 +101,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("exile-on-leave", "fn exile_on_leave(&mut self, permanent: ObjectId);", &[]),
     ("life-exchange", "pub fn life_totals(g: &mut dyn Game, a: PlayerId, b: PlayerId) -> u32", &[]),
     ("compound-cumulative-upkeep", "pub fn resolve(g: &mut dyn Game, item: &StackItem, payment: Payment)", &[]),
+    ("cumulative-upkeep-mana", "fn may_pay_cumulative_upkeep(", &[]),
     ("no-other-auras", "pub const ENCHANTED_NO_OTHER_AURAS:", &[]),
     ("resolution-x-payment", "fn may_pay_x(&mut self, payer: PlayerId,", &[]),
     ("landwalk-blocking-exceptions", "pub landwalk_exceptions: &'static [LandwalkException],", &[]),

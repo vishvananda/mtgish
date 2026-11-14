@@ -1157,6 +1157,11 @@ fn subtype_restriction(value: &ManaUse) -> Option<String> {
 }
 fn mana_restriction(value: &ManaUse) -> Result<String> {
     use crate::mtg_types::CardType as T;
+    if matches!(value, ManaUse::Purpose(ManaPurpose::CumulativeUpkeep))
+        && planned::switched_on("cumulative-upkeep-mana")
+    {
+        return Ok("ManaRestriction::CumulativeUpkeep".into());
+    }
     if let Some(restriction) = subtype_restriction(value) {
         return Ok(restriction);
     }
