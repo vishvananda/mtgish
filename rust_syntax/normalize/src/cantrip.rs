@@ -670,6 +670,8 @@ struct Compiler {
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
     stack_item: bool,
+    /// A lasting replacement's callbacks receive this resolution's captured X.
+    capture_made_x: bool,
     pending: Pending,
     reader: Reader,
     event_at: EventAt,
@@ -1243,6 +1245,7 @@ impl Compiler {
         Self {
             history: None,
             stack_item: true,
+            capture_made_x: false,
             pending: Pending::Nothing,
             reader: Reader::Resolution,
             event_at: EventAt::Nowhere,

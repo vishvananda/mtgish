@@ -103,6 +103,7 @@ const SWITCHED: &[(&str, &str, &[&str])] = &[
     ("compound-cumulative-upkeep", "pub fn resolve(g: &mut dyn Game, item: &StackItem, payment: Payment)", &[]),
     ("cumulative-upkeep-mana", "fn may_pay_cumulative_upkeep(", &[]),
     ("mana-bundle-choices", "pub const fn add_one_bundle_of(", &[]),
+    ("captured-replacement-values", "pub const fn show_captured_value(self) -> GrantedReplacementDef", &[]),
     ("no-other-auras", "pub const ENCHANTED_NO_OTHER_AURAS:", &[]),
     ("resolution-x-payment", "fn may_pay_x(&mut self, payer: PlayerId,", &[]),
     ("landwalk-blocking-exceptions", "pub landwalk_exceptions: &'static [LandwalkException],", &[]),

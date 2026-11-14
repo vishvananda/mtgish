@@ -35,6 +35,59 @@ const ANNOUNCED_X_HELD: &str = "planned_value!(\"numeric expression AnnouncedX\"
 const MADE_EFFECT_X: &str =
     "planned_value!(\"the X of the ability that made a replacement effect\",";
 
+fn reads_creating_x(event: &ReplacementEvent, body: &Program) -> bool {
+    use crate::visit::{Visitor, Walk};
+    struct Read(bool);
+    impl Visitor for Read {
+        fn ability(&mut self, _: &Ability) -> bool { false }
+        fn expr(&mut self, value: &Expr) -> bool {
+            self.0 |= matches!(value, Expr::AnnouncedX);
+            !self.0
+        }
+    }
+    let mut read = Read(false);
+    event.walk(&mut read);
+    body.walk(&mut read);
+    read.0
+}
+
+/// New helpers must not accidentally close over the callback's numeric value.
+/// Such a helper needs an explicit value-aware interface before it can compile.
+fn check_captured_scopes(code: &str) -> Result<()> {
+    use syn::visit_mut::{self, VisitMut};
+    struct Check { bound: bool, unbound: bool }
+    impl VisitMut for Check {
+        fn visit_item_fn_mut(&mut self, function: &mut syn::ItemFn) {
+            let saved = self.bound;
+            self.bound = function.sig.inputs.iter().any(|argument| matches!(argument,
+                syn::FnArg::Typed(argument) if matches!(&*argument.pat,
+                    syn::Pat::Ident(name) if name.ident == "created_x")));
+            visit_mut::visit_block_mut(self, &mut function.block);
+            self.bound = saved;
+        }
+        fn visit_expr_path_mut(&mut self, expression: &mut syn::ExprPath) {
+            if expression.path.is_ident("created_x") && !self.bound { self.unbound = true; }
+            visit_mut::visit_expr_path_mut(self, expression);
+        }
+    }
+    let mut parsed = syn::parse_file(code).map_err(|_| gap("invalid captured replacement callbacks"))?;
+    let mut check = Check { bound: false, unbound: false };
+    check.visit_file_mut(&mut parsed);
+    if check.unbound { return Err(gap("captured value in a nested replacement callback")); }
+    Ok(())
+}
+
+#[cfg(test)]
+mod captured_scope_tests {
+    use super::check_captured_scopes;
+    #[test]
+    fn numeric_capture_cannot_escape_into_an_unparameterized_helper() {
+        assert!(check_captured_scopes("fn callback(created_x: u32) { let n = created_x; }").is_ok());
+        assert!(check_captured_scopes("fn helper() { let n = created_x; }").is_err());
+        assert!(check_captured_scopes("fn callback(created_x: u32) { fn helper() { let n = created_x; } }").is_err());
+    }
+}
+
 /// One alternative of the pending event, as `Arm` is for a trigger: `locals`
 /// bind `subject` and `data` from `binding`, a proposal's payload.
 pub(super) struct Watched {
@@ -802,7 +855,9 @@ impl Compiler {
         }
         out.push_str("components");
         let function = format!("{label}_damage");
-        let about = if made { "affected: ObjectId, " } else { "" };
+        let about = if made && self.capture_made_x {
+            "affected: ObjectId, created_x: u32, "
+        } else if made { "affected: ObjectId, " } else { "" };
         writeln!(self.callbacks(), "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, {about}before: &DamageEvent, _: &DamageEvent) -> Vec<DamageComponent> {{ let {} = before; {} {out} }}", arms[0].binding, arms[0].locals).unwrap();
         Ok(Some(function))
     }
@@ -818,7 +873,9 @@ impl Compiler {
         rest: &[Instruction],
         made: bool,
     ) -> Result<(&'static str, String, String, Option<String>)> {
-        let about = if made { "affected: ObjectId, " } else { "" };
+        let about = if made && self.capture_made_x {
+            "affected: ObjectId, created_x: u32, "
+        } else if made { "affected: ObjectId, " } else { "" };
         let applies = format!("{label}_applies");
         self.watch_function(
             &applies,
@@ -846,7 +903,9 @@ impl Compiler {
         }
         let then = format!("{label}_then");
         let out = self.then_steps(frame, rest, None)?;
-        let pass = if made { "affected, " } else { "" };
+        let pass = if made && self.capture_made_x {
+            "affected, created_x, "
+        } else if made { "affected, " } else { "" };
         let (quantity_param, quantity_arg) = if frame.quantity.is_some() {
             (", event_quantity: i64", ", event_quantity")
         } else {
@@ -1026,6 +1085,9 @@ impl Compiler {
     ) -> Result<()> {
         let duration = self.duration(duration)?;
         let shield = self.made_shield(limit, body)?;
+        let previous_capture = self.capture_made_x;
+        let captured_x = planned::switched_on("captured-replacement-values")
+            && shield.is_none() && reads_creating_x(event, body);
         let mut plain = event.clone();
         let to = self.named_recipient_of(&mut plain)?;
         let mut about = Vec::new();
@@ -1057,6 +1119,7 @@ impl Compiler {
                         && format!("{plain:?}").contains("Chosen(Color)")
                         && format!("{body:?}").contains("PreventDamage")))
         });
+        self.capture_made_x = captured_x;
         let compiled = match by_color {
             Some(local) => {
                 let first = match of_mana {
@@ -1110,7 +1173,11 @@ impl Compiler {
         self.bound_objects = bound;
         self.affected_in_scope = scope;
         self.restore_results(results);
+        self.capture_made_x = previous_capture;
         let kind = compiled?;
+        if captured_x {
+            check_captured_scopes(&self.functions[functions_from..])?;
+        }
         // "{X}, {T}: ... this turn, it deals that much damage plus X instead" (Taii
         // Wakeen), "the next time you would draw a card this turn, instead look at
         // the top X cards" (Aladdin's Lamp): the effect is asked with no stack item,
@@ -1139,7 +1206,11 @@ impl Compiler {
             Ok::<_, Diagnostic>(format!("let shield = {};", self.fetch(n)))
         })?;
         let effect = kind.replace("DURATION", &duration);
-        writeln!(out, "{{ {shield} let to = {to}; let about = {about}; if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}").unwrap();
+        let capture = if captured_x {
+            let x = self.fetch(self.number(&Expr::AnnouncedX)?.amount(quantity::x_max(), "u32")?);
+            format!("let created_x = {x};")
+        } else { String::new() };
+        writeln!(out, "{{ {shield} let to = {to}; let about = {about}; if let (Some(to), Some(about)) = (to, about) {{ {capture} {effect} }} }}").unwrap();
         Ok(())
     }
     /// Whom a made prevention protects, taken out of its event: the recipient
@@ -1192,6 +1263,9 @@ impl Compiler {
         self.chosen_source(&mut arms, frame)?;
         let (extra, changes, rest) = self.program_parts(body, frame)?;
         if arms[0].kind == "Damage" && lane_n::prevents(&changes) {
+            if self.capture_made_x {
+                return Err(gap("captured value in a granted prevention callback"));
+            }
             let alone = lane_n::parts_alone(event, to);
             let then =
                 self.prevention_then(label, &arms, frame, &rest, "affected: ObjectId, ", alone)?;
@@ -1263,18 +1337,22 @@ impl Compiler {
         let remaining = if damage.is_some() { &[][..] } else { &rest };
         let (kind, applies, apply, then) =
             self.reshaping(label, &arms, frame, &extra, &changes, remaining, true)?;
-        let mut def =
-            format!("granted_replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
+        let option = |f: Option<&String>| f.map_or("None".to_string(), |f| format!("Some({f})"));
+        let mut def = if self.capture_made_x {
+            format!("captured_granted_replacement(ReplacementKind::{kind}, &CapturedReplacementCallbacks {{ applies: {applies}, apply: {apply}, then: {}, damage: {} }}, {hint}).show_captured_value()", option(then.as_ref()), option(damage.as_ref()))
+        } else {
+            format!("granted_replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})")
+        };
         if let Some(question) = self.replacing.may.take() {
             def.push_str(&format!(".optional(&{question})"));
         }
-        if let Some(damage) = damage {
+        if let Some(damage) = damage.filter(|_| !self.capture_made_x) {
             def.push_str(&format!(".with_damage({damage})"));
         }
         if once {
             def.push_str(".once()");
         }
-        if let Some(then) = then {
+        if let Some(then) = then.filter(|_| !self.capture_made_x) {
             def.push_str(&format!(".then({then})"));
         }
         self.add_made_replacement(def);
@@ -1282,9 +1360,13 @@ impl Compiler {
         let made = if shield.is_some() {
             lane_n::shielded_redirect(index)
         } else if about {
-            format!("let _ = to; g.add_effect(item.object, about, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, DURATION);")
+            let kind = if self.capture_made_x { "CapturedReplacement" } else { "Replacement" };
+            let value = if self.capture_made_x { ", value: created_x" } else { "" };
+            format!("let _ = to; g.add_effect(item.object, about, EffectKind::{kind} {{ card: item.ability.card, index: {index}{value} }}, DURATION);")
         } else {
-            format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule {{ card: item.ability.card, index: {index} }}, DURATION);")
+            let kind = if self.capture_made_x { "CapturedReplacementRule" } else { "ReplacementRule" };
+            let value = if self.capture_made_x { ", value: created_x" } else { "" };
+            format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::{kind} {{ card: item.ability.card, index: {index}{value} }}, DURATION);")
         };
         // The engine finds these through the source's own card, which a granted
         // ability is not printed on, and hands them no recipient.

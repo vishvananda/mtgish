@@ -1459,6 +1459,12 @@ impl Compiler {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
+            Expr::AnnouncedX if self.capture_made_x => Number {
+                code: "i64::from(created_x)".into(),
+                min: 0,
+                max: quantity::x_max(),
+                dynamic: true,
+            },
             // "Sacrifice a creature with mana value X: Return target creature card
             // with mana value X plus 1" (Sidisi): the X a cost's filter defines,
             // which Cantrip announces none of (`costs::COST_FILTER_X`).
