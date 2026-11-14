@@ -243,6 +243,10 @@ def promote_snapshot(root, head, validation, *, validated_tree=None):
     enter workers merely because a shared feature is ready: pin the exact tested ancestor instead.
     """
     root = Path(root); cfg, integration, tree = settings(root)
+    if cfg.get('foundation_lock_manifest'):
+        locked = review.read(Path(cfg['foundation_lock_manifest']))
+        if head != locked['worker_head']:
+            raise ValueError('Foundation is locked; put additional engine work in an independent engine/card packet')
     clean_branch(tree, integration)
     tested = Path(validated_tree) if validated_tree is not None else tree
     review.clean(tested)

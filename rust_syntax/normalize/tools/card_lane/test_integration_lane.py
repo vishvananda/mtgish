@@ -137,6 +137,29 @@ class IntegrationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'Publication deferred'):
                 publish_lane.publish(self.root,self.cfg,db,1)
 
+    def test_foundation_lock_rejects_even_a_validated_newer_checkpoint(self):
+        self.start()
+        lock = self.root/'foundation-lock.json'
+        lock.write_text(json.dumps(dict(worker_head=self.base)))
+        self.cfg['foundation_lock_manifest'] = str(lock)
+        (self.root/'config.json').write_text(json.dumps(self.cfg))
+        (self.repo/'new-engine').write_text('belongs in a separate packet')
+        self.git('add','new-engine'); self.git('commit','-qm','Engine: another feature')
+        newer = self.git('rev-parse','HEAD')
+        with self.assertRaisesRegex(ValueError, 'Foundation is locked'):
+            lane.promote_snapshot(self.root,newer,dict(ok=True,head=newer))
+        self.assertFalse((self.root/'integration/snapshots'/f'{newer}.json').exists())
+        self.assertNotIn('local_base_manifest', json.loads((self.root/'config.json').read_text()))
+
+    def test_foundation_lock_allows_its_exact_validated_checkpoint(self):
+        self.start()
+        lock = self.root/'foundation-lock.json'
+        lock.write_text(json.dumps(dict(worker_head=self.base)))
+        self.cfg['foundation_lock_manifest'] = str(lock)
+        (self.root/'config.json').write_text(json.dumps(self.cfg))
+        path = lane.promote_snapshot(self.root,self.base,dict(ok=True,head=self.base))
+        self.assertEqual(json.loads(path.read_text())['head'],self.base)
+
     def test_feature_checkpoint_pins_only_the_clean_tested_ancestor_after_integration(self):
         tested=self.root/'tested'
         self.git('worktree','add','-qb','feature/shared',str(tested),self.base)
