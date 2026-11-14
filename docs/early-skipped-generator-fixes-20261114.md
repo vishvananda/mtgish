@@ -110,3 +110,39 @@ this actor issue is not a confirmed upstream MTGish grammar error.
 
 Validation logs and source-format comparison receipts are under
 `/mnt/vizier/early-set-campaign-plan-20261113/skipped-work-20261114`.
+
+## Published native packets
+
+All five follow-up cards are published as ready PRs:
+
+- [3029](https://github.com/cantrip-rs/cantrip-rs/pull/3029): Fellwar Stone and
+  Infernal Denizen; independent Terra review and 24,702 checked Rust tests.
+- [3032](https://github.com/cantrip-rs/cantrip-rs/pull/3032): Sword of the Ages
+  and Heroism; independent Terra review and 24,704 checked Rust tests.
+- [3036](https://github.com/cantrip-rs/cantrip-rs/pull/3036): captured-group
+  departure engine feature, shared sacrifice effect, then Stangg. Independent
+  engine and card reviews; the complete packet passes 24,708 checked Rust tests
+  and 1,524 managed tests, including projection checks (15 Rust ignores and one
+  existing managed skip). Native state layouts remain unchanged.
+
+The actual-target emitted Stangg module passed the five-scenario runtime probe;
+the final native card passes six focused scenarios, and the reviewer showed that
+per-token inverse watchers fail the doubled-token/Stifle case. Underworld
+Breach's 16 scenarios also pass after extracting its shared sacrifice effect.
+The packet's reviewed 18-file hash manifest matches its full-suite receipt.
+The temporary native worktree and local build cache were removed after
+publication; source commits and validation receipts remain available.
+
+The full generator workspace passed 2,075 tests with 21 ignored at `eaa3b464`.
+The later real-target profile test/documentation update passed all six focused
+tests without changing generator runtime code. Use the supported feature set:
+
+```sh
+cargo test --manifest-path rust_syntax/Cargo.toml --workspace --features mtgish-ast/cantrip
+```
+
+`--all-features` also enables legacy `write_out_json`, which switches Source
+deserialization to tagged JSON and makes the RON-fixture tests invalid. That
+incompatible attempt is retained in the local receipts and is not represented
+as a passing run. Heroism's remaining ordering contract and Denizen's adapter
+issues remain explicit generator gaps, despite their correct native cards.
