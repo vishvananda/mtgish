@@ -753,10 +753,12 @@ def card_host_test(path, name):
             and (Path(path).stem == own or Path(path).stem.startswith(own + '_')))
 
 
-def allowed_changes(tree, name):
+def allowed_changes(tree, name, *, affected_cards=()):
     paths = git(tree, "diff", "HEAD", "--name-only").splitlines()
     paths += git(tree, "ls-files", "--others", "--exclude-standard").splitlines()
     own, slug = names(name)
+    content_paths = {f"content/mtg/cards/{names(card)[1]}.json"
+                     for card in (name, *affected_cards)}
     manifests = {}
     workspace = None
     for package in ('cantrip-cards','cantrip-mechanics'):
@@ -790,7 +792,7 @@ def allowed_changes(tree, name):
             if p!=c or p.get('name') not in manifests or set(right)!=set(left)|manifests[p['name']]:
                 raise RuntimeError('lockfile changes must only add the declared local test dependencies')
     for path in paths:
-        if not (path == f"content/mtg/cards/{slug}.json" or
+        if not (path in content_paths or
                 path == 'Cargo.lock' and bool(manifests) or
                 path in {f'crates/{p}/Cargo.toml' for p in manifests} or
                 path.startswith("crates/cantrip-cards/src/cards/") and path.endswith(".rs") or
@@ -853,7 +855,7 @@ def checks(root):
     name = assignment["name"]
     lane.card_dir(name).mkdir(parents=True, exist_ok=True)
     report = read(folder / "review.json") if (folder / "review.json").exists() else {}
-    changed = allowed_changes(tree, name)
+    changed = allowed_changes(tree, name, affected_cards=report.get("affected_cards", []))
     changed_stems = {Path(p).stem for p in changed
                      if p.startswith("crates/cantrip-cards/src/cards/") and p.endswith(".rs")}
     affected = list(dict.fromkeys(canonical_typography(n) for n in [name, *report.get("affected_cards", [])]))

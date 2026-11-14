@@ -825,6 +825,18 @@ class GitTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'out-of-scope'):
             lane.allowed_changes(self.repo,'Test Card')
 
+    def test_shared_packet_accepts_only_declared_card_content(self):
+        paths = ['content/mtg/cards/test-card.json', 'content/mtg/cards/second-card.json']
+        for path in paths:
+            self.write(path, '{}')
+        with self.assertRaisesRegex(RuntimeError, 'out-of-scope'):
+            lane.allowed_changes(self.repo, 'Test Card')
+        self.assertEqual(lane.allowed_changes(self.repo, 'Test Card',
+                         affected_cards=['Second Card']), sorted(paths))
+        self.write('content/mtg/cards/unrelated-card.json', '{}')
+        with self.assertRaisesRegex(RuntimeError, 'out-of-scope'):
+            lane.allowed_changes(self.repo, 'Test Card', affected_cards=['Second Card'])
+
     def test_owned_host_protocol_test_stays_with_card_and_cannot_edit_host_code(self):
         test='crates/cantrip-host/tests/test_card_choices.rs'
         self.write(test,'executes the new card through its real protocol')
