@@ -73,6 +73,15 @@ word distinguishes the two sentences instead of assigning the original enters
 trigger's text to both. The printed-data regression writes the emitted module
 for subsequent checks against the native engine packet.
 
+The native compile probe passed after selecting the actual target's capabilities:
+`group-departure-delays`, `event-delayed-object-lists` and
+`32-bit-effect-quantities`. Its upstream-based `Supertypes` has three fields;
+the private foundation also has `world`. The initial synthetic candidate had
+inherited the private `world-rule` feature and therefore failed on the different
+target. This was a probe-profile mismatch: field emission was already gated.
+Regressions now verify both shapes, and the actual-target emitted artifact has
+no `world` field. The default private API snapshot retains its World support.
+
 Heroism's source-template correction is documented separately in
 [reference-heroism-20261114.md](reference-heroism-20261114.md).
 Its source timing correction does not finish automatic generation: per-object

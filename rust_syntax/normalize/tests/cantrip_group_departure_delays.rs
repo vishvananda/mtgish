@@ -1,6 +1,12 @@
 #![cfg(feature = "cantrip")]
 use mtgish_ast::{cantrip, corpus, ir::*, lower, mtg_types::OracleCard, unified};
 
+// Capabilities used by this card on the reviewed upstream-based engine packet.
+// Do not inherit the private foundation's unrelated world-rule capability.
+const STAGG_TARGET: &[&str] = &[
+    "group-departure-delays", "event-delayed-object-lists", "32-bit-effect-quantities",
+];
+
 fn source(name: &str) -> OracleCard {
     include_str!("fixtures/group_departure_delays.ronl")
         .lines()
@@ -41,7 +47,7 @@ fn both_delayed_abilities_keep_their_own_printed_suffix_trigger() {
     use std::path::PathBuf;
     let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let output = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("group-departure-printed.jsonl");
-    cantrip::planned::with_additional_features(&["group-departure-delays"], || {
+    cantrip::planned::with_features(STAGG_TARGET, || {
         cantrip::planned::tracked(
             &fixtures.join("group_departure_delays.ronl"),
             &fixtures.join("group_departure_delays.oracle.json"),
@@ -57,9 +63,22 @@ fn both_delayed_abilities_keep_their_own_printed_suffix_trigger() {
     assert!(code.contains("\"Exile that token when Stangg leaves the battlefield.\""), "{code}");
     assert!(code.contains("\"Sacrifice Stangg when that token leaves the battlefield.\""), "{code}");
     assert!(!code.contains("delayed_trigger(delayed_6, \"\")"), "{code}");
+    assert!(!code.contains("world:"), "the actual native target has no World field: {code}");
     if let Some(path) = std::env::var_os("MTGISH_GROUP_DELAY_MODULE") {
         std::fs::write(path, code).unwrap();
     }
+}
+
+#[test]
+fn an_explicit_world_capability_is_retained_for_targets_that_have_it() {
+    let mut features = STAGG_TARGET.to_vec();
+    features.push("world-rule");
+    cantrip::planned::with_features(&features, || {
+        let source = source("Stangg");
+        let generated = cantrip::whole(&source, &unified::lower(&source).card).unwrap();
+        assert!(generated.faces[0].gaps.is_empty(), "{:?}", generated.faces[0].gaps);
+        assert_eq!(generated.faces[0].rust.matches("world: false").count(), 2);
+    });
 }
 
 #[test]
