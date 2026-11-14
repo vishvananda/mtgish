@@ -6549,15 +6549,15 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "33a1e229c73773ac97a32b68595ae28a9d9142022d65ef3085cccd997c1236bd",
+   "id": "24bb99d1f826569060f2737dd9f87f4e2fd04c3f4245a5ae1e1ef5112a8e460a",
    "kind": "mined_token",
    "rule": "TriggerActions",
    "token": "RevealFoundCards",
    "word": "shuffle",
    "support": "165/167",
    "template": "each player who controls fewer lands than the player who controls the most lands searches their library for a number of {{SpecificCards}} less than or equal to the difference, reveals them, puts them into their hand, then shuffles",
-   "result": "ActionList([CreateValueX(MaxPermanentsControlledByAPlayer(IsCardtype(Land), AnyPlayer)), EachPlayerAction(ControlsNum(LessThan(ValueX), IsCardtype(Land)), SearchLibrary([FindNumberCardsOfType(Minus(TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(EachablePlayer))])), ValueX), {{SpecificCards[0]}}), RevealFoundCards, PutFoundCardsIntoHand, Shuffle]))])",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "ActionList([CreateValueX(MaxPermanentsControlledByAPlayer(IsCardtype(Land), AnyPlayer)), EachPlayerAction(ControlsNum(LessThan(ValueX), IsCardtype(Land)), SearchLibrary([FindNumberCardsOfType(Minus(ValueX, TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(EachablePlayer))]))), {{SpecificCards[0]}}), RevealFoundCards, PutFoundCardsIntoHand, Shuffle]))])",
+   "reason": "Reviewed 2026-11-14 after correcting only subtraction direction: RevealFoundCards is required by reveals them, and both the written shuffles and Source Shuffle remain. The mined association of RevealFoundCards with singular shuffle is incidental; no new exception or detector change."
   },
   {
    "id": "3a269a1861fb64ae59ab2f927e3b4cd4e32b2d0331f31ea4f71b9a309ab7992f",

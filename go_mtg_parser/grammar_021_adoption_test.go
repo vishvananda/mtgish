@@ -7,3 +7,7 @@ import "testing"
 func TestGrammar021SourceCorrections(t *testing.T) {
 	testSourceReferenceFixtures(t, "bison_whistle_169.ronl", "octopus_token_021.ronl")
 }
+
+func TestRejected170AndPartlyAccepted172SourceContracts(t *testing.T) {
+	testSourceReferenceFixtures(t, "rejected_170.ronl", "rejected_172.ronl")
+}

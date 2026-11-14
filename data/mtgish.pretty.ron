@@ -152397,8 +152397,14 @@ Card(
         SearchLibrary([
           FindNumberCardsOfType(
             Minus(
-              TheNumberOfCardsInPlayersHand(TheChosenPlayer),
-              TheNumberOfCardsInPlayersHand(You),
+              TheNumberOfPermanentsOnTheBattlefield(And([
+                IsCardtype(Land),
+                ControlledByAPlayer(SinglePlayer(TheChosenPlayer)),
+              ])),
+              TheNumberOfPermanentsOnTheBattlefield(And([
+                IsCardtype(Land),
+                ControlledByAPlayer(SinglePlayer(You)),
+              ])),
             ),
             IsLandType(Plains),
           ),
@@ -400802,11 +400808,11 @@ Planar(
           SearchLibrary([
             FindNumberCardsOfType(
               Minus(
+                ValueX,
                 TheNumberOfPermanentsOnTheBattlefield(And([
                   IsCardtype(Land),
                   ControlledByAPlayer(SinglePlayer(EachablePlayer)),
                 ])),
-                ValueX,
               ),
               And([
                 IsSupertype(Basic),
@@ -1131794,11 +1131800,11 @@ Card(
           SearchLibrary([
             FindNumberCardsOfType(
               Minus(
+                ValueX,
                 TheNumberOfPermanentsOnTheBattlefield(And([
                   IsCardtype(Land),
                   ControlledByAPlayer(SinglePlayer(EachablePlayer)),
                 ])),
-                ValueX,
               ),
               And([
                 IsSupertype(Basic),

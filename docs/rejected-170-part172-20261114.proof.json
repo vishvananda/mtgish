@@ -1,0 +1,51 @@
+{
+  "schema_version": 191,
+  "base_commit": "ab5c5d26bb7a2453699cdebb196b198c66cc234c",
+  "delta": {
+    "records": 33529,
+    "changed": [
+      "Boreas Charger",
+      "Enigma Ridges",
+      "Scholarship Sponsor"
+    ],
+    "unchanged": 33526,
+    "checked": "Only the reviewed Search UpTo subtraction/land-population operands change; all other fields are exactly equal. Stardew Valley and the hand-size controls remain byte-identical.",
+    "before_sha256": "83ba6a6bd9a1fb7d58796f9213abb62aa0ebc094494a428bb688ce01466c29bb",
+    "after_sha256": "2e84968b44b7e640fad967841369f61421dc8964b1af631f1ac945232738609d"
+  },
+  "validation": {
+    "new_rust_regressions": 3,
+    "affected_rust_suites": 8,
+    "affected_rust_results": {
+      "passed": 286,
+      "failed": 0,
+      "ignored": 0
+    },
+    "go_complete_run": "Only TestGrammarLiteralsAreReviewed failed: changed arithmetic invalidated one existing pinned lexical-correlation review. Its unchanged reveal/shuffle meaning was re-reviewed without changing detector or adding an exception.",
+    "literal_review_rerun": "0",
+    "fresh_source": {
+      "records": 33529,
+      "cache_matches": true,
+      "reviewed_findings": 182,
+      "unresolved_findings": 0,
+      "complete_reviewed_finding_and_usage_records_identical": true
+    },
+    "production_rust_and_ast_packages_unchanged": true,
+    "no_new_wasm_build_needed": "Only Source grammar/data, tests and review evidence change; owned model/contract and Wasm source retain the successfully built 0.2.1 versions."
+  },
+  "reports": {
+    "170": "https://github.com/i5jb/mtgish/issues/170#issuecomment-6885104952",
+    "172": "https://github.com/i5jb/mtgish/issues/172#issuecomment-6885300255",
+    "boreas": "https://github.com/i5jb/mtgish/issues/292",
+    "oracle_reference": "https://github.com/vishvananda/oracle-grammar/issues/28"
+  },
+  "artifact_sha256": {
+    "focused.log": "3463480d1734f8602987d374955fe9b83a659f06b9072c9a8c15ddb2b2c22173",
+    "affected-tests.log": "6970650f3dabd115cdb8dae644526449b1e5d71d0218332219fd3e45bc0114c4",
+    "go-tests.log": "43e57bd8c87e6b378683ed2803a7cc2df2303280e306f72407d425bfaa2de799",
+    "literal-rerun.log": "09d5f973b4492f3730759541862b8c686db585d5058b199ddf778bba12894d38",
+    "fresh-audit.json": "612f5df4b457f933360575268c517d8b737c9dc799a69f1040b59a62fcaaaaba",
+    "after.jsonl": "2e84968b44b7e640fad967841369f61421dc8964b1af631f1ac945232738609d",
+    "delta.json": "c1a8e208511439d22ca7e2c4f60ee6fdd3d6b528653c0d0583b8ad6c0aa8c233"
+  }
+}

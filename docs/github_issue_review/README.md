@@ -167,6 +167,8 @@ The Cantrip generator held these cards back on wrong source data. They were file
 - [#166](https://github.com/i5jb/mtgish/issues/166): Karona, False God pumps the chosen creature type.
 - [#167](https://github.com/i5jb/mtgish/issues/167), [#168](https://github.com/i5jb/mtgish/issues/168): Trait Doctoring, Whim of Volrath and Crystal Spray end the color word change at end of turn; Crystal Spray draws after any choice.
 - [#169](https://github.com/i5jb/mtgish/issues/169): Rejected by the maintainer on 2026-11-14. Restore the original private four-way choice: after declining battlefield/hand, any card can go to the graveyard or remain on top. Our prior creature/Bison gate was incorrect.
+- [#170](https://github.com/i5jb/mtgish/issues/170): Rejected by the maintainer on 2026-11-14. `APlayerMayAction` already includes the ability controller's player choice; the selected player then decides whether to act. Our Source was never changed and remains correct.
+- [#172](https://github.com/i5jb/mtgish/issues/172): Partly accepted: fix maximum-minus-searcher land count for Scholarship Sponsor and Enigma Ridges; retain `FindNumberCardsOfType`, whose typed private-library lowering already permits failing to find. See [the review](../rejected-170-part172-20261114.md).
 - [#173](https://github.com/i5jb/mtgish/issues/173): All Hallow's Eve has each player return their own creature cards.
 - [#174](https://github.com/i5jb/mtgish/issues/174): Thought Dissector's controller sacrifices it.
 - [#175](https://github.com/i5jb/mtgish/issues/175): Korvold, Gleeful Glutton counts only permanents you sacrificed. The count takes a player now: `TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn(You)`.
