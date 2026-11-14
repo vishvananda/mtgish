@@ -60,11 +60,14 @@ Validation so far:
   instrumented card lines pass. Replacing `discard_revealed` with ordinary
   discard is caught by the new interaction test.
 
-The card has conditional independent approval and passes the deterministic
-corpus, Oracle, lint, citation, coverage and mutation gates. Full final-packet
-validation is still required before publication. The
-production lane's rows and default
-worker base are unchanged; do not roll this interface into the locked shared
-foundation. Publish the focused engine commit followed by its reviewed consumer
-card commit in a separate packet. No AST schema, Oracle source or face bundle
-change is required for this backend correction.
+The final packet is published as
+[Cantrip #3003](https://github.com/cantrip-rs/cantrip-rs/pull/3003), with engine
+commit `5b73d5c62` followed by card commit `09faa5bb9`. The exact independently
+reviewed files pass the deterministic corpus, Oracle, lint, citation, coverage
+and mutation gates, then the full checked Rust workspace suite: 23,979 passed,
+15 ignored, across 251 targets. Both commits are pushed and the ready PR depends
+on the frozen foundation, not another card batch.
+
+The production lane's rows and default worker base are unchanged; do not roll
+this interface into the locked shared foundation. No AST schema, Oracle source
+or face bundle change is required for this backend correction.
