@@ -1,0 +1,40 @@
+[
+  {
+    "name": "Krav, the Unredeemed",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Krav, the Unredeemed",
+        "manaCost": "{4}{B}",
+        "type": "Legendary Creature — Demon",
+        "text": "Partner with Regna, the Redeemer (When this creature enters, target player may put Regna into their hand from their library, then shuffle.)\n{B}, Sacrifice X creatures: Target player draws X cards and gains X life. Put X +1/+1 counters on Krav.",
+        "power": "3",
+        "toughness": "3"
+      }
+    ]
+  },
+  {
+    "name": "Radiant Lotus",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Radiant Lotus",
+        "manaCost": "{6}",
+        "type": "Artifact",
+        "text": "{T}, Sacrifice one or more artifacts: Choose a color. Target player adds three mana of the chosen color for each artifact sacrificed this way. (Activate only as an instant.)"
+      }
+    ]
+  },
+  {
+    "name": "Sword of the Ages",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Sword of the Ages",
+        "manaCost": "{6}",
+        "type": "Artifact",
+        "text": "This artifact enters tapped.\n{T}, Sacrifice this artifact and any number of creatures you control: This artifact deals X damage to any target, where X is the total power of the creatures sacrificed this way, then exile this artifact and those creature cards."
+      }
+    ]
+  }
+]

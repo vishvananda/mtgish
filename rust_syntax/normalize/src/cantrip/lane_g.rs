@@ -1234,6 +1234,35 @@ impl Compiler {
                 objects,
                 colors_only,
             } => {
+                // A color-only capability query (CR 106.7) is not the mana in a
+                // pool, nor the source's colors. Colorless production is a
+                // separate bit and must not make a color available.
+                if *colors_only {
+                    if let crate::battlefield_query!(ObjectFilter::AllOf(filters)) = objects {
+                        if filters.len() == 2
+                            && filters.iter().any(|filter| matches!(filter,
+                                ObjectFilter::CardType(crate::mtg_types::CardType::Land)))
+                            && filters.iter().any(|filter| matches!(filter,
+                                ObjectFilter::ControlledBy(PlayerSet::OpponentsOf(PlayerRef::AbilityController))))
+                            && planned::switched_on("opponents-land-colors")
+                        {
+                            self.mana_colors = Some((
+                                format!(".colors_from({M}::mana::opponents_land_colors)"),
+                                None,
+                            ));
+                            return Ok(Some(any_of(self)));
+                        }
+                    }
+                    if planned::switched_on("producible-mana-types") {
+                        let mut asked = self.clone();
+                        (asked.reader, asked.event_at) = (Reader::Query, EventAt::Nowhere);
+                        let list = asked.objects(objects)?;
+                        self.mana_colors = Some((format!(
+                            ".colors_from(|q, asker| ({list}).into_iter().fold(ColorSet::NONE, |all: ColorSet, object: ObjectId| ColorSet(all.0 | q.producible_types(object).0.0)))"
+                        ), None));
+                        return Ok(Some(any_of(self)));
+                    }
+                }
                 let mut asked = self.clone();
                 (asked.reader, asked.event_at) = (Reader::Query, EventAt::Nowhere);
                 let list = asked.objects(objects)?;

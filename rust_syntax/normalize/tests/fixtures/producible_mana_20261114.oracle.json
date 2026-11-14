@@ -1,0 +1,36 @@
+[
+  {
+    "name": "Exotic Orchard",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Exotic Orchard",
+        "type": "Land",
+        "text": "{T}: Add one mana of any color that a land an opponent controls could produce."
+      }
+    ]
+  },
+  {
+    "name": "Fellwar Stone",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Fellwar Stone",
+        "manaCost": "{2}",
+        "type": "Artifact",
+        "text": "{T}: Add one mana of any color that a land an opponent controls could produce."
+      }
+    ]
+  },
+  {
+    "name": "Reflecting Pool",
+    "layout": "single",
+    "cards": [
+      {
+        "name": "Reflecting Pool",
+        "type": "Land",
+        "text": "{T}: Add one mana of any type that a land you control could produce."
+      }
+    ]
+  }
+]

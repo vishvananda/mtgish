@@ -5060,7 +5060,8 @@ impl Compiler {
         ))
     }
     /// "Sacrifice X creatures", "sacrifice any number of creatures", "sacrifice
-    /// all lands you control". Cantrip takes the first two for a spell (CR 601.2b).
+    /// all lands you control". Activation counts are announced with the ability
+    /// when the native target supports them (CR 601.2b, 602.2b).
     pub(super) fn sacrifice_count(
         &mut self,
         filter: &ObjectFilter,
@@ -5068,6 +5069,9 @@ impl Compiler {
         label: &str,
     ) -> Result<String> {
         let spell = self.paid_for == PaidFor::Spell;
+        let activation = self.paid_for == PaidFor::Ability
+            && label != lane_g::PAID
+            && planned::switched_on("variable-sacrifice-activations");
         let variable = match choose {
             // Asked of a payer as it resolves, the size is known by then.
             Some(Count::Exactly(n)) if label == lane_g::PAID && !matches!(n, Expr::AnnouncedX) => {
@@ -5091,7 +5095,7 @@ impl Compiler {
                 self.cost_reads_board = true;
                 return Ok(format!("Cost::sacrifice(({}).max(0) as u32, {filter})", n?));
             }
-            Some(Count::Exactly(Expr::AnnouncedX)) if spell => "SacrificeX",
+            Some(Count::Exactly(Expr::AnnouncedX)) if spell || activation => "SacrificeX",
             Some(Count::Exactly(Expr::AnnouncedX)) => {
                 let filter = self.cost_filter(filter, label)?;
                 return Self::planned_cost(
@@ -5101,6 +5105,13 @@ impl Compiler {
             }
             Some(Count::AnyNumber) => {
                 let filter = self.cost_filter(filter, label)?;
+                // Native activations name this count with their X. It cannot
+                // stand for an independently chosen count beside a mana {X}.
+                if activation && !self.mana_x {
+                    return Ok(format!(
+                        "Cost {{ variable: Some(VariableCost::SacrificeX({filter})), ..Cost::NONE }}"
+                    ));
+                }
                 let any = format!("SacrificeAnyNumber {{ filter: {filter}, less_each: 0 }}");
                 return if spell {
                     Ok(format!(
@@ -5115,6 +5126,11 @@ impl Compiler {
             }
             Some(Count::AtLeast(Expr::Constant(1))) if !spell => {
                 let filter = self.cost_filter(filter, label)?;
+                if activation && !self.mana_x {
+                    return Ok(format!(
+                        "Cost {{ variable: Some(VariableCost::SacrificeOneOrMore({filter})), ..Cost::NONE }}"
+                    ));
+                }
                 return Self::planned_cost(
                     "sacrificing one or more permanents to activate an ability",
                     format!("SacrificeOneOrMore({filter})"),
