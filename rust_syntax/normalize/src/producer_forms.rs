@@ -34,6 +34,7 @@ fn normalize_value<T: Walk + WalkMut>(card: &mut T) {
     });
     positions::normalize(card);
     card.walk_mut(&mut single_cards::Normalize::default());
+    card.walk_mut(&mut contract::Normalize);
 }
 
 /// Only object references are substituted. A player's event binding can name
@@ -605,3 +606,6 @@ mod single_cards;
 
 #[path = "producer_positions.rs"]
 mod positions;
+
+#[path = "producer_contract.rs"]
+mod contract;

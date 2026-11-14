@@ -12758,11 +12758,11 @@
       169
     ],
     "contains": [
-      "IfElse(TopCardOfPlayersLibraryPassesFilter(You, Or([IsCreatureType(Bison), IsCardtype(Creature)])), [ChooseAnAction(",
-      "[MayAction(PutTopOfLibraryInGraveyard)]"
+      "LookAtTopOfLibrary, ChooseAnAction(",
+      "[PutTopOfLibraryInGraveyard], [DoNothing]"
     ],
     "excludes": [
-      "[PutTopOfLibraryInGraveyard]"
+      "IfElse(TopCardOfPlayersLibraryPassesFilter"
     ]
   },
   {

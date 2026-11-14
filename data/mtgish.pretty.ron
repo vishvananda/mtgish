@@ -123707,36 +123707,25 @@ Card(
       ]),
       ActionList([
         LookAtTopOfLibrary,
-        IfElse(
-          TopCardOfPlayersLibraryPassesFilter(
-            You,
-            Or([
+        ChooseAnAction([
+          [
+            PutTopCardOfLibraryOfTypeOnBattlefield(
               IsCreatureType(Bison),
-              IsCardtype(Creature),
-            ]),
-          ),
-          [
-            ChooseAnAction([
               [
-                PutTopCardOfLibraryOfTypeOnBattlefield(
-                  IsCreatureType(Bison),
-                  [
-                    EntersNormally,
-                  ],
-                ),
+                EntersNormally,
               ],
-              [
-                RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature)),
-              ],
-              [
-                DoNothing,
-              ],
-            ]),
+            ),
           ],
           [
-            MayAction(PutTopOfLibraryInGraveyard),
+            RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature)),
           ],
-        ),
+          [
+            PutTopOfLibraryInGraveyard,
+          ],
+          [
+            DoNothing,
+          ],
+        ]),
       ]),
     ),
   ],
@@ -1559363,8 +1559352,8 @@ TokenDefinition(
   Name: "Octopus Token",
   Token: TokenWithPT(
     PT(
-      1,
-      1,
+      8,
+      8,
     ),
     Colors([
       Blue,

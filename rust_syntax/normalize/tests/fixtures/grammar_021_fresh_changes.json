@@ -1,0 +1,564 @@
+{
+  "result_membership_before.jsonl": {
+    "Red Sun's Twilight": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/condition/args/left",
+        "before": {
+          "kind": "ObjectProperty",
+          "args": {
+            "object": {
+              "kind": "Source"
+            },
+            "property": "SpellX",
+            "information": "CurrentOrLastKnown"
+          }
+        },
+        "after": {
+          "kind": "AnnouncedX"
+        },
+        "reason": "Oracle Grammar grammar-v0.2.1 U0033: reviewed producer normal form; saved value retains original meaning."
+      }
+    ]
+  },
+  "mode_policies_v183.jsonl": {
+    "Collective Brutality": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/0/body/instructions/0/args/instructions/1/args/operation/args/objects",
+        "before": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Players": {
+                "zone": "Hand",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "Target",
+                    "args": {
+                      "slot": 0,
+                      "index": 0
+                    }
+                  }
+                }
+              }
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "AnyOf",
+              "args": [
+                {
+                  "kind": "CardType",
+                  "args": "Instant"
+                },
+                {
+                  "kind": "CardType",
+                  "args": "Sorcery"
+                }
+              ]
+            }
+          }
+        },
+        "after": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "InZone",
+              "args": {
+                "objects": {
+                  "kind": "Observed",
+                  "args": 0
+                },
+                "zone": "Hand"
+              }
+            },
+            "filter": {
+              "kind": "AllOf",
+              "args": [
+                {
+                  "kind": "AnyOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Instant"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Sorcery"
+                    }
+                  ]
+                },
+                {
+                  "kind": "OwnedBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "Target",
+                      "args": {
+                        "slot": 0,
+                        "index": 0
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "reason": "Oracle Grammar grammar-v0.2.1 U0035: reviewed producer normal form; saved value retains original meaning."
+      }
+    ]
+  },
+  "movement_destinations_v185.jsonl": {
+    "Bison Whistle": [
+      {
+        "path": "/faces/0/abilities/0/args/body",
+        "before": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "LookAt",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Take",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Library",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        },
+                        "count": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "from": "Top"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "If",
+              "args": {
+                "condition": {
+                  "kind": "ObjectMatches",
+                  "args": {
+                    "object": {
+                      "kind": "Query",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Library",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        },
+                        "index": 0
+                      }
+                    },
+                    "filter": {
+                      "kind": "AnyOf",
+                      "args": [
+                        {
+                          "kind": "Subtype",
+                          "args": "Bison"
+                        },
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "instructions": [
+                    {
+                      "kind": "ChooseOne",
+                      "args": {
+                        "decider": {
+                          "kind": "AbilityController"
+                        },
+                        "options": [
+                          {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "MoveTopCard",
+                                    "args": {
+                                      "actor": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      },
+                                      "cards": {
+                                        "kind": "Subtype",
+                                        "args": "Bison"
+                                      },
+                                      "reveal": false,
+                                      "destination": {
+                                        "Battlefield": {
+                                          "controller": "Owner",
+                                          "arrival": {
+                                            "controller": null,
+                                            "tapped": false,
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "MoveTopCard",
+                                    "args": {
+                                      "actor": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      },
+                                      "cards": {
+                                        "kind": "CardType",
+                                        "args": "Creature"
+                                      },
+                                      "reveal": true,
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "instructions": [
+                              {
+                                "kind": "Group",
+                                "args": {
+                                  "instructions": []
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "offered": null
+                      }
+                    }
+                  ]
+                },
+                "otherwise": {
+                  "instructions": [
+                    {
+                      "kind": "Optional",
+                      "args": {
+                        "decider": {
+                          "kind": "AbilityController"
+                        },
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 3,
+                                "operation": {
+                                  "kind": "Move",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Take",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Zone",
+                                          "args": {
+                                            "scope": {
+                                              "Players": {
+                                                "zone": "Library",
+                                                "players": {
+                                                  "kind": "One",
+                                                  "args": {
+                                                    "kind": "AbilityController"
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "kind": "Card",
+                                            "filter": {
+                                              "kind": "Any"
+                                            }
+                                          }
+                                        },
+                                        "count": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        },
+                                        "from": "Top"
+                                      }
+                                    },
+                                    "destination": {
+                                      "OwnersGraveyard": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    },
+                                    "qualifiers": []
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "after": {
+          "instructions": [
+            {
+              "kind": "Effect",
+              "args": {
+                "result": 0,
+                "operation": {
+                  "kind": "LookAt",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "objects": {
+                      "kind": "Take",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Library",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        },
+                        "count": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "from": "Top"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "kind": "ChooseOne",
+              "args": {
+                "decider": {
+                  "kind": "AbilityController"
+                },
+                "options": [
+                  {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "MoveTopCard",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "cards": {
+                                "kind": "Subtype",
+                                "args": "Bison"
+                              },
+                              "reveal": false,
+                              "destination": {
+                                "Battlefield": {
+                                  "controller": "Owner",
+                                  "arrival": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "MoveTopCard",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "cards": {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              },
+                              "reveal": true,
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  },
+                                  "from": "Top"
+                                }
+                              },
+                              "destination": {
+                                "OwnersGraveyard": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "instructions": [
+                      {
+                        "kind": "Group",
+                        "args": {
+                          "instructions": []
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "offered": null
+              }
+            }
+          ]
+        },
+        "reason": "Rejected MTGish #169: restore unrestricted private four-option choice; preserve the incorrect historical saved meaning rather than repair it in migration."
+      }
+    ]
+  }
+}

@@ -1,0 +1,451 @@
+{
+  "grammar_tag": "grammar-v0.2.1",
+  "grammar_commit": "113228bef8457a9fd0e7f5d30e35d50841e42bd7",
+  "schema_version": 191,
+  "registry_packages": {
+    "oracle-ir": "0.2.0",
+    "oracle-ir-contract": "0.2.1"
+  },
+  "release": {
+    "repository": "vishvananda/oracle-grammar",
+    "tag": "faces-oracle-20261112220158-s191-g0.2.1-r1",
+    "url": "https://github.com/vishvananda/oracle-grammar/releases/tag/faces-oracle-20261112220158-s191-g0.2.1-r1",
+    "manifest_url": "https://github.com/vishvananda/oracle-grammar/releases/download/faces-oracle-20261112220158-s191-g0.2.1-r1/manifest.json",
+    "manifest_sha256": "c0fdd3bef9aef1446c1c6287d396f71574522b54cbea0e207d1586e452251b4a",
+    "published_at": "2026-11-14T22:15:46Z"
+  },
+  "whole_corpus_delta": {
+    "records": 33529,
+    "changed_records": 115,
+    "unchanged_records": 33414,
+    "owned_amendment_operand_replacements": 122,
+    "owned_amendment_faces": 106,
+    "adjacent_same_family_faces": [
+      "Down, Down to Goblin-town",
+      "Martial Coup",
+      "Null Summoner",
+      "Render Speechless",
+      "Solve for Disappointment",
+      "Stinging Vitriol",
+      "Vision Quest"
+    ],
+    "changed_faces_by_record": [
+      [
+        "Aggressive Negotiations"
+      ],
+      [
+        "Auntie's Sentence"
+      ],
+      [
+        "Banefire"
+      ],
+      [
+        "Bison Whistle"
+      ],
+      [
+        "Biting-Palm Ninja"
+      ],
+      [
+        "Black Sun's Twilight"
+      ],
+      [
+        "Blot Out the Sky"
+      ],
+      [
+        "Blue Sun's Twilight"
+      ],
+      [
+        "Brain Maggot"
+      ],
+      [
+        "Brainbite"
+      ],
+      [
+        "Castigate"
+      ],
+      [
+        "Cerebral Confiscation"
+      ],
+      [
+        "Check for Traps"
+      ],
+      [
+        "Coercion"
+      ],
+      [
+        "Collective Brutality"
+      ],
+      [
+        "Corpse Traders"
+      ],
+      [
+        "Cruelclaw's Heist"
+      ],
+      [
+        "Dai Li Indoctrination"
+      ],
+      [
+        "Dance of the Manse"
+      ],
+      [
+        "Dark Inquiry"
+      ],
+      [
+        "Deceit"
+      ],
+      [
+        "Despise"
+      ],
+      [
+        "Diplomacy of the Wastes"
+      ],
+      [
+        "Distress"
+      ],
+      [
+        "Divest"
+      ],
+      [
+        "Doomfall"
+      ],
+      [
+        "Down for Repairs"
+      ],
+      [
+        "Down, Down to Goblin-town"
+      ],
+      [
+        "Dreams of Steel and Oil"
+      ],
+      [
+        "Drill Bit"
+      ],
+      [
+        "Duress"
+      ],
+      [
+        "Ego Drain"
+      ],
+      [
+        "Ellie and Alan, Paleontologists"
+      ],
+      [
+        "Elspeth's Nightmare"
+      ],
+      [
+        "Encroach"
+      ],
+      [
+        "Entomber Exarch"
+      ],
+      [
+        "Every Hope Shall Vanish"
+      ],
+      [
+        "Finale of Devastation"
+      ],
+      [
+        "Finale of Eternity"
+      ],
+      [
+        "Finale of Glory"
+      ],
+      [
+        "Finale of Promise"
+      ],
+      [
+        "Finale of Revelation"
+      ],
+      [
+        "Food Chain"
+      ],
+      [
+        "Gastal Raider"
+      ],
+      [
+        "Gix's Caress"
+      ],
+      [
+        "Green Sun's Twilight"
+      ],
+      [
+        "Grief"
+      ],
+      [
+        "Gruesome Discovery"
+      ],
+      [
+        "Harsh Scrutiny"
+      ],
+      [
+        "He Who Hungers"
+      ],
+      [
+        "Humiliate"
+      ],
+      [
+        "Intimidation Tactics"
+      ],
+      [
+        "Kitesail Freebooter"
+      ],
+      [
+        "Last Rites"
+      ],
+      [
+        "Lay Bare the Heart"
+      ],
+      [
+        "Lifebane Zombie"
+      ],
+      [
+        "Lobotomy"
+      ],
+      [
+        "Mardu Charm"
+      ],
+      [
+        "Martial Coup"
+      ],
+      [
+        "Memory Theft"
+      ],
+      [
+        "Mesmeric Fiend"
+      ],
+      [
+        "Mind Slash"
+      ],
+      [
+        "Multiple Choice"
+      ],
+      [
+        "Night Terrors"
+      ],
+      [
+        "Nightmare Void"
+      ],
+      [
+        "Nimble Larcenist"
+      ],
+      [
+        "Null Summoner"
+      ],
+      [
+        "Octomancer"
+      ],
+      [
+        "Ostracize"
+      ],
+      [
+        "Pick the Brain"
+      ],
+      [
+        "Pilfer"
+      ],
+      [
+        "Pilfering Imp"
+      ],
+      [
+        "Poison the Waters"
+      ],
+      [
+        "Psychic Spear"
+      ],
+      [
+        "Psychic Theft"
+      ],
+      [
+        "Reap Intellect"
+      ],
+      [
+        "Reckoner Shakedown"
+      ],
+      [
+        "Red Sun's Twilight"
+      ],
+      [
+        "Render Speechless"
+      ],
+      [
+        "Roku's Mastery"
+      ],
+      [
+        "Severance Priest"
+      ],
+      [
+        "Shattered Dreams"
+      ],
+      [
+        "Shatterskull, the Hammer Pass",
+        "Shatterskull Smashing"
+      ],
+      [
+        "Shifting Borders"
+      ],
+      [
+        "Shifting Grift"
+      ],
+      [
+        "Shimian Specter"
+      ],
+      [
+        "Sin Collector"
+      ],
+      [
+        "Snowborn Simulacra"
+      ],
+      [
+        "Solve for Disappointment"
+      ],
+      [
+        "Soul Search"
+      ],
+      [
+        "Splitting Headache"
+      ],
+      [
+        "Stinging Vitriol"
+      ],
+      [
+        "Subterranean Tremors"
+      ],
+      [
+        "Switcheroo"
+      ],
+      [
+        "Temporal Intervention"
+      ],
+      [
+        "The Cruelty of Gix"
+      ],
+      [
+        "The Torment of Gollum"
+      ],
+      [
+        "Thought Erasure"
+      ],
+      [
+        "Thought Prison"
+      ],
+      [
+        "Thought-Knot Seer"
+      ],
+      [
+        "Thought-Stalker Warlock"
+      ],
+      [
+        "Thoughtseize"
+      ],
+      [
+        "Tidehollow Sculler"
+      ],
+      [
+        "Toll of the Invasion"
+      ],
+      [
+        "Tourach's Canticle"
+      ],
+      [
+        "Unmask"
+      ],
+      [
+        "Variable Solutions"
+      ],
+      [
+        "Venarian Glimmer"
+      ],
+      [
+        "Dread Osseosaur",
+        "Visage of Dread"
+      ],
+      [
+        "Vision Quest"
+      ],
+      [
+        "Visions of Duplicity"
+      ],
+      [
+        "West Coast Expansion"
+      ],
+      [
+        "White Sun's Twilight"
+      ],
+      [
+        "Zero Point Ballad"
+      ],
+      [
+        "Octopus Token"
+      ]
+    ],
+    "before_sha256": "64156a9c9f289ce11d3dd651bd557bdaa90f73feb1eccd785b8183fea7968c09",
+    "after_sha256": "83ba6a6bd9a1fb7d58796f9213abb62aa0ebc094494a428bb688ce01466c29bb",
+    "checked": "All unapproved fields and records retain exact JSON values; raw bytes of unchanged records match."
+  },
+  "validation": {
+    "rust_workspace_initial": {
+      "passed": 2098,
+      "failed": 3,
+      "ignored": 21,
+      "targets": 240
+    },
+    "failures": "Three historical producer expectations: Bison Whistle, Red Suns Twilight, Collective Brutality. Saved source/AST fixtures retained; test-only input-checked changes explicitly describe their differences from current output.",
+    "affected_historical_suites_rerun": {
+      "passed": 22,
+      "failed": 0,
+      "targets": 3
+    },
+    "combined_unique_rust_tests": {
+      "passed": 2101,
+      "failed": 0,
+      "ignored": 21
+    },
+    "production_inputs_unchanged_after_full_gate": true,
+    "post_gate_test_helper_changed": "rust_syntax/normalize/tests/support/fresh_producer.rs",
+    "go_full_suite": "passed",
+    "python_export_tool_tests": 8,
+    "wasm": "wasm32-unknown-unknown build passed"
+  },
+  "published_cohort_comparison": {
+    "scope": "Exact U0032-U0036 face names with byte-identical Oracle wording; retains multiple release occurrences; other wording excluded.",
+    "counts": {
+      "canonical_only": 72,
+      "grammar_ambiguous": 4,
+      "grammar_refused": 24,
+      "presentation_only": 5
+    },
+    "strict_gate": false,
+    "semantic_agreement_on_unique_comparable_outcomes": 77,
+    "ambiguity_never_selected": true,
+    "different_wording_occurrences_excluded": 27
+  },
+  "source_reparse": {
+    "records": 33529,
+    "changed_records": [
+      "Bison Whistle",
+      "Octopus Token"
+    ],
+    "untouched_oracle_json": true,
+    "unresolved_audit_findings": 0,
+    "existing_audit_findings_reviewed": 182,
+    "review_status": "applied"
+  },
+  "reports": {
+    "mtgish_octopus": "https://github.com/i5jb/mtgish/issues/291",
+    "oracle_grammar_bison": "https://github.com/vishvananda/oracle-grammar/issues/27",
+    "rejected_issue": "https://github.com/i5jb/mtgish/issues/169#issuecomment-6884910096"
+  },
+  "artifact_sha256": {
+    "before.jsonl": "64156a9c9f289ce11d3dd651bd557bdaa90f73feb1eccd785b8183fea7968c09",
+    "after.jsonl": "83ba6a6bd9a1fb7d58796f9213abb62aa0ebc094494a428bb688ce01466c29bb",
+    "workspace.log": "af0ea41ad1c8516abd27239c7de1f08918ebd0a403a532f4c6d61f466665d4f8",
+    "historical-rerun.log": "e18a3c249d5d6c7e7a4f02c77c4705a8c567c698e063da9848d811026f10afbe",
+    "go-workspace.log": "9604186d2bfd053ff2642b3eafec2c7467a61b2340d1a72ed5e6029f8296f29c",
+    "export-tool-tests.log": "8d54467f354b2655eedff783fdfdce986815fd0eb63cbe693a94ccdef8902d90",
+    "native-cohort-comparison.json": "c3a1fef5022eee3d369ad6a54784b18b97b90847ad24b8237de0c148bf7dbf52",
+    "native-cohort-population.json": "cff38a199e414f14fc993c0fc2410c112667a7a7ae66661679e93c6dd4e71f5c",
+    "fresh-audit.json": "0a5679511ca2f32353ff21d025811d74acc9502778b77aa605eeaa1a1d71fbb7",
+    "check_delta.py": "3e3abb4ab7e86e732a8aed3d3d036ca72c3ad37c8b42fa0e79724dc03ebcd002",
+    "wasm.log": "21e703d74d781b71ae31e53980c731602f8f49bd4598a07f3830377fc91abb8a"
+  }
+}

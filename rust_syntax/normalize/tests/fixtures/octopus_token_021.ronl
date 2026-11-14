@@ -1,0 +1,1 @@
+TokenDefinition(Name: "Octopus Token", Token: TokenWithPT(PT(8, 8), Colors([Blue]), [], [Creature], SubtypesList([Octopus]), []))

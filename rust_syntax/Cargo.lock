@@ -416,9 +416,9 @@ dependencies = [
 
 [[package]]
 name = "oracle-ir-contract"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "315c6e01334e46e584e17b5e078ff99b6b53de8c426953ea309343b89f83e0e3"
+checksum = "c2d533358259d64be81ef91108f8adf572c9bc40ed996b432be09faf2913d4f3"
 dependencies = [
  "bincode",
  "oracle-ir",

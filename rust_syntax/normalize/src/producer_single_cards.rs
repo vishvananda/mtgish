@@ -24,6 +24,7 @@ struct Scope {
     written: BTreeSet<u32>,
     targets: BTreeMap<u16, Objects>,
     prepared: BTreeMap<u32, Objects>,
+    activation_cards: BTreeSet<Vec<u32>>,
 }
 fn one(count: &Count) -> bool {
     matches!(
@@ -93,6 +94,16 @@ impl Scope {
         }
     }
     fn scalar(&self, objects: &ObjectSet) -> Option<ObjectRef> {
+        if let ObjectSet::CostObjects {
+            payment: PaymentRef::Activation,
+            component,
+            view: CostObjectView::Performed,
+            phase: ObjectPhase::After,
+        } = objects {
+            return self.activation_cards.contains(component).then(|| ObjectRef::Query {
+                objects: Box::new(objects.clone()), index: 0,
+            });
+        }
         if !self.objects(objects).one {
             return None;
         }
@@ -242,10 +253,22 @@ fn loop_scope(instruction: &Instruction) -> bool {
     )
 }
 impl VisitorMut for Normalize {
-    fn ability(&mut self, _: &mut Ability) -> bool {
+    fn ability(&mut self, ability: &mut Ability) -> bool {
         self.push(false);
+        if let Ability::Activated { cost, .. } = ability {
+            for (index, part) in cost.parts.iter().enumerate() {
+                if crate::cost_history::exact_count(part) == Some(1)
+                    && matches!(part, CostPart::Move {
+                        destination: MovementDestination::Exile { .. }, ..
+                    })
+                {
+                    self.scope.activation_cards.insert(vec![index.try_into().expect("cost index")]);
+                }
+            }
+        }
         true
     }
+    fn cost(&mut self, _: &mut Cost) -> bool { false }
     fn ability_end(&mut self, _: &mut Ability) {
         self.pop();
     }

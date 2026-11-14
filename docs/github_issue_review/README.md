@@ -166,7 +166,7 @@ The Cantrip generator held these cards back on wrong source data. They were file
 - [#165](https://github.com/i5jb/mtgish/issues/165): Fable of the Mirror-Breaker discards up to two cards.
 - [#166](https://github.com/i5jb/mtgish/issues/166): Karona, False God pumps the chosen creature type.
 - [#167](https://github.com/i5jb/mtgish/issues/167), [#168](https://github.com/i5jb/mtgish/issues/168): Trait Doctoring, Whim of Volrath and Crystal Spray end the color word change at end of turn; Crystal Spray draws after any choice.
-- [#169](https://github.com/i5jb/mtgish/issues/169): Bison Whistle offers the graveyard only for a card that is neither a Bison nor a creature card.
+- [#169](https://github.com/i5jb/mtgish/issues/169): Rejected by the maintainer on 2026-11-14. Restore the original private four-way choice: after declining battlefield/hand, any card can go to the graveyard or remain on top. Our prior creature/Bison gate was incorrect.
 - [#173](https://github.com/i5jb/mtgish/issues/173): All Hallow's Eve has each player return their own creature cards.
 - [#174](https://github.com/i5jb/mtgish/issues/174): Thought Dissector's controller sacrifices it.
 - [#175](https://github.com/i5jb/mtgish/issues/175): Korvold, Gleeful Glutton counts only permanents you sacrificed. The count takes a player now: `TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn(You)`.

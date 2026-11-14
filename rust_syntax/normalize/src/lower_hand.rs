@@ -41,7 +41,27 @@ impl Context {
         let mut objects = passing.clone();
         match shown {
             HandShown::Whole => {
-                instructions.push(self.effect(Operation::Reveal { objects: hand }));
+                let reveal = self.effect(Operation::Reveal { objects: hand });
+                let Instruction::Effect { result, .. } = &reveal else { unreachable!() };
+                // The immediate choice names this complete observation, not a
+                // fresh hand query. Keep ownership and current zone explicit.
+                if pick.is_some() {
+                    let mut filters = match &filter {
+                        ObjectFilter::Any => vec![],
+                        ObjectFilter::AllOf(filters) => filters.clone(),
+                        filter => vec![filter.clone()],
+                    };
+                    filters.push(ObjectFilter::OwnedBy(owner.clone()));
+                    objects = ObjectSet::Matching {
+                        objects: Box::new(ObjectSet::InZone {
+                            objects: Box::new(ObjectSet::Observed(result.clone())),
+                            zone: EventZone::Hand,
+                        }),
+                        filter: if filters.len() == 1 { filters.pop().unwrap() }
+                            else { ObjectFilter::AllOf(filters) },
+                    };
+                }
+                instructions.push(reveal);
             }
             HandShown::Passing => {
                 instructions.push(self.effect(Operation::Reveal { objects: passing }));
