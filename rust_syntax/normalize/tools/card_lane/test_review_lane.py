@@ -825,6 +825,21 @@ class GitTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'out-of-scope'):
             lane.allowed_changes(self.repo,'Test Card')
 
+    def test_owned_host_protocol_test_stays_with_card_and_cannot_edit_host_code(self):
+        test='crates/cantrip-host/tests/test_card_choices.rs'
+        self.write(test,'executes the new card through its real protocol')
+        self.assertEqual(lane.allowed_changes(self.repo,'Test Card'),[test])
+        candidate=lane.commit_candidate(self.repo,dict(name='Test Card',commit=self.source),self.base,[test])
+        self.assertEqual(self.git('rev-parse',candidate+'^'),self.base)
+        self.assertIn(test,self.git('diff-tree','--no-commit-id','--name-only','-r',candidate).splitlines())
+        self.write('crates/cantrip-host/src/view.rs','shared host implementation')
+        with self.assertRaisesRegex(RuntimeError,'out-of-scope'):
+            lane.allowed_changes(self.repo,'Test Card')
+        for path in ['crates/cantrip-host/tests/other_card.rs',
+                     'crates/cantrip-host/tests/test_cardish.rs',
+                     'crates/cantrip-host/tests/../src/test_card.rs']:
+            self.assertFalse(lane.card_host_test(path,'Test Card'))
+
     def test_new_card_integration_test_stays_with_card(self):
         self.git('checkout','-qb','card-test-review')
         test='crates/cantrip-cards/tests/test_card_boundary.rs'
@@ -1163,8 +1178,10 @@ class CliTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'out-of-scope'):lane.allowed_changes(tree,'A')
 
     def test_card_integration_gate_rejects_zero_tests_and_executes_changed_tests(self):
-        for output, expected in [('1 passed; 0 failed', True), ('0 passed; 0 failed', False)]:
-            with self.subTest(output=output), tempfile.TemporaryDirectory() as tmp:
+        cases=[(package,output,expected) for package in ('cantrip-cards','cantrip-host')
+               for output,expected in [('1 passed; 0 failed',True),('0 passed; 0 failed',False)]]
+        for package, output, expected in cases:
+            with self.subTest(package=package,output=output), tempfile.TemporaryDirectory() as tmp:
                 root=Path(tmp);card=root/'a.rs';card.write_text('pub static CARD: X;')
                 lane.save(root/'review.json', {'affected_cards':['A']})
                 shell=mock.Mock(return_value=(0,output))
@@ -1178,11 +1195,11 @@ class CliTests(unittest.TestCase):
                 with mock.patch.object(lane,'current',return_value={'tree':str(root),'folder':str(root),'name':'A'}), \
                      mock.patch.object(lane,'load_lane',return_value=fake),mock.patch.object(lane,'git',return_value='head'), \
                      mock.patch.object(lane,'work_digest',return_value='stable'), \
-                     mock.patch.object(lane,'allowed_changes',return_value=['crates/cantrip-cards/tests/boundary.rs']):
+                     mock.patch.object(lane,'allowed_changes',return_value=[f'crates/{package}/tests/a_boundary.rs']):
                     result=lane.checks(root)
                 self.assertEqual(result['ok'],expected)
                 shell.assert_called_once_with('cargo','test','--profile','checked','-p',
-                                             'cantrip-cards','--test','boundary',env={})
+                                             package,'--test','a_boundary',env={})
 
     def test_scenario_fixture_edits_execute_and_measure_the_owning_rust_test(self):
         with tempfile.TemporaryDirectory() as temporary:

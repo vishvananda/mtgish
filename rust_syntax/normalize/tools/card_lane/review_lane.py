@@ -744,6 +744,15 @@ def current(root):
     return read(path)
 
 
+def card_host_test(path, name):
+    """A card's protocol/view assertions belong with the card that they execute."""
+    parts = Path(path).parts
+    own = names(name)[0]
+    return (len(parts) == 4 and parts[:3] == ('crates', 'cantrip-host', 'tests')
+            and parts[3].endswith('.rs')
+            and (Path(path).stem == own or Path(path).stem.startswith(own + '_')))
+
+
 def allowed_changes(tree, name):
     paths = git(tree, "diff", "HEAD", "--name-only").splitlines()
     paths += git(tree, "ls-files", "--others", "--exclude-standard").splitlines()
@@ -789,6 +798,7 @@ def allowed_changes(tree, name):
                 path.startswith("crates/cantrip-mechanics/src/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-mechanics/tests/") and path.endswith(".rs") or
                 path.startswith("crates/cantrip-script/tests/") and path.endswith(".rs") or
+                card_host_test(path, name) or
                 path.startswith("scenarios/") and path.endswith(".cantrip") or
                 card_scenario_fixture(path, name)):
             raise RuntimeError(f"out-of-scope edit {path}; preserved for inspection")
@@ -883,12 +893,12 @@ def checks(root):
         return good
 
     integration_tests = {(p.split('/')[1], Path(p).stem) for p in changed
-                         if p.startswith(('crates/cantrip-mechanics/tests/', 'crates/cantrip-cards/tests/', 'crates/cantrip-script/tests/')) and p.endswith('.rs')}
+                         if p.startswith(('crates/cantrip-mechanics/tests/', 'crates/cantrip-cards/tests/', 'crates/cantrip-script/tests/', 'crates/cantrip-host/tests/')) and p.endswith('.rs')}
     # Scenario data may change while the Rust test that includes it is unchanged.
     for card in edited_cards:
         if any(card_scenario_fixture(path, card) for path in changed):
             stem = names(card)[0]
-            for package in ('cantrip-cards', 'cantrip-mechanics', 'cantrip-script'):
+            for package in ('cantrip-cards', 'cantrip-mechanics', 'cantrip-script', 'cantrip-host'):
                 for path in (tree/'crates'/package/'tests').glob(stem+'*.rs'):
                     if path.stem == stem or path.stem.startswith(stem+'_'):
                         integration_tests.add((package, path.stem))
@@ -1065,11 +1075,13 @@ def commit_candidate(tree, source, parent, paths):
     owned.update(p for p in original_paths + paths
                  if any(p.startswith(f'crates/{package}/tests/{own}_') or
                         p == f'crates/{package}/tests/{own}.rs'
-                        for package in ('cantrip-mechanics', 'cantrip-cards', 'cantrip-script')))
+                        for package in ('cantrip-mechanics', 'cantrip-cards', 'cantrip-script', 'cantrip-host')))
     for path in source.get('card_test_paths', []):
         parts = Path(path).parts
-        if len(parts) != 4 or parts[0] != 'crates' or parts[1] not in ('cantrip-cards','cantrip-mechanics','cantrip-script') or parts[2] != 'tests' or not path.endswith('.rs'):
+        if len(parts) != 4 or parts[0] != 'crates' or parts[1] not in ('cantrip-cards','cantrip-mechanics','cantrip-script','cantrip-host') or parts[2] != 'tests' or not path.endswith('.rs'):
             raise RuntimeError('card_test_paths may name only Rust integration test files')
+        if parts[1] == 'cantrip-host' and not card_host_test(path, source['name']):
+            raise RuntimeError('host integration tests must be named for their card')
         owned.add(path)
     shared = [p for p in paths if p not in owned]
     # A migrated WIP can have an index entry the reviewer restored in the
