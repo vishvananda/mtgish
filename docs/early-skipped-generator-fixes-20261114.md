@@ -88,5 +88,16 @@ directly; do not treat that implementation as proof that these adapter issues
 are fixed. No source rule or AST contract for those issues was changed in this
 generator batch.
 
+The concrete two-part reference report is
+[oracle-grammar #24](https://github.com/vishvananda/oracle-grammar/issues/24).
+Its evidence uses the existing corpus, the single-record normalized/compact
+exports, and the reviewed native packet's partial-sacrifice and multiplayer
+scenarios. The opponent must be the chooser and new controller, while the
+eligible-creature filter retains the original ability controller. Rebinding all
+`AbilityController` reads cannot implement both. Existing explicit actor/bound
+references may suffice; no new AST variant is asserted necessary. The Source
+record already retains the opponent action and the original `You` filter, so
+this actor issue is not a confirmed upstream MTGish grammar error.
+
 Validation logs and source-format comparison receipts are under
 `/mnt/vizier/early-set-campaign-plan-20261113/skipped-work-20261114`.
