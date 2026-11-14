@@ -2577,16 +2577,13 @@ def invalid_range(was, now):
     return bad(now) and not bad(was)
 
 
-END_SENTENCE = ("Means the same for this card: g.end_sentence() only has the state triggers judge the game between two sentences "
-                "(CR 603.8, 608.2c). Only a state trigger watching that moment could tell it was left out, and that is the engine's "
-                "sentence rule, tested where it was built. Named by the lane.")
-
-
 def known_equivalent(survivor):
-    """The lane's own reason a surviving change means the same, or None. A sentence's end left out is the one such change:
-    every model spent a submit arguing it away, and the reason is always the same."""
-    if survivor.get("what") == "statement left out" and survivor.get("was", "").strip() == "g.end_sentence();":
-        return END_SENTENCE
+    """Equivalence requires card-specific evidence, including for sentence boundaries.
+
+    end_sentence judges state triggers (CR 603.8); the mutated line alone cannot
+    establish that no trigger can observe its omission. The reviewer records any
+    actual equivalence with the packet's evidence instead.
+    """
     return None
 
 

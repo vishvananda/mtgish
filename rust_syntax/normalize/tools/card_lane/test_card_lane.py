@@ -838,7 +838,7 @@ def survived(source, number, what, now):
 
 
 class NoiseMutants(unittest.TestCase):
-    """What no scenario can catch costs a worker nothing: an empty range is no change, a sentence's end left out is named by the lane."""
+    """Impossible mutations are excluded; semantic equivalence needs review evidence."""
 
     def test_a_range_made_empty_is_no_change(self):
         self.assertTrue(lane.invalid_range("    .choose(2, 2);", "    .choose(2, 1);"))
@@ -861,10 +861,8 @@ class NoiseMutants(unittest.TestCase):
         self.assertEqual([c["now"].strip() for c in changes], [".choose(1, 2);", ".choose(2, 3);"])
         self.assertEqual((changes[0]["line"], changes[0]["what"], changes[0]["was"]), (2, "2 to 1", "    .choose(2, 2);"))
 
-    def test_a_sentence_end_left_out_is_named_by_the_lane_with_the_rule(self):
-        why = lane.known_equivalent(survived(HARLEQUIN, 8, "statement left out", "    // (left out by card-mutate)"))
-        self.assertIn("CR 603.8", why)
-        self.assertIn("Means the same", why)
+    def test_a_sentence_end_needs_card_specific_equivalence_evidence(self):
+        self.assertIsNone(lane.known_equivalent(survived(HARLEQUIN, 8, "statement left out", "    // (left out by card-mutate)")))
         self.assertIsNone(lane.known_equivalent(survived(HARLEQUIN, 9, "statement left out", "    // (left out by card-mutate)")))
         self.assertIsNone(lane.known_equivalent(survived(HARLEQUIN, 7, "1 to 2", "    g.draw(item.controller, 2);")))
         self.assertIsNone(lane.known_equivalent({"key": "keyword Trample", "detail": "d"}))
@@ -892,13 +890,14 @@ class SurvivorReport(unittest.TestCase):
                                                       "ran": {"harlequin-enters.cantrip": {7, 8, 9}, "harlequin-freerunning.cantrip": {7}}}, survivors)
         return gates.results[-1], json.loads(self.report.read_text(encoding="utf-8"))
 
-    def test_a_sentence_end_left_out_costs_no_submit_and_stays_in_the_report(self):
+    def test_a_sentence_end_requires_evidence_and_old_auto_credit_is_removed(self):
+        prior = json.loads(self.report.read_text())
+        prior['equivalent_mutants'] = [{'mutant': self.noise['key'], 'why': 'old blanket exemption', 'by': 'lane'}]
+        self.report.write_text(json.dumps(prior))
         result, report = self.gate([self.noise])
-        self.assertTrue(result["ok"], result["detail"])
-        self.assertEqual([(e["mutant"], e["by"]) for e in report["equivalent_mutants"]], [("line 8: statement left out", "lane")])
-        self.assertIn("CR 603.8", report["equivalent_mutants"][0]["why"])
-        self.gate([self.noise])
-        self.assertEqual(len(json.loads(self.report.read_text(encoding="utf-8"))["equivalent_mutants"]), 1, "named once, however many submits")
+        self.assertFalse(result["ok"])
+        self.assertIn('line 8: g.end_sentence();', result['detail'])
+        self.assertEqual(report['equivalent_mutants'], [])
 
     def test_a_key_the_worker_named_is_left_to_it(self):
         self.report.write_text(json.dumps({"decision": "done", "validation": self.validation, "equivalent_mutants": [{"mutant": "line 8: statement left out", "why": "mine"}]}), encoding="utf-8")
@@ -910,7 +909,7 @@ class SurvivorReport(unittest.TestCase):
         result, _ = self.gate([self.noise, self.real])
         self.assertFalse(result["ok"])
         detail = result["detail"]
-        self.assertNotIn("line 8", detail)
+        self.assertIn("line 8: g.end_sentence();", detail)
         self.assertIn("line 9: g.lose_life(item.controller, 1);", detail)
         self.assertIn("printed line 2: When this creature enters, you draw a card and you lose 1 life.", detail)
         self.assertIn("ran in: harlequin-enters\n", detail)
