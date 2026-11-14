@@ -58,8 +58,8 @@
   "active_mtgish_source": {
     "version": "20261001.1",
     "oracle_json_sha256": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
-    "source_ron_sha256": "b78e350207267997254e2b3b9e25f27cc17ed76d5744eebcff99eeba13691daa",
+    "source_ron_sha256": "511ef7b79283da212b2504304e9bfde396574c737733abb2408eaf57b487ffe2",
     "adoption_records": 33529,
-    "approved_changed_records": 6
+    "approved_changed_records": 7
   }
 }

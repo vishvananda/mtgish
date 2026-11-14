@@ -9743,10 +9743,11 @@
   {
     "name": "Snowfall",
     "issues": [
-      43
+      43,
+      289
     ],
     "contains": [
-      "rmanent, IsSupertype(Snow)), [PlayerMayAction(ControllerOfPermanent(Trigger_ThatPermanent), AddManaWithModifiers(And([ManaProduceU, ManaProduceU]), CanOnlySpendOnCumulativeUpkeepCosts))], [PlayerMayAction(ControllerOfPermanent(Trigger_ThatPermanent), AddManaWithModifiers(ManaProduceU, CanOnlySpendOnCumulativeUpkeepCosts))])]))])"
+      "rmanent, IsSupertype(Snow)), [PlayerMayAction(ControllerOfPermanent(Trigger_ThatPermanent), AddManaWithModifiers(Or([ManaProduceU, And([ManaProduceU, ManaProduceU])]), CanOnlySpendOnCumulativeUpkeepCosts))], [PlayerMayAction(ControllerOfPermanent(Trigger_ThatPermanent), AddManaWithModifiers(ManaProduceU, CanOnlySpendOnCumulativeUpkeepCosts))])]))])"
     ],
     "excludes": [
       "rmanent, IsSupertype(Snow)), [AddManaWithModifiers(And([ManaProduceU, ManaProduceU]), CanOnlySpendOnCumulativeUpkeepCosts)], [AddManaWithModifiers(ManaProduceU, CanOnlySpendOnCumulativeUpkeepCosts)])]))])"

@@ -1215973,9 +1215973,12 @@ Card(
             PlayerMayAction(
               ControllerOfPermanent(Trigger_ThatPermanent),
               AddManaWithModifiers(
-                And([
+                Or([
                   ManaProduceU,
-                  ManaProduceU,
+                  And([
+                    ManaProduceU,
+                    ManaProduceU,
+                  ]),
                 ]),
                 CanOnlySpendOnCumulativeUpkeepCosts,
               ),
