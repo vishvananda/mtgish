@@ -13,7 +13,9 @@ snapshot promotion rejects a different head, including one with a successful
 test receipt. Collection of confirmed card work continues without promoting the
 moving integration tip into the foundation.
 
-Publish the confirmed cards in independent PRs containing at most twenty cards.
+Publish the confirmed cards in independent PRs, normally twenty new cards each.
+The user approved putting Sorrow's Path into the last batch as its twenty-first
+card rather than creating a separate one-card packet: ten PRs for 201 new cards.
 Preserve one commit per card and its existing independent review evidence. Every
 group has the same foundation parent; no group depends on a sibling card group.
 Validate the combined approved export and each group's actual card scenarios and
