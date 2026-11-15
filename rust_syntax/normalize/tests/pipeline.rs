@@ -78,10 +78,10 @@ fn structural_pass_preserves_every_fixture_field_and_layout_through_rust_source_
 }
 
 #[test]
-fn unsupported_parents_do_not_hide_nested_actions_or_discard_source_operands() {
+fn player_policy_parents_preserve_nested_actions_and_source_operands() {
     let s=custom("SpellActions(ActionList([ActionForEachPlayerInTurnOrder(AnyPlayer,[PutPermanentIntoItsOwnersHand(ThisPermanent)])]))");
     let intermediate = pipeline::Intermediate::new(&s).unwrap();
-    assert!(intermediate.final_card.is_none());
+    assert!(intermediate.final_card.is_some(), "the explicit player policy now lowers");
     assert_eq!(intermediate.structural.rewrites.len(), 1);
     assert!(matches!(
         intermediate.structural.rewrites[0].surface,

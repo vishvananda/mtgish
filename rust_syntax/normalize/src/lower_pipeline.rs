@@ -224,7 +224,7 @@ impl Context {
                 evaluation,
                 ..
             } => {
-                let changes = match change {
+                let mut changes = match change {
                     ChangeTemplate::ControllerOfActor => {
                         let PlayerSet::One(player) = actor else {
                             return Err(invalid("control effect requires one actor"));
@@ -244,6 +244,18 @@ impl Context {
                         self.duration(&duration).map_err(|e| e.at("duration"))?
                     }
                 };
+                // A fixed "your next untap" deadline also fixes whose untap
+                // step the prohibition refers to, even after a control change.
+                if let Duration::DuringNextUntapStep(player) = &duration {
+                    for change in &mut changes {
+                        if let Change::Rule(RuleChange::UntapStep {players, ..}) = change {
+                            if matches!(players, PlayerSet::One(PlayerRef::ControllerOf(object))
+                                if matches!(object.as_ref(), ObjectRef::Affected)) {
+                                *players = PlayerSet::One(player.clone());
+                            }
+                        }
+                    }
+                }
                 // A single pre-exile permanent may return as several cards.
                 // An unconditional keyword grant applies to every actual return.
                 if matches!(evaluation, EffectEvaluation::Snapshot)

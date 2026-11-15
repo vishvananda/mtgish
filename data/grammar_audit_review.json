@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "eb8be51bd256f4293e03f328b9c2abe0856f0ecef88c012149c714a084e2c8de"
+    "grammars/english_grammar.json5": "c5bdff41addd227f64237d38ece0f57a4cef44e4daf82a4ee0d04fb4e3affa16"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -5422,7 +5422,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "eb8be51bd256f4293e03f328b9c2abe0856f0ecef88c012149c714a084e2c8de",
+    "grammars/english_grammar.json5": "c5bdff41addd227f64237d38ece0f57a4cef44e4daf82a4ee0d04fb4e3affa16",
     "grammars/find_replace.json5": "31299e88eae7e46c45c73772c6663a450943d928ce83cf976c34f6ee9b85f577",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -8102,5 +8102,10 @@
     "new_findings": 0,
     "unchanged_reviewed_findings": 182,
     "evidence": "All182 complete finding rows and matched usage unchanged in fresh full frozen-input parse. Only English and Source-syntax grammar fingerprints advance. One new exact literal-mining false positive reviewed: the explicit one-on-top three-card template does not require the word rest. See docs/aladdins-lamp-leaves-card-20261114.md."
+  },
+  "grammar_023_adoption_20261115": {
+    "proof": "docs/oracle-grammar-023-adoption-20261115.md",
+    "existing_finding_ids_unchanged": 182,
+    "changes": "Explicit actors, linked-card aggregate/filter definitions, positive copy-type guards and once-bound shared X."
   }
 }

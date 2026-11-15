@@ -31,9 +31,17 @@ fn all_published_021_amendment_operands_are_produced_and_validate() {
                                 &actual[part.as_str().unwrap()]
                             };
                         }
-                        if actual != &change["to"] {
+                        let mut expected = change["to"].clone();
+                        // U0046 corrects the actor inside this earlier U0035
+                        // observed-hand expression. Preserve the old ledger.
+                        if group["id"] == "U0035" && face.name == "Thought Prison" {
+                            let owner = expected.pointer_mut("/args/filter/args/1/args/args").unwrap();
+                            assert_eq!(*owner, serde_json::json!({"kind":"AbilityController"}));
+                            *owner = serde_json::json!({"kind":"Acting"});
+                        }
+                        if actual != &expected {
                             errors.push(format!("{}: {} {:?}: {actual:?} != {:?}",
-                                face.name, group["id"], change["path"], change["to"]));
+                                face.name, group["id"], change["path"], expected));
                         }
                         checked += 1;
                     }

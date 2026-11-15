@@ -2,23 +2,23 @@
   "format_version": 1,
   "release": {
     "repository": "vishvananda/oracle-grammar",
-    "tag": "faces-oracle-20261112220158-s191-g0.2.1-r1",
-    "url": "https://github.com/vishvananda/oracle-grammar/releases/tag/faces-oracle-20261112220158-s191-g0.2.1-r1",
-    "manifest_url": "https://github.com/vishvananda/oracle-grammar/releases/download/faces-oracle-20261112220158-s191-g0.2.1-r1/manifest.json",
-    "manifest_sha256": "c0fdd3bef9aef1446c1c6287d396f71574522b54cbea0e207d1586e452251b4a",
-    "published_at": "2026-11-14T22:15:46Z"
+    "tag": "faces-oracle-20261112220158-s191-g0.2.2-r1",
+    "url": "https://github.com/vishvananda/oracle-grammar/releases/tag/faces-oracle-20261112220158-s191-g0.2.2-r1",
+    "manifest_url": "https://github.com/vishvananda/oracle-grammar/releases/download/faces-oracle-20261112220158-s191-g0.2.2-r1/manifest.json",
+    "manifest_sha256": "a01338c93c05661b219153cd58a9998abddc3b61728cfcc768b45bc3f77257ed",
+    "published_at": "2026-11-15T04:03:13Z"
   },
   "grammar": {
-    "commit": "113228bef8457a9fd0e7f5d30e35d50841e42bd7",
+    "commit": "47086128025088c55e5c9999ef721393f87f1308",
     "crate": "oracle-ir-grammar",
-    "inputs_sha256": "6f3b932e859d8c02544251404e0e2a6f238249bbd28b8469d0fbd8c6eb2d5c21",
-    "version": "0.2.1"
+    "inputs_sha256": "645462ae6e254ca3d042df2333570c4a4e2873c587ee308dd8fe1dbe806477ca",
+    "version": "0.2.2"
   },
   "model": {
     "packages": {
-      "oracle-ir": "0.2.0",
-      "oracle-ir-contract": "0.2.1",
-      "oracle-ir-grammar": "0.2.1"
+      "oracle-ir": "0.2.1",
+      "oracle-ir-contract": "0.2.2",
+      "oracle-ir-grammar": "0.2.2"
     },
     "schema_version": 191
   },
@@ -35,15 +35,15 @@
     "sha256": "e3a0545f8b4377670692c96e33a397363ae35310f95859bb0a70a6cd04ef02cf"
   },
   "exporter": {
-    "commit": "113228bef8457a9fd0e7f5d30e35d50841e42bd7",
+    "commit": "47086128025088c55e5c9999ef721393f87f1308",
     "revision": 1
   },
   "counts": {
     "counts": {
-      "ambiguous": 807,
+      "ambiguous": 806,
       "limit": 0,
-      "refused": 16937,
-      "unique": 24935
+      "refused": 16934,
+      "unique": 24939
     },
     "gates": {
       "exact_wording": "not_run",
@@ -58,8 +58,8 @@
   "active_mtgish_source": {
     "version": "20261001.1",
     "oracle_json_sha256": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
-    "source_ron_sha256": "6b3d950684b75e77df81bb88370a9d1ce518b3c98984367961a771e18500363b",
+    "source_ron_sha256": "be98c861573a5d33d831f9235e0468ddf16e411e58ad71c711d939734d464736",
     "adoption_records": 33529,
-    "approved_changed_records": 13
+    "approved_changed_records": 14
   }
 }

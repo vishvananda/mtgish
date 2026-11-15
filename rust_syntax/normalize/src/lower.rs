@@ -2565,8 +2565,22 @@ impl Context {
                         // MTGish #190: "for each" repeats an adjustment; a
                         // negative count performs it zero times. Signed PT
                         // arithmetic itself must keep its ordinary meaning.
+                        fn nonnegative(value: &Expr) -> bool {
+                            match value {
+                                Expr::Constant(n) => *n >= 0,
+                                Expr::CountObjects(_) | Expr::CountPlayers(_)
+                                | Expr::CountCounters { .. } | Expr::CountManaSymbols { .. }
+                                | Expr::CountDistinct { .. }
+                                | Expr::PlayerNumber {number: PlayerNumber::UnspentMana, ..} => true,
+                                Expr::Add(a, b) | Expr::Multiply(a, b) | Expr::Minimum(a, b) =>
+                                    nonnegative(a) && nonnegative(b),
+                                Expr::Maximum(a, b) => nonnegative(a) || nonnegative(b),
+                                _ => false,
+                            }
+                        }
                         let n = match self.number(n)? {
                             Expr::Constant(n) => Expr::Constant(n.max(0)),
+                            n if nonnegative(&n) => n,
                             // These expressions are cardinalities already.
                             n @ (Expr::CountObjects(_)
                             | Expr::CountPlayers(_)
@@ -3105,6 +3119,7 @@ impl Context {
     }
 
     fn reduced_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let Some(step) = self.player_action_frame(value, actor) { return step; }
         if let Some(result) = self.search_action(value, actor) {
             return result;
         }
@@ -6826,6 +6841,7 @@ include!("lower_pipeline.rs");
 include!("lower_groups.rs");
 include!("lower_mechanics.rs");
 include!("lower_operand_pipeline.rs");
+include!("lower_player_frames.rs");
 include!("lower_program_pipeline.rs");
 include!("lower_selector_pipeline.rs");
 include!("lower_number_pipeline.rs");

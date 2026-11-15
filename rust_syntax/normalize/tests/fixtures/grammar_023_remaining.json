@@ -1,0 +1,753 @@
+[
+  {
+    "names": [
+      "Frankenstein's Monster"
+    ],
+    "reason": "Existing equivalent selection encodings: ChooseObjects/Selected plus Move versus WithSelections. This predates the adoption and is reported for owner normalization.",
+    "changes": [
+      {
+        "path": "/0/0/args/body/instructions",
+        "reference": [
+          {
+            "kind": "Effect",
+            "args": {
+              "result": 0,
+              "operation": {
+                "kind": "WithSelections",
+                "args": {
+                  "steps": [
+                    {
+                      "binding": 0,
+                      "chooser": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Graveyard",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      },
+                      "count": {
+                        "AsManyAsCan": {
+                          "kind": "CastX",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      },
+                      "constraints": []
+                    }
+                  ],
+                  "action": {
+                    "kind": "Move",
+                    "args": {
+                      "objects": {
+                        "kind": "Prepared",
+                        "args": 0
+                      },
+                      "destination": {
+                        "Exile": {
+                          "visibility": "FaceUp",
+                          "arrival": {
+                            "counters": [],
+                            "states": []
+                          }
+                        }
+                      },
+                      "qualifiers": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "kind": "If",
+            "args": {
+              "condition": {
+                "kind": "Compare",
+                "args": {
+                  "left": {
+                    "kind": "CountObjects",
+                    "args": {
+                      "kind": "Matching",
+                      "args": {
+                        "objects": {
+                          "kind": "Transition",
+                          "args": {
+                            "result": 0,
+                            "phase": "After"
+                          }
+                        },
+                        "filter": {
+                          "kind": "InZone",
+                          "args": {
+                            "Shared": "Exile"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "test": {
+                    "kind": "Compare",
+                    "args": {
+                      "comparison": "Equal",
+                      "value": {
+                        "kind": "CastX",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "then": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "Entry": {
+                              "CountersOfChoice": {
+                                "kinds": [
+                                  {
+                                    "PowerToughness": [
+                                      2,
+                                      0
+                                    ]
+                                  },
+                                  {
+                                    "PowerToughness": [
+                                      1,
+                                      1
+                                    ]
+                                  },
+                                  {
+                                    "PowerToughness": [
+                                      0,
+                                      2
+                                    ]
+                                  }
+                                ],
+                                "amount": {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "Matching",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Matching",
+                                        "args": {
+                                          "objects": {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 0,
+                                              "phase": "After"
+                                            }
+                                          },
+                                          "filter": {
+                                            "kind": "CardType",
+                                            "args": "Creature"
+                                          }
+                                        }
+                                      },
+                                      "filter": {
+                                        "kind": "InZone",
+                                        "args": {
+                                          "Shared": "Exile"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "distinct": false
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "otherwise": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967294,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetDestination": "OwnersGraveyard"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "source": [
+          {
+            "kind": "Effect",
+            "args": {
+              "result": 0,
+              "operation": {
+                "kind": "ChooseObjects",
+                "args": {
+                  "player": {
+                    "kind": "AbilityController"
+                  },
+                  "objects": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    }
+                  },
+                  "count": {
+                    "AsManyAsCan": {
+                      "kind": "CastX",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "constraints": []
+                }
+              }
+            }
+          },
+          {
+            "kind": "Effect",
+            "args": {
+              "result": 1,
+              "operation": {
+                "kind": "Move",
+                "args": {
+                  "objects": {
+                    "kind": "Selected",
+                    "args": 0
+                  },
+                  "destination": {
+                    "Exile": {
+                      "visibility": "FaceUp",
+                      "arrival": {
+                        "counters": [],
+                        "states": []
+                      }
+                    }
+                  },
+                  "qualifiers": []
+                }
+              }
+            }
+          },
+          {
+            "kind": "If",
+            "args": {
+              "condition": {
+                "kind": "Compare",
+                "args": {
+                  "left": {
+                    "kind": "Difference",
+                    "args": [
+                      {
+                        "kind": "CountObjects",
+                        "args": {
+                          "kind": "Matching",
+                          "args": {
+                            "objects": {
+                              "kind": "Matching",
+                              "args": {
+                                "objects": {
+                                  "kind": "Transition",
+                                  "args": {
+                                    "result": 1,
+                                    "phase": "After"
+                                  }
+                                },
+                                "filter": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                }
+                              }
+                            },
+                            "filter": {
+                              "kind": "InZone",
+                              "args": {
+                                "Shared": "Exile"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "CastX",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    ]
+                  },
+                  "test": {
+                    "kind": "Compare",
+                    "args": {
+                      "comparison": "Equal",
+                      "value": {
+                        "kind": "Constant",
+                        "args": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "then": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "Entry": {
+                              "CountersOfChoice": {
+                                "kinds": [
+                                  {
+                                    "PowerToughness": [
+                                      2,
+                                      0
+                                    ]
+                                  },
+                                  {
+                                    "PowerToughness": [
+                                      1,
+                                      1
+                                    ]
+                                  },
+                                  {
+                                    "PowerToughness": [
+                                      0,
+                                      2
+                                    ]
+                                  }
+                                ],
+                                "amount": {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "Matching",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Matching",
+                                        "args": {
+                                          "objects": {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 1,
+                                              "phase": "After"
+                                            }
+                                          },
+                                          "filter": {
+                                            "kind": "CardType",
+                                            "args": "Creature"
+                                          }
+                                        }
+                                      },
+                                      "filter": {
+                                        "kind": "InZone",
+                                        "args": {
+                                          "Shared": "Exile"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "distinct": false
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "otherwise": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967294,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetDestination": "OwnersGraveyard"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "names": [
+      "Total War"
+    ],
+    "reason": "Existing equivalent predicate encodings: Not(Condition(c)) versus Condition(Not(c)); reported for owner normalization.",
+    "changes": [
+      {
+        "path": "/0/0/args/body/instructions/0/args/operation/args/objects/args/filter/args/3",
+        "reference": {
+          "kind": "Condition",
+          "args": {
+            "kind": "Not",
+            "args": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Object": {
+                        "event": "Attacks",
+                        "objects": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Candidate"
+                          }
+                        }
+                      }
+                    },
+                    "window": "ThisCombat",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "source": {
+          "kind": "Not",
+          "args": {
+            "kind": "Condition",
+            "args": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Object": {
+                        "event": "Attacks",
+                        "objects": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Candidate"
+                          }
+                        }
+                      }
+                    },
+                    "window": "ThisCombat",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "names": [
+      "Vexing Arcanix"
+    ],
+    "reason": "Existing revealed-top-card encodings differ in redundant Matching(Any) and the guarded live top-card selector versus the observed receipt; reported for owner normalization.",
+    "changes": [
+      {
+        "path": "/0/0/args/body/instructions/2/args/condition/args/left/args",
+        "reference": {
+          "kind": "Observed",
+          "args": 0
+        },
+        "source": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "Observed",
+              "args": 0
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        }
+      },
+      {
+        "path": "/0/0/args/body/instructions/2/args/then/instructions/0/args/then/instructions/0/args/operation/args/objects",
+        "reference": {
+          "kind": "Observed",
+          "args": 0
+        },
+        "source": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Target",
+                        "args": {
+                          "slot": 0,
+                          "index": 0
+                        }
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        }
+      },
+      {
+        "path": "/0/0/args/body/instructions/2/args/then/instructions/0/args/otherwise/instructions/0/args/operation/args/objects",
+        "reference": {
+          "kind": "Observed",
+          "args": 0
+        },
+        "source": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Target",
+                        "args": {
+                          "slot": 0,
+                          "index": 0
+                        }
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "names": [
+      "Infernal Denizen"
+    ],
+    "reason": "Contested U0044: CR 118.3 and 118.12 specify a mandatory resolution-time cost and payment-start receipt. Retain PayCost pending reconciliation; U0046 actor fixes are still adopted. See oracle-grammar #24 follow-up.",
+    "changes": [
+      {
+        "path": "/0/0/args/body/instructions/0/args/operation",
+        "reference": {
+          "kind": "Sacrifice",
+          "args": {
+            "players": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            },
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Battlefield"
+                },
+                "kind": "Permanent",
+                "filter": {
+                  "kind": "Subtype",
+                  "args": "Swamp"
+                }
+              }
+            },
+            "choose": {
+              "AsManyAsCan": {
+                "kind": "Constant",
+                "args": 2
+              }
+            }
+          }
+        },
+        "source": {
+          "kind": "PayCost",
+          "args": {
+            "player": {
+              "kind": "AbilityController"
+            },
+            "cost": {
+              "parts": [
+                {
+                  "Sacrifice": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "Subtype",
+                          "args": "Swamp"
+                        }
+                      }
+                    },
+                    "choose": {
+                      "Exactly": {
+                        "kind": "Constant",
+                        "args": 2
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "optional": false
+          }
+        }
+      },
+      {
+        "path": "/0/0/args/body/instructions/1/args/condition",
+        "reference": {
+          "kind": "Compare",
+          "args": {
+            "left": {
+              "kind": "Earlier",
+              "args": {
+                "what": "Sacrificed",
+                "measure": "Count",
+                "result": 0,
+                "filter": null,
+                "by": null
+              }
+            },
+            "test": {
+              "kind": "Compare",
+              "args": {
+                "comparison": "Less",
+                "value": {
+                  "kind": "Constant",
+                  "args": 2
+                }
+              }
+            }
+          }
+        },
+        "source": {
+          "kind": "Not",
+          "args": {
+            "kind": "PaymentChosen",
+            "args": 0
+          }
+        }
+      }
+    ]
+  }
+]

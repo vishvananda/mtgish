@@ -9827,6 +9827,17 @@
    "template": "Look at the top three cards of your library. Put one of those cards into your hand, one on top of your library, and one on the bottom of your library",
    "result": "ActionList([LookAtTheTopNumberCardsOfLibrary(Integer(3), [PutAGenericCardIntoHand, PutAGenericCardOnTopOfLibrary, PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder])])",
    "reason": "Reviewed 2026-11-14 after correcting Aladdin: statistical token/word correlation only. This template explicitly puts one of three cards on top, so PutAGenericCardOnTopOfLibrary is required even though it says one, not rest. It also moves the remaining card to the bottom. No detector rule is weakened."
+  },
+  {
+   "id": "192e14a7862320ea9c29ebb27c779ef1676ddf459d0dfdbd65fd7b5399809c4e",
+   "kind": "mined_word",
+   "rule": "ActivatedActions",
+   "token": "PlayerAction",
+   "word": "adds",
+   "support": "30/31",
+   "template": "Each player adds {{ManaProduceSymbol}}{{ManaProduceSymbol}}{{ManaProduceSymbol}}",
+   "result": "ActionList([EachPlayerAction(AnyPlayer, AddMana(And([{{ManaProduceSymbol[0]}}, {{ManaProduceSymbol[1]}}, {{ManaProduceSymbol[2]}}])))])",
+   "reason": "Reviewed 2026-11-15: EachPlayerAction binds every player before AddMana. A nested PlayerAction wrapper is unnecessary; the word-token heuristic cannot distinguish this actor binder."
   }
  ]
 }
