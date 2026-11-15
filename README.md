@@ -5,6 +5,8 @@ The AST and text grammar are owned by [oracle-grammar](https://github.com/vishva
 The [Cantrip generator and card lanes](https://github.com/vishvananda/cantrip-rs/tree/tools/oracle-codegen-20261115/tools)
 and [Oracle Blocks editor](https://github.com/vishvananda/oracle-blocks) are maintained separately.
 See [component boundaries and the IR handoff](docs/component-boundaries.md).
+Follow the [upstream reporting guidance](docs/upstream-reporting.md) when
+distinguishing MTGish Source defects from consumer lowering problems.
 
 
 ``mtgish`` (pronounced emm-tee-gee-ish, rhymes with english) is an alternate syntax to represent Magic: the Gathering cards, designed for rules engines and AI. The parser itself converts english rules text into mtgish rules text.

@@ -1,5 +1,11 @@
 # GitHub issue reconciliation
 
+This is a historical implementation audit. For current report dispositions and
+corrections to our earlier Source-contract assumptions, see the
+[2026-11-15 actionability review](../mtgish-report-actionability-20261115.md).
+Historical consumer validation totals below do not establish an open upstream
+parser defect.
+
 Reviewed every issue and comment returned for `i5jb/mtgish` on 2026-10-30: seven existing issues and five comments. The [original reports and comments](upstream.json) are saved together. The comments' examples were included: Fisher's Talent, Pestilent Cauldron, Nissa's Judgment, Tokka & Rahzar, Captain's Maneuver, Kiora, and Healing Grace.
 
 The [comment-to-regression index](comments_review.json) links each follow-up to its card examples and semantic assertions. A subsequent API check returned eleven issues and six comments: the original seven reports and five comments, plus the four issues and one comment filed during this review. All original comment bodies are unchanged; no additional unreviewed comments were found.
