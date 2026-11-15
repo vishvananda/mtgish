@@ -459,10 +459,7 @@ fn typecycling_reuses_search_but_retains_keyword_identity_and_canonical_payment(
 #[test]
 fn typecycling_rejects_richer_movement_terms_in_its_fixed_keyword_body() {
     let plain = card("Pale Recluse");
-    #[cfg(feature = "cantrip")]
-    assert!(mtgish_ast::cantrip::module(&plain)
-        .unwrap()
-        .contains(".cycling()"));
+
 
     for (index, (replacement, extra)) in [
         (
@@ -535,11 +532,7 @@ fn typecycling_rejects_richer_movement_terms_in_its_fixed_keyword_body() {
         assert!(validate::card(&rich)
             .unwrap_err()
             .contains("invalid cycling scope"));
-        #[cfg(feature = "cantrip")]
-        assert_eq!(
-            mtgish_ast::cantrip::module(&rich).unwrap_err().feature,
-            "invalid AST"
-        );
+
 
         if index < 2 {
             // Ordinary hand-zone activations may retain richer movement.
@@ -552,10 +545,7 @@ fn typecycling_rejects_richer_movement_terms_in_its_fixed_keyword_body() {
                 }
             }
             validate::card(&rich).unwrap();
-            #[cfg(feature = "cantrip")]
-            if let Err(error) = mtgish_ast::cantrip::module(&rich) {
-                assert_ne!(error.feature, "invalid AST");
-            }
+
         }
     }
 }

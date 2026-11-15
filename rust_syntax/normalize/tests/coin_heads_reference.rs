@@ -56,27 +56,6 @@ fn both_heads_and_both_tails_read_the_flip_receipt_without_winner_aliases() {
             current,
             serde_json::to_value(canonical::mapped_unified(&reread).unwrap().card).unwrap()
         );
-        #[cfg(feature = "cantrip")]
-        {
-            let oracle: Vec<Value> = serde_json::from_reader(
-                std::fs::File::open(
-                    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/oracle.json"),
-                )
-                .unwrap(),
-            )
-            .unwrap();
-            let text = oracle
-                .iter()
-                .find(|c| c["name"] == "Two-Headed Giant")
-                .unwrap()["cards"][0]["text"]
-                .as_str()
-                .unwrap();
-            let printed = std::collections::BTreeMap::from([(face.name.clone(), text.to_string())]);
-            let whole = mtgish_ast::cantrip::whole_printed(&source, &card, Some(&printed)).unwrap();
-            assert!(whole.faces.iter().all(|f| f.gaps.is_empty()));
-            let module = &whole.faces[0].rust;
-            assert!(module.contains("flip_coin_for_heads"));
-            assert!(!module.contains("g.flip_coin("));
-        }
+
     });
 }

@@ -208,25 +208,3 @@ fn canonical_change_binary_tags_require_the_new_schema() {
     // Schema 174 removes OnlyAbilities before this binary discriminant.
     assert_eq!(bytes[0], 42);
 }
-
-#[cfg(feature = "cantrip")]
-#[test]
-fn every_supported_replacement_record_still_generates_a_complete_rust_module() {
-    let mut modules = 0;
-    let mut held = 0;
-    for line in include_str!("fixtures/ability_aliases.ronl").lines() {
-        let source: OracleCard = ron::from_str(line).unwrap();
-        let card = unified::lower(&source).card;
-        match mtgish_ast::cantrip::whole_module(&source, &card) {
-            Ok(code) => {
-                syn::parse_file(&code).unwrap();
-                modules += 1;
-            }
-            Err(_) => {
-                assert!(!mtgish_ast::cantrip::whole_gaps(&source, &card).is_empty());
-                held += 1;
-            }
-        }
-    }
-    assert_eq!((modules, held), (7, 4));
-}

@@ -7,7 +7,6 @@ build = "src/build_tokens.rs"
 [features]
 default = ["legacy"]
 legacy = []
-cantrip = ["legacy", "dep:prettyplease"]
 
 [dependencies]
 oracle-ir-contract = { version = "=0.2.1", default-features = false }
@@ -20,7 +19,6 @@ bincode = "2.0.1"
 syn = { version = "2", features = ["full", "visit", "visit-mut"] }
 quote = "1"
 proc-macro2 = "1"
-prettyplease = { version = "0.2", optional = true }
 
 [build-dependencies]
 oracle-ir-contract = { version = "=0.2.1", default-features = false }
@@ -34,11 +32,6 @@ syn = { version = "2", features = ["full"] }
 [[bin]]
 name = "ast"
 path = "src/bin/ast.rs"
-required-features = ["legacy"]
-
-[[bin]]
-name = "blockly_catalog"
-path = "src/bin/blockly_catalog.rs"
 required-features = ["legacy"]
 
 [dev-dependencies]

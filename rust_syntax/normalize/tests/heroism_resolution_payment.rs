@@ -59,32 +59,3 @@ fn each_controller_pays_before_a_shield_is_created_for_that_creature() {
         }]
     ));
 }
-
-#[cfg(feature = "cantrip")]
-#[test]
-fn corrected_payment_timing_does_not_claim_correct_payment_ordering() {
-    use mtgish_ast::{cantrip, unified};
-    let source = source();
-    let result = cantrip::whole(&source, &unified::lower(&source).card).unwrap();
-    assert!(result.faces[0].gaps.iter().any(|gap|
-        gap.feature == "per-object controller payment choice order and simultaneous follow-up"
-    ), "{:?}", result.faces[0].gaps);
-    let code = &result.faces[0].rust;
-    syn::parse_file(code).unwrap();
-    assert!(code.contains("planned!"), "{code}");
-    assert!(!code.contains("g.may_pay("), "{code}");
-}
-
-#[cfg(feature = "cantrip")]
-#[test]
-fn the_ordering_gap_follows_the_program_not_the_card_name() {
-    use mtgish_ast::{cantrip, unified};
-    let source: OracleCard = ron::from_str(
-        &include_str!("fixtures/heroism_resolution_payment.ronl")
-            .replace("Heroism", "Controller payment ordering witness"),
-    ).unwrap();
-    let result = cantrip::whole(&source, &unified::lower(&source).card).unwrap();
-    assert!(result.faces[0].gaps.iter().any(|gap|
-        gap.feature == "per-object controller payment choice order and simultaneous follow-up"
-    ), "{:?}", result.faces[0].gaps);
-}

@@ -22,6 +22,8 @@ pub use oracle_ir_contract::presentation;
 pub mod report;
 #[cfg(feature = "legacy")]
 pub mod oracle_export;
+#[cfg(feature = "legacy")]
+pub mod artifacts;
 pub use oracle_ir_contract::result_reads;
 use oracle_ir_contract::source_values;
 #[cfg(feature = "legacy")]
@@ -32,10 +34,6 @@ use oracle_ir_contract::subtype;
 #[cfg(feature = "legacy")]
 mod spell_paragraphs;
 
-#[cfg(feature = "cantrip")]
-pub mod cantrip;
-#[cfg(feature = "cantrip")]
-mod cantrip_vocab;
 
 #[cfg(feature = "legacy")]
 pub mod inventory;

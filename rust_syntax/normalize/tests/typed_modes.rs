@@ -143,14 +143,3 @@ fn strict_legacy_modes_refuse_unknown_fields_and_ambiguous_mechanisms() {
     let error = human::read(&bad).unwrap_err();
     assert!(error.contains("unbound target"), "{error}");
 }
-
-#[cfg(feature="cantrip")]
-#[test]
-fn last_combat_history_keeps_additional_mode_policies_in_generated_output() {
-    let card=human::read(&code("{options:[{weight:1,do:[DrawCards{players:You,amount:1}]},{weight:2,do:[GainLife{players:You,amount:2}]}],rules:{availability:Unchosen(LastCombat(You)),targets:Distinct},mechanism:Announced{chooser:OneOf(OpponentsOf(You)),method:Random},budget:Some(3)}")).unwrap();
-    assert!(mtgish_ast::cantrip::module(&card.faces[0]).is_err());
-    let gaps=mtgish_ast::cantrip::gaps(&card.faces[0]);
-    for retained in ["modes with distinct targets","modes chosen by another player","modes chosen at random","modes with a budget"] {
-        assert!(gaps.iter().any(|gap|gap.feature==retained),"lost {retained}: {gaps:?}");
-    }
-}

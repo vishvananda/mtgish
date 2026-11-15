@@ -209,39 +209,7 @@ fn choice_codec_has_one_operation_and_typed_cardinality_tags() {
     .unwrap();
     assert_eq!(bytes[0], 92);
 }
-#[cfg(feature = "cantrip")]
-#[test]
-fn entering_choices_and_rich_backend_gaps_keep_their_paths() {
-    for (name, needle) in [
-        ("Seal of the Guildpact", "entering.chosen_number"),
-        ("Sower of Discord", "entering.chosen_player"),
-        ("Greymond, Avacyn's Stalwart", "choose"),
-        ("Imagecrafter", "ChooseSubtype"),
-        ("Gabriel Angelfire", "Duration::UntilNextStepOf"),
-    ] {
-        let (source, _) = card(name);
-        let lowered = unified::lower(&source);
-        let code = mtgish_ast::cantrip::whole_module(&source, &lowered.card).unwrap();
-        assert!(code.contains(needle), "{name}: {code}");
-        syn::parse_file(&code).unwrap();
-    }
-    for (name, feature) in [
-        ("The Toymaker's Trap", "a value chosen in secret"),
-        ("Rite of Ruin", "operation ChooseValueWith"),
-        ("Desert Cenote", "operation ChooseValueWith"),
-        ("Alhammarret, High Arbiter", "name choice And"),
-        (
-            "Phyrexian Splicer",
-            "a value chosen as an activation cost, read by its targets",
-        ),
-        ("Zombie Boa", "a choice of Color outside its body"),
-    ] {
-        let (source, _) = card(name);
-        let lowered = unified::lower(&source);
-        let gaps = mtgish_ast::cantrip::whole_gaps(&source, &lowered.card);
-        assert!(format!("{gaps:?}").contains(feature), "{name}: {gaps:?}");
-    }
-}
+
 
 #[test]
 fn dynamic_choice_cardinality_uses_the_current_abilitys_result_scope() {

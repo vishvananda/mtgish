@@ -7,13 +7,7 @@ fn glyph_delusion_grants_both_abilities_without_a_duration() {
     let Instruction::Effect {operation:Operation::CreateContinuousEffect {changes,duration,..},..}=&body.instructions[1] else {panic!("{body:?}")};
     assert!(matches!(duration,Duration::Indefinite));assert_eq!(changes.len(),2);
     assert!(changes.iter().all(|c|matches!(c,Change::GrantAbility(_))));
-    #[cfg(feature="cantrip")]
-    {
-        let generated=mtgish_ast::cantrip::whole(&source,&lowered.card).unwrap();let face=&generated.faces[0];
-        assert!(face.gaps.is_empty(),"{:?}",face.gaps);assert!(face.rust.contains("Duration::Indefinite"));
-        assert!(face.rust.contains("Keyword::DoesNotUntap"));assert!(face.rust.contains("AbilityDef::Static"));
-        assert!(!face.rust.contains("granted_static("));syn::parse_file(&face.rust).unwrap();
-    }
+
 }
 
 #[path="support/source_json.rs"]

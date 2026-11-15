@@ -185,8 +185,7 @@ fn a_private_look_also_supplies_the_observed_subset_to_a_later_optional_choice()
         validate::card(&card).unwrap();
         let expected:Value=serde_json::from_str(include_str!("fixtures/reference_look_choice_expected_20261110.json")).unwrap();
         assert_eq!(canonical_abilities(serde_json::to_value(&card.abilities).unwrap()),canonical_abilities(expected));
-        #[cfg(feature="cantrip")]
-        assert!(mtgish_ast::cantrip::module(&card).is_ok());
+
     });
 }
 
@@ -197,15 +196,14 @@ fn revealing_a_library_after_a_hand_does_not_replace_the_hand_receipt() {
         let card=lower::card(&input).unwrap();validate::card(&card).unwrap();
         let expected:Value=serde_json::from_str(include_str!("fixtures/reference_two_observations_expected_20261110.json")).unwrap();
         assert_eq!(canonical_abilities(serde_json::to_value(&card.abilities).unwrap()),canonical_abilities(expected));
-        #[cfg(feature="cantrip")]
-        assert!(mtgish_ast::cantrip::module(&card).is_ok());
+
     });
 }
 
 #[test]
 fn prepared_186_named_documents_use_the_same_explicit_epoch_migration() {
     corpus::on_large_stack(|| {
-        let cases:Value=serde_json::from_str(include_str!("../tools/blockly/fixtures/workspaces-local-v6-schema186.json")).unwrap();
+        let cases:Value=serde_json::from_str(include_str!("fixtures/workspaces-local-v6-schema186.json")).unwrap();
         for case in cases.as_array().unwrap() {
             let old=&case["document"];
             let doc=mtgish_ast::human::document::Document::from_json(&serde_json::to_string(old).unwrap()).unwrap();

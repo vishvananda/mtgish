@@ -23,22 +23,7 @@ fn complete_cards_preserve_all_operands_except_reviewed_damage_source_and_actor(
             let source: source::OracleCard = ron::from_str(line).unwrap();
             let c = lower::card(&source).unwrap();
             validate::card(&c).unwrap();
-            #[cfg(feature = "cantrip")]
-            {
-                let code = mtgish_ast::cantrip::module(&c);
-                code.as_ref()
-                    .unwrap_or_else(|error| panic!("{}: {error:?}", c.name));
-                if let Ok(dir) = std::env::var("REFERENCE_FIX_EVIDENCE") {
-                    match code {
-                        Ok(code) => std::fs::write(format!("{dir}/{}.rs", c.name), code).unwrap(),
-                        Err(error) => std::fs::write(
-                            format!("{dir}/{}.gap.json", c.name),
-                            serde_json::to_vec_pretty(&error).unwrap(),
-                        )
-                        .unwrap(),
-                    }
-                }
-            }
+
             let actual = normalized(serde_json::to_value(c.abilities).unwrap());
             let expected = normalized(expected[&c.name].clone());
             if let Ok(dir) = std::env::var("REFERENCE_FIX_EVIDENCE") {

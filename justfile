@@ -97,21 +97,6 @@ ast_pipeline_candidates source_type="Action" report="/tmp/mtgish-pipeline.json" 
   cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- pipeline-candidates {{report}} {{source_type}} {{output}}
 
 [group('ast')]
-[doc("Compile generated modules against ../cantrip and execute deterministic core scenarios")]
-ast_cantrip_test:
-  cargo test --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml --features cantrip -p mtgish-ast --test cantrip_backend generated_modules_execute_in_cantrip -- --ignored
-
-[group('ast')]
-[doc("Compile every backend-capable record from a fresh ast_cantrip_check report")]
-ast_cantrip_corpus_test coverage:
-  MTGISH_AST_COVERAGE={{coverage}} cargo test --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml --features cantrip -p mtgish-ast --test cantrip_backend every_advertised_module_compiles_against_cantrip -- --ignored
-
-[group('ast')]
-[doc("Explicit deferred backend capability scan; normal ast_check skips this")]
-ast_cantrip_check: make_temp
-  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml --features cantrip -p mtgish-ast --bin ast -- check-cantrip {{BASE_DIR}}/data/mtgish.lines.ron {{TEMP_DIR}}/ast.cantrip.coverage.json {{BASE_DIR}}/data/ast_baseline.json
-
-[group('ast')]
 [doc("Fail if a card that was complete in a saved coverage report no longer is, unless reviewed")]
 ast_compare before after="/tmp/mtgish/ast.coverage.json":
   cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- coverage-compare {{before}} {{after}} {{BASE_DIR}}/data/ast_reviewed_losses.json
@@ -493,3 +478,8 @@ typescript_check_unused:
 ##  bun json5 mtgish_grammar-triggers.json5       | LC_ALL=C jq -S . | sponge mtgish_grammar-triggers.json5
 ##  bun json5 mtgish_grammar-type_line.json5      | LC_ALL=C jq -S . | sponge mtgish_grammar-type_line.json5
 ##cd {{BASE_DIR}}
+
+[group('ast')]
+[doc("Export portable IR records for independent consumers")]
+ast_export_ir output:
+  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- export-ir-records {{BASE_DIR}}/data/mtgish.lines.ron {{output}}

@@ -1,5 +1,12 @@
 # mtgish (card parser + card representation)
 
+This fork owns MTGish → published Oracle IR lowering and comparison with Grammar exports.
+The AST and text grammar are owned by [oracle-grammar](https://github.com/vishvananda/oracle-grammar).
+The [Cantrip generator and card lanes](https://github.com/vishvananda/cantrip-rs/tree/tools/oracle-codegen-20261115/tools)
+and [Oracle Blocks editor](https://github.com/vishvananda/oracle-blocks) are maintained separately.
+See [component boundaries and the IR handoff](docs/component-boundaries.md).
+
+
 ``mtgish`` (pronounced emm-tee-gee-ish, rhymes with english) is an alternate syntax to represent Magic: the Gathering cards, designed for rules engines and AI. The parser itself converts english rules text into mtgish rules text.
 
 As a quick example, the card [Shivan Dragon](https://scryfall.com/card/fdn/763/shivan-dragon) in plain text is:

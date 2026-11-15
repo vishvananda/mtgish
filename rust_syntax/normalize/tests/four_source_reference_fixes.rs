@@ -24,8 +24,7 @@ fn complete_programs_preserve_unrelated_operands_and_fix_all_four_reported_error
             let source: source::OracleCard = ron::from_str(line).unwrap();
             let c = lower::card(&source).unwrap();
             validate::card(&c).unwrap();
-            #[cfg(feature = "cantrip")]
-            mtgish_ast::cantrip::module(&c).unwrap_or_else(|error| panic!("{}: {error:?}", c.name));
+
             let actual = normalized(serde_json::to_value(c.abilities).unwrap());
             let expected = normalized(expected[&c.name].clone());
             if let Ok(dir) = std::env::var("REFERENCE_FIX_EVIDENCE") {

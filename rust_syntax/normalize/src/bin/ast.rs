@@ -145,88 +145,28 @@ fn run() -> Result<()> {
             current.check_identities(&baseline)?;
             eprintln!("validated {} records; identities and layouts preserved", current.records.len());
         }
-        [command, input, output] | [command, input, output, _] if command == "check"||command=="check-cantrip" => {
+        [command, input, output] | [command, input, output, _] if command == "check" => {
             let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_owned();
             let baseline: Option<Manifest> = args.get(3).map(|path| -> Result<Manifest> { Ok(serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?) }).transpose()?;
-            let report = if command=="check-cantrip"{mtgish_ast::report::Report::check_with_backend(Path::new(input),&root,baseline.as_ref())?}else{mtgish_ast::report::Report::check(Path::new(input), &root, baseline.as_ref())?};
+            let report = mtgish_ast::report::Report::check(Path::new(input), &root, baseline.as_ref())?;
             corpus::write_json(Path::new(output), &report)?;
             eprintln!("{} / {} records fully normalized; {} generic operation kinds used; {} unsupported source forms reported", report.complete, report.total, report.operations.len(), report.unsupported.len());
             eprintln!("{} / {} records unified; {} unreduced forms across {} distinct",report.unified,report.total,report.named.values().sum::<usize>(),report.named.len());
             eprintln!("{} complete records depend on no primitive; {} distinct forms block the rest",report.complete_without_primitives,report.blocker_records.len());
             eprintln!("{} semantic families inventoried",report.forms.len());
-            if report.backend_checked{eprintln!("{} records have all required Cantrip generator capabilities",report.backend_capable);}
             if report.complete != report.total { return Err("normalization is incomplete; see coverage report".into()); }
         }
         [command, input, output] if command == "export" => {
             let count = mtgish_ast::report::export_ron(Path::new(input), Path::new(output))?;
             eprintln!("exported {count} fully normalized records");
         }
+        [command, input, output] if command == "export-ir-records" => {
+            let count = mtgish_ast::artifacts::export(Path::new(input), Path::new(output))?;
+            eprintln!("exported {count} portable IR records");
+        }
         [command, input, output] if command == "export-unified" => {
             let count = mtgish_ast::report::export_unified(Path::new(input), Path::new(output))?;
             eprintln!("exported {count} unified records");
-        }
-        [command, input, output] if command == "cantrip" => {
-            #[cfg(feature="cantrip")]
-            {
-            let count = mtgish_ast::cantrip::export(Path::new(input), Path::new(output))?;
-            eprintln!("generated {count} Cantrip modules");
-            }
-            #[cfg(not(feature="cantrip"))]
-            {let _=(input,output);return Err("Cantrip generation requires --features cantrip".into());}
-        }
-        [command, input, oracle, output] if command == "cantrip-files" => {
-            #[cfg(feature="cantrip")]
-            {
-            // Every record, its file as `cantrip-tracked` writes it or its gap, with the same render cache.
-            let cache = mtgish_ast::cantrip::pr_cache::default_dir();
-            let count = mtgish_ast::cantrip::planned::lane_rows(Path::new(input), Path::new(oracle), Path::new(output), cache.as_deref())?;
-            eprintln!("{count} records written");
-            }
-            #[cfg(not(feature="cantrip"))]
-            {let _=(input,oracle,output);return Err("Cantrip generation requires --features cantrip".into());}
-        }
-        [command, input, oracle, output] if command == "cantrip-tracked" => {
-            #[cfg(feature="cantrip")]
-            {
-            // pr_form's renders are kept in the target directory, or MTGISH_PR_FORM_CACHE (`off` for none).
-            let cache = mtgish_ast::cantrip::pr_cache::default_dir();
-            let count = mtgish_ast::cantrip::planned::tracked_cached(Path::new(input), Path::new(oracle), Path::new(output), cache.as_deref())?;
-            println!("{count} tracked cards");
-            }
-            #[cfg(not(feature="cantrip"))]
-            {let _=(input,oracle,output);return Err("Cantrip generation requires --features cantrip".into());}
-        }
-        [command, input, oracle, output, features @ ..] if command == "cantrip-candidate" && !features.is_empty() => {
-            #[cfg(feature="cantrip")]
-            {
-                let features: Vec<&str> = features.iter().map(String::as_str).collect();
-                let count = mtgish_ast::cantrip::planned::with_additional_features(&features, ||
-                    mtgish_ast::cantrip::planned::tracked(Path::new(input), Path::new(oracle), Path::new(output)))?;
-                eprintln!("{count} candidate cards; additional capabilities: {}", features.join(", "));
-            }
-            #[cfg(not(feature="cantrip"))]
-            {let _=(input,oracle,output,features);return Err("Cantrip generation requires --features cantrip".into());}
-        }
-        [command, input, names @ ..] if command == "cantrip-module" && !names.is_empty() => {
-            #[cfg(feature="cantrip")]
-            for (name, module) in mtgish_ast::cantrip::modules_named(Path::new(input), names)? {
-                println!("// ===== {name}\n{module}");
-            }
-            #[cfg(not(feature="cantrip"))]
-            {let _=(input,names);return Err("Cantrip generation requires --features cantrip".into());}
-        }
-        [command, input, output] if command == "cantrip-gaps" => {
-            #[cfg(feature="cantrip")]
-            {
-            let survey = mtgish_ast::cantrip::survey(Path::new(input))?;
-            corpus::write_json(Path::new(output), &survey)?;
-            eprintln!("{} / {} complete primitive-free records generate; {} more are other layouts", survey.capable, survey.complete_without_primitives, survey.other_layouts);
-            for step in survey.greedy.iter().take(60) {
-                eprintln!("{:>6} {:>6}  {}", step.unlocks, step.appears_on, step.feature);
-            }
-            }
-            #[cfg(not(feature="cantrip"))]
-            {let _=(input,output);return Err("Cantrip gaps require --features cantrip".into());}
         }
         [command, input, output] if command == "pretty-source" => {
             let cards = corpus::read_cards(Path::new(input))?;
@@ -237,7 +177,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast compare-oracle-export <fresh-source.ronl> <requests.jsonl> <comparison.json>\n       ast migrate-ir-mapped <old-or-current.ir.json>\n       ast canonical-ir <card.ir.json>\n       ast transport-card-document <document.json> <mapped.json>\n       ast format-card-code <card.card>\n       ast read-card-document <card.card>\n       ast format-card-document <document.json>\n       ast migrate-ir <old-or-current.ir.json>\n       ast card-code <corpus.ronl> <card name>\n       ast read-card-code <card.card>\n       ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast cantrip-files <corpus.ronl> <oracle.json> <rows.jsonl> (requires --features cantrip)\n       ast cantrip-candidate <corpus.ronl> <oracle.json> <rows.jsonl> <additional-feature>... (requires --features cantrip)\n       ast cantrip-module <corpus.ronl> <card name>... (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast compare-oracle-export <fresh-source.ronl> <requests.jsonl> <comparison.json>\n       ast migrate-ir-mapped <old-or-current.ir.json>\n       ast canonical-ir <card.ir.json>\n       ast transport-card-document <document.json> <mapped.json>\n       ast format-card-code <card.card>\n       ast read-card-document <card.card>\n       ast format-card-document <document.json>\n       ast migrate-ir <old-or-current.ir.json>\n       ast card-code <corpus.ronl> <card name>\n       ast read-card-code <card.card>\n       ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-ir-records <corpus.ronl> <records.jsonl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

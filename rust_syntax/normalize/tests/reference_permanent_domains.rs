@@ -100,15 +100,7 @@ fn time_counter_modes_keep_the_counter_requirement_and_suspended_card_domain() {
     }
 }
 
-#[cfg(feature = "cantrip")]
-#[test]
-fn trigger_rule_context_still_requires_a_permanent_source() {
-    // AbilityOf in a trigger rule has an implicit permanent-source domain,
-    // including the look-back source for a leaves-the-battlefield trigger.
-    // Removing the redundant card-type predicate must keep that domain check.
-    let code = mtgish_ast::cantrip::module(&fixtures::card("Fractured Realm")).unwrap();
-    assert!(code.contains("triggering.permanent"), "{code}");
-}
+
 
 #[test]
 fn counter_replacement_retains_the_battlefield_domain_including_typeless_permanents() {

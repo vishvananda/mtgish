@@ -232,14 +232,6 @@ fn optional_adapt_and_monstrosity_subjects_retain_explicit_legacy_intent() {
             serde_json::to_value(canonical::mapped_unified(parsed.card()).unwrap().card).unwrap(),
             serde_json::to_value(canonical::mapped_unified(document.card()).unwrap().card).unwrap()
         );
-        #[cfg(feature = "cantrip")]
-        assert!(format!(
-            "{:?}",
-            mtgish_ast::cantrip::module(&document.card().faces[0]).unwrap_err()
-        )
-        .contains(&format!(
-            "{} of another object",
-            action.to_ascii_lowercase()
-        )));
+
     }
 }

@@ -328,8 +328,7 @@ fn entry_counters_stay_in_the_creation_and_timed_entry_rules_are_named() {
         panic!()
     };
     assert_eq!(body.instructions.len(), 1);
-    #[cfg(feature = "cantrip")]
-    assert!(mtgish_ast::cantrip::module(&c).unwrap().contains("counter"));
+
     let source::Action::CreateTokens(_, flags) = &mut action else {
         panic!()
     };

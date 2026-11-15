@@ -230,72 +230,9 @@ fn scoped_legacy_observations_do_not_confuse_reused_ids_or_future_flips() {
     ));
 }
 
-#[cfg(feature = "cantrip")]
-#[test]
-fn generator_uses_explicit_protocol_without_printed_text_and_reports_unavailable_channels() {
-    for (protocol, expected, other) in [
-        (
-            CoinProtocol::Called,
-            "g.flip_coin(",
-            "g.flip_coin_for_heads(",
-        ),
-        (
-            CoinProtocol::Uncalled,
-            "g.flip_coin_for_heads(",
-            "g.flip_coin(",
-        ),
-    ] {
-        let mut c = card(Operation::FlipCoin {
-            player: PlayerRef::AbilityController,
-            protocol,
-        });
-        let output = mtgish_ast::cantrip::module(&c.faces[0]).unwrap();
-        assert!(output.contains(expected), "{output}");
-        assert!(!output.contains(other), "{output}");
-        let Ability::Spell { body, .. } = &mut c.faces[0].abilities[0] else {
-            panic!()
-        };
-        body.instructions.push(Instruction::If {
-            condition: Condition::CoinFlip {
-                result: ResultId(0),
-                outcome: if protocol == CoinProtocol::Called {
-                    CoinOutcome::Heads
-                } else {
-                    CoinOutcome::Won
-                },
-            },
-            then: Program {
-                instructions: vec![Instruction::Effect {
-                    result: ResultId(1),
-                    operation: Operation::Draw {
-                        players: PlayerSet::One(PlayerRef::AbilityController),
-                        amount: Expr::Constant(1),
-                    },
-                }],
-            },
-            otherwise: Program::empty(),
-        });
-        validate::unified(&c).unwrap();
-        assert!(!mtgish_ast::cantrip::gaps(&c.faces[0]).is_empty());
-    }
-}
 
-#[cfg(feature = "cantrip")]
-#[test]
-#[ignore = "writes generator comparison evidence; set COIN_GENERATOR_OUTPUT"]
-fn all_coin_records_generate_with_the_current_explicit_policies() {
-    let output = std::env::var("COIN_GENERATOR_OUTPUT").unwrap();
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let cache = mtgish_ast::cantrip::pr_cache::default_dir();
-    let n = mtgish_ast::cantrip::planned::lane_rows(
-        &root.join("tests/fixtures/coin_policies.ronl"),
-        &root.join("../../data/oracle.json"),
-        std::path::Path::new(&output),
-        cache.as_deref(),
-    )
-    .unwrap();
-    assert_eq!(n, 76);
-}
+
+
 
 #[test]
 fn implicit_program_tally_is_distinct_from_a_required_receipt() {

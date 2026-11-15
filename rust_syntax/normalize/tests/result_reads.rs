@@ -320,24 +320,7 @@ fn whole_membership_records_preserve_operands_with_the_reviewed_permanent_domain
     }
 }
 
-#[cfg(feature = "cantrip")]
-#[test]
-fn surveil_membership_and_per_object_prevention_keep_their_backend_paths() {
-    for line in include_str!("fixtures/result_membership.ronl").lines() {
-        let source: OracleCard = ron::from_str(line).unwrap();
-        let card = unified::lower(&source).card.faces.remove(0);
-        if card.name == "Enlightened Confidant" {
-            let code = mtgish_ast::cantrip::module(&card).unwrap();
-            assert!(code.contains("surveil_into_graveyard"));
-            assert!(code.contains("moved_0.clone()).contains(&id)"));
-        } else if card.name == "Mutational Advantage" {
-            let code = mtgish_ast::cantrip::module(&card).unwrap();
-            assert!(code.contains("for each in"));
-            assert!(code.contains("Shield::All"));
-            assert!(code.contains("objects_0.clone()"));
-        }
-    }
-}
+
 
 #[test]
 fn named_membership_preserves_availability_and_does_not_become_a_selected_view() {

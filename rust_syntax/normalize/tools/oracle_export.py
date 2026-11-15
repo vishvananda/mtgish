@@ -198,7 +198,7 @@ def parse_source(records, work, cache):
 
 def build_ast(work):
     command = ['cargo', 'build', '--locked', '--manifest-path', str(ROOT/'rust_syntax/Cargo.toml'),
-               '-p', 'mtgish-ast', '--bin', 'ast', '--features', 'cantrip,serde_json/preserve_order',
+               '-p', 'mtgish-ast', '--bin', 'ast', '--features', 'serde_json/preserve_order',
                '--message-format=json']
     with (work/'rust-build.log').open('w') as log:
         result = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
@@ -262,7 +262,7 @@ def check(bundle, oracle, manifest_sha256, work):
                'bundle_manifest_sha256':manifest_sha256, 'source_oracle':manifest['source_oracle'],
                'grammar':manifest['grammar'], 'model':manifest['model'], 'registry_packages':packages,
                'population':manifest['population'], 'bundle_tag':manifest.get('tag'),
-               'build_features':['cantrip','serde_json/preserve_order'],
+               'build_features':['serde_json/preserve_order'],
                'inputs':before, 'fresh_source_sha256':digest(source), 'ast_binary_sha256':digest(binary),
                'parser_exit_code':parser_status, 'comparison_exit_code':result.returncode,
                'comparison_sha256':digest(comparison), 'counts':report['counts']}

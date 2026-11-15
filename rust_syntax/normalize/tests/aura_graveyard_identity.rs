@@ -135,37 +135,3 @@ fn a_replacement_proposal_is_not_an_actual_enchanted_permanent_departure() {
     };
     assert!(!mtgish_ast::semantics::replacement_bindings(&event).enchanted_left);
 }
-
-#[cfg(feature = "cantrip")]
-#[test]
-fn native_aura_query_is_required_before_the_card_can_be_generated() {
-    let source = include_str!("fixtures/aura_graveyard_identity.ronl")
-        .lines()
-        .find(|line| line.contains("Name: \"Puppet Master\""))
-        .unwrap();
-    let source = ron::from_str(source).unwrap();
-    let card = mtgish_ast::lower::card(&source).unwrap();
-    let missing =
-        mtgish_ast::cantrip::planned::with_features(&[], || mtgish_ast::cantrip::module(&card))
-            .unwrap_err();
-    assert!(
-        mtgish_ast::cantrip::planned::requirement(&missing.feature)
-            .starts_with("aura-graveyard-identity"),
-        "{missing:?}"
-    );
-    let code = mtgish_ast::cantrip::planned::with_features(
-        &["aura-graveyard-identity", "snow-mana"],
-        || mtgish_ast::cantrip::module(&card),
-    )
-    .unwrap();
-    assert!(
-        code.contains("q.found_aura_after_enchanted_left("),
-        "{code}"
-    );
-    assert!(!code.contains("q.found_after_move("), "{code}");
-    std::fs::write(
-        std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("aura-puppet-generated.rs"),
-        code,
-    )
-    .unwrap();
-}

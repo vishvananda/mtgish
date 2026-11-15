@@ -28,23 +28,13 @@ fn corpus_reports_ast_and_backend_capability_separately_and_counts_nested_forms(
         .records
         .iter()
         .all(|r| r.backend_diagnostic.is_none()));
-    #[cfg(feature = "cantrip")]
-    let backend = Report::check_with_backend(&input, &root, None).unwrap();
-    #[cfg(not(feature = "cantrip"))]
+
+
     assert!(Report::check_with_backend(&input, &root, None).is_err());
     fs::remove_file(input).unwrap();
     assert_eq!(report.total, 3);
     assert_eq!(report.complete, 3);
-    #[cfg(feature = "cantrip")]
-    {
-        assert!(backend.backend_checked);
-        assert_eq!(backend.complete, report.complete);
-        assert_eq!(backend.backend_capable, 2);
-        assert!(backend
-            .records
-            .iter()
-            .any(|r| r.complete && !r.backend_capable && r.backend_diagnostic.is_some()));
-    }
+
     assert!(report.forms["Keyword"].contains_key("Trample"));
     assert!(report.forms["Expr"].contains_key("AnnouncedX"));
     assert!(report.forms["CostPart"].contains_key("Mana"));

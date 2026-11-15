@@ -125,10 +125,8 @@ impl Report {
         root: &Path,
         baseline: Option<&Manifest>,
     ) -> Result<Self> {
-        if !cfg!(feature = "cantrip") {
-            return Err("backend checking requires --features cantrip".into());
-        }
-        Self::check_options(path, root, baseline, true)
+        let _ = (path, root, baseline);
+        Err("Backend checking moved to cantrip-oracle-codegen; export IR records and run its survey command".into())
     }
     fn check_options(
         path: &Path,
@@ -157,10 +155,8 @@ impl Report {
         };
         let check = |line: usize, source: crate::mtg_types::OracleCard| -> Result<Checked> {
             let identity = Identity::of(&source)?;
-            #[allow(unused_mut)]
-            let mut backend_diagnostic = None;
-            #[allow(unused_mut)]
-            let mut backend_capable = false;
+            let backend_diagnostic = None;
+            let backend_capable = false;
             let (mut forms, mut operations) = (BTreeMap::new(), BTreeMap::new());
             let lowered = crate::unified::lower(&source);
             let invalid =
@@ -183,13 +179,7 @@ impl Report {
                     crate::inventory::Inventory(&mut forms).card(card);
                     count_operations(&serde_json::to_value(card)?, &mut operations);
                 }
-                #[cfg(feature = "cantrip")]
-                if backend && crate::cantrip::is_card(&lowered.card) {
-                    match crate::cantrip::whole_module(&source, &lowered.card) {
-                        Ok(_) => backend_capable = true,
-                        Err(d) => backend_diagnostic = Some(d),
-                    }
-                }
+
             }
             Ok(Checked {
                 record: Record {

@@ -60,21 +60,8 @@ fn villainous_choice_retains_its_marker_and_option_programs() {
     assert_eq!(choice["options"].as_array().unwrap().len(), 2);
     assert!(find(&c, "ChooseOne").is_none());
 }
-#[cfg(feature = "cantrip")]
-#[test]
-fn generated_compound_payment_checks_draw_affordability_before_discard() {
-    let rust = mtgish_ast::cantrip::module(&card("Ambergris, Agent of Law")).unwrap();
-    let guard = rust.find("!g.cant_draw(").unwrap();
-    assert!(guard < rust.find("g.discard_together(").unwrap());
-    assert!(rust.contains("draw_count_"));
-}
-#[cfg(feature = "cantrip")]
-#[test]
-fn a_pile_choice_carries_both_piles_out_of_its_player_closure() {
-    let rust = mtgish_ast::cantrip::module(&card("Abstract Performance")).unwrap();
-    assert!(rust.contains("chosen_3.clone(), other_3.clone()"), "{rust}");
-    assert!(rust.contains("carried_4_1"), "{rust}");
-}
+
+
 #[test]
 fn reflexive_compound_costs_trigger_from_payment_including_replaced_draws() {
     for name in ["Ambergris, Agent of Balance", "Ambergris, Agent of Tyranny"] {
