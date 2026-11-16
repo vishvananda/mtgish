@@ -5151,7 +5151,7 @@
     "[LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [PutAGenericCardIntoGraveyard, PutTheRemainingCardsOnTopOfLibraryInAnyOrder]), DrawACard]": "",
     "[LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [PutAGenericCardIntoHand, PutTheRemainingCardsIntoGraveyard])]": "",
     "[LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [PutAGenericCardIntoHand, PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder])]": "",
-    "[LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [LeaveAGenericCardOnTopOfLibrary, PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder]), DrawACard]": "",
+    "[LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [PutAGenericCardOnTopOfLibrary, PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder]), DrawACard]": "",
     "[MustCost(PutACardFromGraveyardIntoHand(InAPlayersGraveyard(SinglePlayer(You)))), Unless(CostWasPaid, [LoseTheGame])]": "",
     "[MustCost(PutAGraveyardCardOntoBattlefield({{CARDS_IN_GRAVEYARDS}}, {{ENTER_FLAGS}})), Unless(CostWasPaid, [LoseTheGame])]": "",
     "[PermanentDealsDamage({{PERMANENT}}, {{NUMBER}}, {{DAMAGE_RECIPIENTS}})]": "",

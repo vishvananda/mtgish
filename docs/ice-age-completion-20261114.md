@@ -71,8 +71,8 @@ asks decline/accept followed by one/two; the idiomatic handwritten card may
 combine those into one three-way choice. This proof does not claim every
 unusual interaction has been reviewed.
 
-Snowfall's one-blue option for snow was separately corrected in the Source
-parser and reference export; see [the decision](snowfall-optional-mana-20261114.md).
+Snowfall's one-blue option for snow was added in the Source parser and reference
+export, but that interpretation is now disputed; see [the decision](snowfall-optional-mana-20261114.md).
 Both tracked candidates now have zero gaps and normal Oracle-based card files.
 Old targets without the cumulative-upkeep purpose remain held. Independent card
 reviews, the combined native/client gate, and publication are separate from

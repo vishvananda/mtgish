@@ -3293,7 +3293,7 @@ impl Context {
                 } else {
                     player.clone()
                 };
-                return self.inspect_library(player.clone(), library, self.number(n)?, actions);
+                return self.inspect_library(player.clone(), library, self.number(n)?, actions, false);
             }
             S::LookAtTheTopNumberCardsOfLibraryNEW(_) | S::LookAtTheTopCardOfPlayersLibrary(_) => {
                 let PlayerSet::One(player) = actor else {

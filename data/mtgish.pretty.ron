@@ -27364,7 +27364,7 @@ Card(
             LookAtTheTopNumberCardsOfLibrary(
               ValueX,
               [
-                LeaveAGenericCardOnTopOfLibrary,
+                PutAGenericCardOnTopOfLibrary,
                 PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder,
               ],
             ),

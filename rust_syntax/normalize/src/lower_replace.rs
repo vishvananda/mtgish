@@ -582,6 +582,22 @@ impl Context {
     ) -> Result<Option<Instruction>> {
         let variant = step["variant"].as_str().unwrap_or_default();
         let args = &step["args"];
+        if variant == "LookAtTheTopNumberCardsOfLibrary" && step["enum"] == "ReplacementActionWouldDraw" {
+            let look: source::ReplacementActionWouldDraw = decode_step(step)?;
+            if let source::ReplacementActionWouldDraw::LookAtTheTopNumberCardsOfLibrary(amount, actions) = look {
+                use source::ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction as S;
+                if matches!(actions.as_slice(), [S::PutAGenericCardOnTopOfLibrary, S::PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder]) {
+                    // #290: this complete partition reserves one inspected card
+                    // and bottoms all others. The first member is not an extra
+                    // put/reorder instruction. Keep the family's context before
+                    // the ordinary-action retagging below discards it.
+                    return self.inspect_library(actor.clone(), actor.clone(), self.number(&amount)?, &[
+                        source::LookAtTopOfLibraryAction::PutAGenericCardOnTopOfLibrary,
+                        source::LookAtTopOfLibraryAction::PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder,
+                    ], true).map(Some);
+                }
+            }
+        }
         if variant == "LookAtTheTopNumberCardsOfPlanarDeck" {
             let look: source::ReplacementActionWouldPlaneswalk = decode_step(step)?;
             let source::ReplacementActionWouldPlaneswalk::LookAtTheTopNumberCardsOfPlanarDeck(

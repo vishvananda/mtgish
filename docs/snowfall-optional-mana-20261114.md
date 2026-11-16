@@ -1,52 +1,34 @@
-# Snowfall's optional snow replacement
+# Snowfall's optional snow replacement — disputed interpretation
 
-The snow branch must retain the original one-blue choice. Snowfall first
-permits an Island's controller to add one extra blue. For a snow Island, that
-controller may replace it with two extra blue instead. Declining the optional
-self-replacement leaves the original choice available: snow offers zero, one,
-or two extra blue; nonsnow offers zero or one.
+The original 2026-11-14 fix added a one-blue alternative to the snow branch.
+That rules interpretation is now disputed, not independently verified as an
+upstream parser defect. [MTGish #289's response](https://github.com/i5jb/mtgish/issues/289#issuecomment-6932193900)
+says the second clause replaces the entire optional offer: snow offers zero or
+two extra blue, while nonsnow offers zero or one.
 
-The existing `IfElse` and `PlayerMayAction` remain. The true branch's production
-changes from `And([U, U])` to `Or([U, And([U, U])])`. Typed lowering already
-supports this as `ManaProduction::ChooseOne`, inside `Instruction::Optional`.
-Both decider and recipient remain the tapped Island's controller. Every extra
-unit remains restricted to cumulative upkeep. No AST or wire schema changes.
+Research found a close precedent pointing the other way. James Bennett's
+published answer for Emeria Shepherd's matching double-may construction allows
+return to hand, return to battlefield, or no return when a Plains enters:
+[Cranial Insertion, Take your base](https://www.cranial-insertion.com/article/1753).
+That is a first-hand explanation by a Level 3 judge, not a Snowfall-specific
+Wizards ruling. A historical Matt Tabak quotation is linked from discussion,
+but its original Tumblr page returns 404 and was not independently recovered.
 
-This differs from closed MTGish #43, which restored the missing outer optional
-action. It did not preserve the original amount when the snow replacement is
-declined. The official 2008-08-01 ruling that the added mana is always blue,
-regardless of the Island's own output, remains unchanged.
+XMage explicitly offers Snowfall zero/one/two; Forge offers zero/two. These are
+conflicting implementations, not rules authority. CR 608.2c requires reading
+later clauses together; CR 614.15 describes self-replacement effects. Those
+rules alone do not settle the disputed scope of this second may. A clarification
+request on #289 asks what distinguishes Snowfall from Emeria Shepherd.
 
-The rules basis is CR 614.1a ("instead"), 614.15 (self-replacement), and the
-replacement choice procedure in CR 616.1. See the
-[Comprehensive Rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020260619.pdf).
-Reports: [MTGish #289](https://github.com/i5jb/mtgish/issues/289) and
-[Oracle Grammar #25](https://github.com/vishvananda/oracle-grammar/issues/25).
+The existing code, tests and U0038 reference remain unchanged while that question
+is unresolved. This is not a claim that passing tests establish the ruling.
+Neither interpretation requires an AST/schema change: both preserve the
+Island's controller as decider/recipient, the nonsnow branch and the restriction
+to cumulative-upkeep costs. The earlier outer optionality/controller fixes are
+separate from this disputed extra alternative.
 
-## Evidence and reference adoption
-
-- The full parser consumed the same frozen 33,529-record Oracle, supplemental,
-  token and dungeon input. Comparing complete records as multisets changes
-  Snowfall alone. Existing token/dungeon ordering and all untouched export
-  bytes are preserved in the checked-in files.
-- RON, tagged JSON, and pretty RON each change only Snowfall. Pretty RON was
-  produced by the existing Source serializer, not a new formatting policy.
-- The fresh matched-template audit has exactly the same 182 finding IDs and
-  full evidence fields as the prior reviewed report. Only the English grammar
-  fingerprint changes in the source and parser-input maps. Existing historical
-  findings and dispositions are retained; no exception was added.
-- `go test ./...` passes, including the existing #43 regression updated to
-  retain its outer-May check and assert the additional one-blue choice.
-- The Source-parser regression compares the whole card. The typed regression
-  validates the lowered card and independently checks optionality, both snow
-  amounts, the nonsnow amount, controller identities, and spending purpose.
-- Native card drafts exercise all three snow amounts, but are still drafts
-  pending independent review and the combined native validation gate. This
-  reference fix does not claim a finished Cantrip card or complete generation.
-
-The published Oracle Grammar bundle/model pins and input population stay fixed.
-The active Source digest advances for this one approved correction, bringing
-`approved_changed_records` from six to seven. The other worker should apply an
-approved reference update through `adapters/mtgish/updates.json` or adopt the
-corrected source export, preserving its pinned export in place. No unrelated
-Oracle Grammar working files were edited.
+[Oracle Grammar #25](https://github.com/vishvananda/oracle-grammar/issues/25)
+is notified of the disagreement. Do not automatically reverse U0038 or generalize
+a zero/two rule to other double-may cards before resolving the precedent.
+Detailed links and decisions:
+[upstream-feedback-289-290-20261116.md](upstream-feedback-289-290-20261116.md).

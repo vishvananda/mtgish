@@ -4530,8 +4530,7 @@ type LookAtTopOfLibraryAction =
 | { "_LookAtTopOfLibraryAction": "ExileNumberGenericCardsAtRandom", "args": GameNumber }
 | { "_LookAtTopOfLibraryAction": "CreatePerpetualPermanentEffect", "args": [Permanent, Array<PerpetualEffect>] }
 | { "_LookAtTopOfLibraryAction": "MayPutUptoNumberCardsOntoTheBattlefield", "args": [GameNumber, Cards, Array<EnterFlag>] }
-| { "_LookAtTopOfLibraryAction": "GainLife", "args": GameNumber }
-| { "_LookAtTopOfLibraryAction": "LeaveAGenericCardOnTopOfLibrary" };
+| { "_LookAtTopOfLibraryAction": "GainLife", "args": GameNumber };
 type LookAtTopOfLibraryCost =
 | { "_LookAtTopOfLibraryCost": "And", "args": Array<LookAtTopOfLibraryCost> }
 | { "_LookAtTopOfLibraryCost": "PayLife", "args": GameNumber }
@@ -6692,8 +6691,7 @@ type ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction =
 | { "_ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction": "PutTheRemainingCardsIntoGraveyard" }
 | { "_ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction": "PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder" }
 | { "_ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction": "PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder" }
-| { "_ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction": "PutTheRemainingCardsOnTopOfLibraryInAnyOrder" }
-| { "_ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction": "LeaveAGenericCardOnTopOfLibrary" };
+| { "_ReplacementActionWouldDrawLookAtTheTopNumberCardsOfLibraryAction": "PutTheRemainingCardsOnTopOfLibraryInAnyOrder" };
 type ReplacementActionWouldDrawPutCounters =
 | { "_ReplacementActionWouldDrawPutCounters": "ACounterOfTypeOnPermanent", "args": [CounterType, Permanent] }
 | { "_ReplacementActionWouldDrawPutCounters": "NumberCountersOfTypeOnPermanent", "args": [GameNumber, CounterType, Permanent] };

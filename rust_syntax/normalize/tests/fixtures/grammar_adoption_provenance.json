@@ -24,5 +24,5 @@
   "grammar_commit": "c8c7bf0f7df14e74a26ea07694f8867aa0aac061",
   "policy": "Complete immutable prepared reference records containing every U0001–U0068 amended face. Keep original gold unchanged. Compare faces by name; array order is not a primary-face-role contract. Retain exact, input-checked remaining differences without changing production comparison.",
   "reference_fixture_sha256": "c1029a3ba56668bd12167dc84cb22d116ecf5ef7a1d29827c0d0d7a5ff02afe1",
-  "source_fixture_sha256": "520045b7f1eb629bf92f054ff9f3fe80f86008b991e11a0cb6e462e6ad620f62"
+  "source_fixture_sha256": "1e21dd9c20fd7a292474dbc8852cc8b0463f460cdcf40fb953f25c456b0a021c"
 }

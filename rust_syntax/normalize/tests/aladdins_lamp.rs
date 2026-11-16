@@ -34,12 +34,29 @@ fn lamp_selects_one_to_leave_and_only_reorders_the_rest() {
 }
 
 #[test]
-fn an_explicit_put_on_top_still_reorders_the_selected_card() {
+fn a_different_replacement_sequence_keeps_its_top_reorder() {
     let source = include_str!("fixtures/aladdins_lamp.ronl")
-        .replace("LeaveAGenericCardOnTopOfLibrary", "PutAGenericCardOnTopOfLibrary");
+        .replace("PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder", "PutTheRemainingCardsOnTopOfLibraryInAnyOrder");
     let (_, program) = inspection(&source);
     assert!(matches!(&program.instructions[2], Instruction::Effect {
         operation: Operation::ReorderLibrary { end: SequenceEnd::Top, .. }, ..
     }));
     assert_eq!(program.instructions.len(), 4);
+}
+
+#[test]
+fn telling_times_explicit_put_on_top_still_reorders_the_selected_card() {
+    let source: OracleCard = ron::from_str(include_str!("fixtures/inspection.ronl").lines()
+        .find(|line| line.starts_with("Card(Name: \"Telling Time\"" )).unwrap()).unwrap();
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let Ability::Spell { body, .. } = &card.abilities[0] else { panic!() };
+    fn top_reorders(program: &Program) -> usize {
+        program.instructions.iter().map(|instruction| match instruction {
+            Instruction::Group(body) => top_reorders(body),
+            Instruction::Effect { operation: Operation::ReorderLibrary { end: SequenceEnd::Top, .. }, .. } => 1,
+            _ => 0,
+        }).sum()
+    }
+    assert_eq!(top_reorders(body), 1);
 }

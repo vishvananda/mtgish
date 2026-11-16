@@ -155,6 +155,7 @@ impl Context {
             assigned: vec![],
             did: None,
             top: None,
+            retain_top_in_place: false,
         };
         let mut instructions = vec![each];
         self.reveal_steps(player, player, state, actions, &mut instructions)?;

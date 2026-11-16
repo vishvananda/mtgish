@@ -1,5 +1,9 @@
 # Oracle Grammar 0.2.11 adoption — 2026-11-16
 
+Subsequent #289/#290 feedback and Source attribution corrections are recorded
+in [the follow-up](upstream-feedback-289-290-20261116.md). The proof below
+records the adoption checkpoint before that follow-up.
+
 MTGish now uses published `oracle-ir` and `oracle-ir-contract` **0.2.3**,
 still schema **191**. Oracle Blocks uses those contracts and published
 `oracle-ir-grammar` **0.2.11**. There are no local crate overrides, numeric-width

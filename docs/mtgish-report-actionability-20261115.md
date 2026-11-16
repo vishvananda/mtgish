@@ -1,5 +1,13 @@
 # MTGish report actionability review — 2026-11-15
 
+## Subsequent feedback — 2026-11-16
+
+MTGish #290 is withdrawn: the maintainer clarified the inspection-list contract;
+Lamp needs a consumer fix, not a new Source constructor. #289 is now a disputed
+interpretation: a judge precedent for Emeria Shepherd needs reconciliation with
+the maintainer’s Snowfall reading. The dated inventory below is historical. See
+[the follow-up](upstream-feedback-289-290-20261116.md).
+
 ## Finding
 
 [#202](https://github.com/i5jb/mtgish/issues/202) was a downstream generator bug.

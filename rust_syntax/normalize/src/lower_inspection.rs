@@ -7,6 +7,8 @@ struct InspectionState {
     did: Option<Condition>,
     /// How many top cards of the library a look took in.
     top: Option<Expr>,
+    /// The draw-replacement partition reserves one card without reordering it.
+    retain_top_in_place: bool,
 }
 impl InspectionState {
     fn remaining(&self) -> ObjectSet {
@@ -70,6 +72,7 @@ impl Context {
         library: PlayerRef,
         amount: Expr,
         actions: &[source::LookAtTopOfLibraryAction],
+        retain_top_in_place: bool,
     ) -> Result<Instruction> {
         self.inspection_hand = Some(vec![]);
         let top = Some(amount.clone());
@@ -86,6 +89,7 @@ impl Context {
             did: None,
             found: None,
             top,
+            retain_top_in_place,
         };
         let mut body = self.inspection_steps(&player, &library, state, actions)?;
         body.instructions.insert(0, look);
@@ -496,9 +500,6 @@ impl Context {
                     None,
                 ))
             }
-            S::LeaveAGenericCardOnTopOfLibrary => {
-                choice = Some((ObjectFilter::Any, count(one(), false), false, None, None));
-            }
             S::PutAGenericCardOnTopOfLibrary
             | S::PutAGenericCardOnBottomOfLibrary
             | S::PutAnyNumberOfGenericCardsOnBottomOfLibraryAnyOrder
@@ -524,7 +525,11 @@ impl Context {
                     c,
                     false,
                     None,
-                    Some((end, CardOrder::Chosen)),
+                    if state.retain_top_in_place && matches!(action, S::PutAGenericCardOnTopOfLibrary) {
+                        None
+                    } else {
+                        Some((end, CardOrder::Chosen))
+                    },
                 ));
             }
             S::MayRevealACardOfTypeAndPutOnTopOfLibrary(f)
@@ -591,7 +596,7 @@ impl Context {
                     state,
                     instructions,
                 );
-            } else if matches!(action, S::LeaveAGenericCardOnTopOfLibrary) {
+            } else if state.retain_top_in_place && matches!(action, S::PutAGenericCardOnTopOfLibrary) {
                 // The retained card stays in place. Only exclude it from the
                 // following remaining-card step; no movement result exists.
                 state.assigned.push(selected);

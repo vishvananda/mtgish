@@ -24,6 +24,9 @@ generator and runtime; Oracle Blocks owns the editor.
    - `FindNumberCardsOfType`: matching library searches permit failure to find.
    - `ManaCostsOfCombatCreatures`: a combat-history query.
    - `CantBeBlockedUnlessCost`: the cost applies per declared blocker.
+   - Draw-replacement inspection partitions (#290): reserving a card for the top
+     and bottoming the rest does not require an extra reorder of the kept card.
+     Preserve the family and complete list context when lowering.
 4. Demonstrate the discrepancy between the printed instruction and that
    established contract. A failing generated game test, changed gold file or
    agreement between two programs written to our IR is not independent evidence

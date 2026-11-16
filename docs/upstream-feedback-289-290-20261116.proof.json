@@ -1,0 +1,103 @@
+{
+  "date": "2026-11-16",
+  "base_commit": "243c4635",
+  "population": {
+    "records": 33529,
+    "oracle_sha256": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
+    "unchanged": true
+  },
+  "lamp": {
+    "source_record_index": 580,
+    "original_source_restored": true,
+    "append_only_source_variants_removed": 2,
+    "source_exports_synchronized": true,
+    "all_ast_export_bytes_unchanged": true,
+    "ast_sha256": "14901bd58b31aa909d1960669f9d1a3addb75e8eaa1c0263035a3d37b8faa958",
+    "independent_reference_unchanged": true,
+    "card_name_override": false,
+    "family_and_complete_sequence_matched": true,
+    "actual_draw_preserved": true
+  },
+  "snowfall": {
+    "code_and_reference_unchanged": true,
+    "interpretation": "disputed pending reconciliation with Emeria Shepherd precedent",
+    "official_optional_instead_example": "https://magic.wizards.com/en/news/feature/wilds-of-eldraine-release-notes",
+    "judge_double_may_example": "https://www.cranial-insertion.com/article/1753",
+    "unavailable_rules_manager_primary_not_treated_as_verified": true,
+    "no_schema_change": true
+  },
+  "validation": {
+    "rust": {
+      "command": "cargo test --locked --manifest-path rust_syntax/Cargo.toml --workspace --no-fail-fast",
+      "passed": 1596,
+      "failed": 0,
+      "ignored": 10,
+      "targets": 140
+    },
+    "go": "go test ./...; passed",
+    "fresh_source_same_complete_record_multiset": true,
+    "existing_182_audit_rows_and_evidence_unchanged": true,
+    "unreviewed_template_findings": 0,
+    "unreviewed_literal_findings": 0
+  },
+  "reports": {
+    "mtgish-289": {
+      "url": "https://github.com/i5jb/mtgish/issues/289",
+      "state": "CLOSED",
+      "body_sha256": "86ddcf495d788a9e9e68893c935c65bb0c75f3996b10919787d2eb3f380ba26e"
+    },
+    "mtgish-290": {
+      "url": "https://github.com/i5jb/mtgish/issues/290",
+      "state": "CLOSED",
+      "body_sha256": "1792048957f19fadedd82a40d0ee34a9ce9504f7e797fa0d3f06e491f4444a27"
+    },
+    "grammar-25": {
+      "url": "https://github.com/vishvananda/oracle-grammar/issues/25",
+      "state": "OPEN",
+      "body_sha256": "4720648ed382dab74cfd2f45e54d98bc44fce7e1bcb83fb3346b2bc9af98539c"
+    },
+    "grammar-26": {
+      "url": "https://github.com/vishvananda/oracle-grammar/issues/26",
+      "state": "CLOSED",
+      "body_sha256": "7a95e2ee3d47c609c1ae8a96399e408e8bd99bd830a3fce724e260fa062cbe90"
+    }
+  },
+  "file_sha256": {
+    "grammars/english_grammar.json5": "e6668b53175b24d0924c01152103e809dfdd8cf0abe734a2ef46e5e93e96da5c",
+    "grammars/mtgish_grammar.json5": "a6b887d42ca6ffa74ef7d2c217b58025633183a7ccca81348ae61db8283a0925",
+    "rust_syntax/src/mtg_types.rs": "597ded995fa3065833cb29d89667d98e64f1cd1edb9b2c346dc51c9a2446ad59",
+    "rust_syntax/normalize/src/lower_inspection.rs": "c2ae6fd2b4d3143d332d3ddd01f91c17285d32f4474e4022ee1377cce4eb5911",
+    "rust_syntax/normalize/src/lower_replace.rs": "0646c3991ce9188e6dd074f5153754987c4a827b3cc82789c942d12de5cf084b",
+    "rust_syntax/normalize/tests/aladdins_lamp.rs": "1951d8497d129931112f58cb3d09293f0c00661c59f4c8acf7ec0e8b30e462b1",
+    "data/mtgish.lines.ron": "950c704fca408b4e28f48e31582d12825319d7ad53dbabf4fd53e4b9175de7fa",
+    "data/mtgish.lines.json": "fc90bdea298cd6fe63b183dac05b60fe2dd0e13a892db94c4704d61f2d2d1c3b",
+    "data/mtgish.pretty.ron": "56a5cd8484c6ef3c0e6b4242cf28cd430ad16df014b941f100f41e07c9e14109",
+    "data/oracle_grammar_reference.json": "65efcad67794d393be8afe4dbca3262ed6dbed4c9507f47812bd34b91aa88dbc",
+    "data/grammar_audit_review.json": "a3a4de8630dbd618446c6ea640ce0035e4c9bace91f653095a530574dc5d89be",
+    "rust_syntax/normalize/tests/fixtures/grammar_adoption_provenance.json": "baf9334a031da24eb54d2798bd2e9baec904b12db8dea7f887f4f4142c86868f"
+  },
+  "evidence_directory": "/mnt/vizier/mtgish-rejections-289-290-20261116",
+  "evidence_sha256": {
+    "focused-tests.log": "a5dd9c8e3469b3ca343f32a4350c0270c7cd185bc4d159e6a64112d14a0986b2",
+    "workspace-tests.log": "8e999199790c723820869e7f0cec1431c1e85347a349e652467da08c0010cb95",
+    "go-tests.log": "85bff83560e93ddaa3008bd8ac4d2aeb7c02093be0a92ede8f296aad91803217",
+    "parser.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fresh-source.ronl": "950c704fca408b4e28f48e31582d12825319d7ad53dbabf4fd53e4b9175de7fa",
+    "usage.json": "42a4b3e1f9986e4a00e0f8198f0778b02a3447a661f1ab035b05efe68db65d02",
+    "literals.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "export.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "before-ir.jsonl": "14901bd58b31aa909d1960669f9d1a3addb75e8eaa1c0263035a3d37b8faa958",
+    "after-ir.jsonl": "14901bd58b31aa909d1960669f9d1a3addb75e8eaa1c0263035a3d37b8faa958",
+    "mtgish-289.json": "9a3b4e0b1b818a041b8c42bfc9c6f89091a588157b0e6ee03865575fbad09c3a",
+    "mtgish-290.json": "bb7a9c97f3a7c49a29a011ea0b230195359bea011ba2dac6717dbb0e85e7b38e",
+    "grammar-25.json": "d89cfcace99e3abcef8502b89077e4bbf98dd6bf0f9290c8345407eb0c087371",
+    "grammar-26.json": "2fd7d03eb2272093066f42416f2ac88c9bdfd769a6545f38cb7dbc3e5d0a5a25"
+  },
+  "scope": [
+    "No owned AST/schema/width change",
+    "No new reference values or equality substitutions",
+    "No upstream pull/merge",
+    "No Cantrip/backend/engine/worker/deployment changes",
+    "User consolidation.md remains untouched"
+  ]
+}
