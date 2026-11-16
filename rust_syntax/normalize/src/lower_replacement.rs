@@ -108,12 +108,21 @@ impl Context {
             if matches!(value, source::ReplacementActionWouldEnter::EntersNormally) {
                 continue;
             }
-            instructions.push(
-                self.entry_action(value)
-                    .map_err(|e| e.at(format!("entry[{i}]")))?,
-            );
+            let step = self.entry_action(value)
+                .map_err(|e| e.at(format!("entry[{i}]")))?;
+            self.append_entry_step(step, &mut instructions);
         }
         Ok(Program { instructions })
+    }
+
+    /// Entry instructions share one receipt scope; Group adds no new binding.
+    fn append_entry_step(&mut self, step: Instruction, instructions: &mut Vec<Instruction>) {
+        match step {
+            Instruction::Group(body) => {
+                for step in body.instructions { self.append_entry_step(step, instructions); }
+            }
+            step => instructions.push(step),
+        }
     }
 
     fn entry_child(&mut self, values: &[source::ReplacementActionWouldEnter]) -> Result<Program> {
@@ -195,6 +204,19 @@ impl Context {
                 );
                 let base = self.entry_action(&base)?;
                 return self.reflexive_after(vec![base], None, actions);
+            }
+            S::ExileUptoNumberGraveyardCards(amount, cards) => {
+                let choice = self.effect(Operation::ChooseObjects {
+                    player: self.player(&source::Player::You)?,
+                    objects: ObjectSet::AnyZone(self.grave_filter(cards)?),
+                    count: Count::UpTo(self.number(amount)?),
+                    constraints: vec![],
+                });
+                let Instruction::Effect { result, .. } = &choice else { unreachable!() };
+                let movement = self.effect(crate::movement::move_plain(
+                    ObjectSet::Selected(result.clone()), Destination::Exile,
+                ));
+                return Ok(Instruction::Group(Program { instructions: vec![choice, movement] }));
             }
             S::EntersTapped => EventChange::SetTapped(true),
             S::EntersUntapped => EventChange::SetTapped(false),

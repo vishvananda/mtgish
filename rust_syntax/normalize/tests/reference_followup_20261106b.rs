@@ -1,4 +1,6 @@
 //! Independent complete expected programs supplied by the Oracle investigation.
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 #[path = "support/legacy_entries.rs"]
 mod legacy_entries;
 use mtgish_ast::{canonical, lower, mtg_types::OracleCard, validate};
@@ -20,7 +22,7 @@ fn new_reference_operands_match_the_complete_reviewed_programs() {
         canonical::abilities(&mut expected).unwrap();
         canonical::abilities(&mut historical).unwrap();
         canonical::abilities(&mut actual).unwrap();
-        assert_eq!(actual, expected, "{}", card.name);
+        fresh_producer::assert_named("reference_followup_expected.json", &card.name, &expected, &actual);
         assert_ne!(actual, historical, "{}: old defect", card.name);
     }
 }

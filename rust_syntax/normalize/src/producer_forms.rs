@@ -126,7 +126,7 @@ fn same_pool_scope(a: &ZoneScope, b: &ZoneScope) -> bool {
         _ => false,
     }
 }
-fn random_pool(objects: &mut ObjectSet) {
+fn compact_zone(objects: &mut ObjectSet) {
     let ObjectSet::Zone { scope, filter, .. } = objects else { return };
     fn simplify(scope: &ZoneScope, filter: &mut ObjectFilter) {
         match filter {
@@ -389,6 +389,30 @@ struct Normalize {
     populations: crate::target_populations::TargetPopulations,
 }
 impl VisitorMut for Normalize {
+    fn object_set_end(&mut self, objects: &mut ObjectSet) {
+        // A live zone query already enforces its zone. Movement observations
+        // and positional selections do not, so their guards stay explicit.
+        match objects {
+            ObjectSet::Matching { objects: inner, filter: ObjectFilter::Any } => {
+                *objects = inner.as_ref().clone();
+            }
+            ObjectSet::Matching { objects: inner, filter: ObjectFilter::InZone(zone) }
+                if matches!(inner.as_ref(), ObjectSet::Zone { scope, .. } if same_pool_scope(scope, zone)) =>
+            {
+                *objects = inner.as_ref().clone();
+            }
+            ObjectSet::InZone { objects: inner, zone }
+                if matches!(inner.as_ref(), ObjectSet::Zone { scope, .. } if match scope {
+                    ZoneScope::Shared(current) | ZoneScope::Players { zone: current, .. } => current == zone,
+                    _ => false,
+                }) =>
+            {
+                *objects = inner.as_ref().clone();
+            }
+            _ => {}
+        }
+        compact_zone(objects);
+    }
     fn ability(&mut self, ability: &mut Ability) -> bool {
         if let Ability::Replacement {event,body,..}=ability {prevention_order(event,body);}
         self.populations.push(false);
@@ -414,13 +438,6 @@ impl VisitorMut for Normalize {
     }
     fn operation(&mut self, op: &mut Operation) -> bool {
         if let Operation::CreateReplacement {event,body,..}=op {prevention_order(event,body);}
-        if let Operation::WithSelections { steps, .. } = op {
-            for step in steps {
-                if matches!(step.chooser, SelectionChooser::Chance) {
-                    random_pool(&mut step.objects);
-                }
-            }
-        }
         // Bind the captured event subject before visiting its body: population
         // cardinality then sees the final target reference on this same walk.
         if let Operation::CreateTrigger {

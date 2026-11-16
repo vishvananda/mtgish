@@ -1,0 +1,2155 @@
+[
+  {
+    "names": [
+      "Chandra, Torch of Defiance"
+    ],
+    "classification": "producer_normalization_followup",
+    "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+    "changes": [
+      {
+        "path": "/0/0/args/body/instructions/1/args/operation/args/cost/parts/0/PlayerAction/body/instructions/0/args/operation/args/cards",
+        "source": {
+          "kind": "One",
+          "args": {
+            "kind": "Result",
+            "args": {
+              "result": 0,
+              "phase": "After",
+              "index": 0
+            }
+          }
+        },
+        "reference": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "One",
+              "args": {
+                "kind": "Result",
+                "args": {
+                  "result": 0,
+                  "phase": "After",
+                  "index": 0
+                }
+              }
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        }
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+  },
+  {
+    "names": [
+      "Esper Origins",
+      "Summon: Esper Maduin"
+    ],
+    "classification": "producer_normalization_followup",
+    "reason": "The stable observation window now reads Observed in Summon: Esper Maduin just as Vexing Arcanix does. No intervening effect or different library can use this alias.",
+    "changes": [
+      {
+        "path": "/1/0/args/chapters/0/args/body/instructions/1/args/then/instructions/0/args/operation/args/objects",
+        "source": {
+          "kind": "Observed",
+          "args": 0
+        },
+        "reference": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        }
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+  },
+  {
+    "names": [
+      "Gate of the Black Dragon"
+    ],
+    "classification": "intrinsic_mana_representation_question",
+    "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+    "changes": [
+      {
+        "path": "/0",
+        "source": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Black"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "reference": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Black"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": false,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "AddMana",
+                        "args": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "mana": {
+                            "Amount": {
+                              "color": "Black",
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          },
+                          "restriction": null
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+  },
+  {
+    "names": [
+      "Gate to Manorborn"
+    ],
+    "classification": "intrinsic_mana_representation_question",
+    "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+    "changes": [
+      {
+        "path": "/0",
+        "source": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Green"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "reference": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Green"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": false,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "AddMana",
+                        "args": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "mana": {
+                            "Amount": {
+                              "color": "Green",
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          },
+                          "restriction": null
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+  },
+  {
+    "names": [
+      "Gate to Seatower"
+    ],
+    "classification": "intrinsic_mana_representation_question",
+    "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+    "changes": [
+      {
+        "path": "/0",
+        "source": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Blue"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "reference": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Blue"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": false,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "AddMana",
+                        "args": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "mana": {
+                            "Amount": {
+                              "color": "Blue",
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          },
+                          "restriction": null
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+  },
+  {
+    "names": [
+      "Gate to Tumbledown"
+    ],
+    "classification": "intrinsic_mana_representation_question",
+    "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+    "changes": [
+      {
+        "path": "/0",
+        "source": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Red"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "reference": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "Red"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": false,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "AddMana",
+                        "args": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "mana": {
+                            "Amount": {
+                              "color": "Red",
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          },
+                          "restriction": null
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+  },
+  {
+    "names": [
+      "Gate to the Citadel"
+    ],
+    "classification": "intrinsic_mana_representation_question",
+    "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+    "changes": [
+      {
+        "path": "/0",
+        "source": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "White"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "reference": [
+          {
+            "kind": "Replacement",
+            "args": {
+              "active": "SourceEntering",
+              "event": {
+                "Enter": {
+                  "objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "SetTapped": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  {
+                    "Mana": [
+                      {
+                        "Generic": 3
+                      },
+                      {
+                        "Color": "White"
+                      }
+                    ]
+                  },
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": true,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "ChooseObjects",
+                        "args": {
+                          "player": {
+                            "kind": "AbilityController"
+                          },
+                          "objects": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Library",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              }
+                            }
+                          },
+                          "count": {
+                            "AsManyAsCan": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "constraints": [
+                            "AtRandom"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "Selected",
+                            "args": 0
+                          },
+                          "destination": {
+                            "OwnersHand": {
+                              "counters": [],
+                              "states": []
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "Activated",
+            "args": {
+              "origin": "Ordinary",
+              "cost": {
+                "parts": [
+                  "TapSymbol"
+                ]
+              },
+              "limits": {
+                "once": false,
+                "once_each_turn": false,
+                "sorcery": false,
+                "condition": null,
+                "activators": null,
+                "keyword": null,
+                "modifiers": []
+              },
+              "announcement": {
+                "targets": [],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 4294967295,
+                      "operation": {
+                        "kind": "AddMana",
+                        "args": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "mana": {
+                            "Amount": {
+                              "color": "White",
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          },
+                          "restriction": null
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+  },
+  {
+    "names": [
+      "Gustha's Scepter"
+    ],
+    "classification": "producer_normalization_followup",
+    "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+    "changes": [
+      {
+        "path": "/0/2/args/body/instructions/0/args/operation/args/objects",
+        "source": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "reference": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        }
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+  },
+  {
+    "names": [
+      "Mimeoplasm, Revered One"
+    ],
+    "classification": "exile_arrival_reference_question",
+    "reason": "Keep the Exile destination guard on actual movement arrivals, including replacement redirects; request confirmation/correction of the unguarded reference count.",
+    "changes": [
+      {
+        "path": "/0/0/args/body/instructions/2/args/operation/args/change/AddCounters/amount/args/1/args/args/filter",
+        "source": {
+          "kind": "InZone",
+          "args": {
+            "Shared": "Exile"
+          }
+        },
+        "reference": {
+          "kind": "CardType",
+          "args": "Creature"
+        }
+      },
+      {
+        "path": "/0/0/args/body/instructions/2/args/operation/args/change/AddCounters/amount/args/1/args/args/objects",
+        "source": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "Transition",
+              "args": {
+                "result": 1,
+                "phase": "After"
+              }
+            },
+            "filter": {
+              "kind": "CardType",
+              "args": "Creature"
+            }
+          }
+        },
+        "reference": {
+          "kind": "Transition",
+          "args": {
+            "result": 1,
+            "phase": "After"
+          }
+        }
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/31"
+  },
+  {
+    "names": [
+      "Northampton Farm"
+    ],
+    "classification": "producer_normalization_followup",
+    "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+    "changes": [
+      {
+        "path": "/0/2/args/body/instructions/2/args/operation/args/objects",
+        "source": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "reference": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        }
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+  },
+  {
+    "names": [
+      "Ugin's Labyrinth"
+    ],
+    "classification": "producer_normalization_followup",
+    "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+    "changes": [
+      {
+        "path": "/0/1/args/body/instructions/0/args/condition/args/left/args",
+        "source": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "reference": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "InZone",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Exile"
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "ExiledWith",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                },
+                "zone": "Exile"
+              }
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        }
+      },
+      {
+        "path": "/0/2/args/body/instructions/0/args/operation/args/objects",
+        "source": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "reference": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        }
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+  },
+  {
+    "names": [
+      "Vault 13: Dweller's Journey"
+    ],
+    "classification": "producer_normalization_followup",
+    "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+    "changes": [
+      {
+        "path": "/0/0/args/chapters/2/args/body/instructions/2/args/operation/args/objects",
+        "source": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        },
+        "reference": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        }
+      }
+    ],
+    "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+  }
+]

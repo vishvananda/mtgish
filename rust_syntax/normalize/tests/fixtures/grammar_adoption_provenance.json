@@ -1,0 +1,28 @@
+{
+  "prepared_manifest": {
+    "inputs": {
+      "allowed": "a28ce7928e74232a76a8e1fb5be7ae89c10da93bfd5b82c490ebbd8cae59cc20",
+      "oracle": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
+      "reference": "68c1f37c748a09a1b4edc60a110ebad8f75100ae11334060515098bd9b40bd76",
+      "transform": 3,
+      "updates": "4083bc0879cb3d3c90d254bc657020f33e33adbf5506d5ef54e99379829ee2f3",
+      "model": "ae276435426662e96f53a51428e3268def1b1f924f6606d6d0b8d7b860a05feb",
+      "migration": "330e03e417714ca23362f6b040213ba79e3363ae9dbef54c170d00b6ef951373"
+    },
+    "files": {
+      "oracle.json": "8947627319f1a035ecc9e48b3adaad18704b9dabcc517fa66fae62693e3e5d19",
+      "gold.jsonl": "c7c628eb86d6203606610495cbabd01ca4c2d283c976227b40580edaca7f3dee",
+      "updates.json": "5abb6089a6095bc01049005114c6c9969cf5cd57096aa4731551e838374ab4a2"
+    }
+  },
+  "selected_records": 947,
+  "amended_faces": 948,
+  "amendment_groups": 67,
+  "ledger_sha256": "4083bc0879cb3d3c90d254bc657020f33e33adbf5506d5ef54e99379829ee2f3",
+  "selected_reference_sha256": "d722c9ee51db650c0c353988fa8baec18dd36733ad823e4f86ad159b1f520fec",
+  "grammar_tag": "grammar-v0.2.11",
+  "grammar_commit": "c8c7bf0f7df14e74a26ea07694f8867aa0aac061",
+  "policy": "Complete immutable prepared reference records containing every U0001–U0068 amended face. Keep original gold unchanged. Compare faces by name; array order is not a primary-face-role contract. Retain exact, input-checked remaining differences without changing production comparison.",
+  "reference_fixture_sha256": "c1029a3ba56668bd12167dc84cb22d116ecf5ef7a1d29827c0d0d7a5ff02afe1",
+  "source_fixture_sha256": "520045b7f1eb629bf92f054ff9f3fe80f86008b991e11a0cb6e462e6ad620f62"
+}

@@ -1,0 +1,1664 @@
+{
+  "battlefield_queries_before.jsonl": {
+    "Chandra, Torch of Defiance": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/operation/args/cost/parts/0/PlayerAction/body/instructions/0/args/operation/args/cards",
+        "before": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "One",
+              "args": {
+                "kind": "Result",
+                "args": {
+                  "result": 0,
+                  "phase": "After",
+                  "index": 0
+                }
+              }
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        },
+        "after": {
+          "kind": "One",
+          "args": {
+            "kind": "Result",
+            "args": {
+              "result": 0,
+              "phase": "After",
+              "index": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "coin_policies_v185.jsonl": {
+    "Molten Sentry": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions",
+        "before": [
+          {
+            "kind": "Group",
+            "args": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "FlipCoin",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "protocol": "Uncalled"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "CoinFlip",
+                      "args": {
+                        "result": 0,
+                        "outcome": "Heads"
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": {
+                                  "Entry": {
+                                    "Changes": [
+                                      {
+                                        "kind": "Copiable",
+                                        "args": [
+                                          {
+                                            "kind": "SetBasePowerToughness",
+                                            "args": {
+                                              "power": {
+                                                "kind": "Constant",
+                                                "args": 5
+                                              },
+                                              "toughness": {
+                                                "kind": "Constant",
+                                                "args": 2
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "Copiable",
+                                        "args": [
+                                          {
+                                            "kind": "AddCardType",
+                                            "args": "Creature"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "Copiable",
+                                        "args": [
+                                          {
+                                            "kind": "GrantKeyword",
+                                            "args": {
+                                              "kind": "Haste"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": {
+                                  "Entry": {
+                                    "Changes": [
+                                      {
+                                        "kind": "Copiable",
+                                        "args": [
+                                          {
+                                            "kind": "SetBasePowerToughness",
+                                            "args": {
+                                              "power": {
+                                                "kind": "Constant",
+                                                "args": 2
+                                              },
+                                              "toughness": {
+                                                "kind": "Constant",
+                                                "args": 5
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "Copiable",
+                                        "args": [
+                                          {
+                                            "kind": "AddCardType",
+                                            "args": "Creature"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "Copiable",
+                                        "args": [
+                                          {
+                                            "kind": "GrantKeyword",
+                                            "args": {
+                                              "kind": "Defender"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "Effect",
+            "args": {
+              "result": 0,
+              "operation": {
+                "kind": "FlipCoin",
+                "args": {
+                  "player": {
+                    "kind": "ControllerOf",
+                    "args": {
+                      "kind": "EventSubject"
+                    }
+                  },
+                  "protocol": "Uncalled"
+                }
+              }
+            }
+          },
+          {
+            "kind": "If",
+            "args": {
+              "condition": {
+                "kind": "CoinFlip",
+                "args": {
+                  "result": 0,
+                  "outcome": "Heads"
+                }
+              },
+              "then": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 1,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "Entry": {
+                              "Changes": [
+                                {
+                                  "kind": "Copiable",
+                                  "args": [
+                                    {
+                                      "kind": "SetBasePowerToughness",
+                                      "args": {
+                                        "power": {
+                                          "kind": "Constant",
+                                          "args": 5
+                                        },
+                                        "toughness": {
+                                          "kind": "Constant",
+                                          "args": 2
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "Copiable",
+                                  "args": [
+                                    {
+                                      "kind": "AddCardType",
+                                      "args": "Creature"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "Copiable",
+                                  "args": [
+                                    {
+                                      "kind": "GrantKeyword",
+                                      "args": {
+                                        "kind": "Haste"
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "otherwise": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 2,
+                      "operation": {
+                        "kind": "ModifyEvent",
+                        "args": {
+                          "change": {
+                            "Entry": {
+                              "Changes": [
+                                {
+                                  "kind": "Copiable",
+                                  "args": [
+                                    {
+                                      "kind": "SetBasePowerToughness",
+                                      "args": {
+                                        "power": {
+                                          "kind": "Constant",
+                                          "args": 2
+                                        },
+                                        "toughness": {
+                                          "kind": "Constant",
+                                          "args": 5
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "Copiable",
+                                  "args": [
+                                    {
+                                      "kind": "AddCardType",
+                                      "args": "Creature"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "Copiable",
+                                  "args": [
+                                    {
+                                      "kind": "GrantKeyword",
+                                      "args": {
+                                        "kind": "Defender"
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "Negative Zone Portal": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/then/instructions/1/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Tavern Scoundrel": [
+      {
+        "path": "/faces/0/abilities/1/args/cost/parts/2/Sacrifice/objects/args/filter",
+        "before": {
+          "kind": "AllOf",
+          "args": [
+            {
+              "kind": "Not",
+              "args": {
+                "kind": "SameObject",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            },
+            {
+              "kind": "Any"
+            }
+          ]
+        },
+        "after": {
+          "kind": "Not",
+          "args": {
+            "kind": "SameObject",
+            "args": {
+              "kind": "Source"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "keyword_payloads_v182.jsonl": {
+    "Aerialephant": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/body/instructions/0/args/operation/args/objects/args/filter/args",
+        "before": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "Any"
+          },
+          {
+            "kind": "OwnedBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "OwnedBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "Bag of Devouring": [
+      {
+        "path": "/faces/0/abilities/2/args/body/instructions/1/args/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Command Performance": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/3/body/instructions/0/args/body/instructions/0/args/operation/args/objects/args/filter/args",
+        "before": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "Any"
+          },
+          {
+            "kind": "OwnedBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "OwnedBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "Hostile Negotiations": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/6/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "InSet",
+                  "args": {
+                    "kind": "Recorded",
+                    "args": 5
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "InSet",
+              "args": {
+                "kind": "Recorded",
+                "args": 5
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "mode_policies_v183.jsonl": {
+    "Boros Charm": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/1/body/instructions/0/args/operation/args/affected/Objects/args/filter",
+        "before": {
+          "kind": "AllOf",
+          "args": [
+            {
+              "kind": "Any"
+            },
+            {
+              "kind": "ControlledBy",
+              "args": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            }
+          ]
+        },
+        "after": {
+          "kind": "ControlledBy",
+          "args": {
+            "kind": "One",
+            "args": {
+              "kind": "AbilityController"
+            }
+          }
+        }
+      }
+    ],
+    "Season of Gathering": [
+      {
+        "path": "/faces/0/abilities/0/args/announcement/modes/options/1/body/instructions/1/args/operation/args/objects/args/filter",
+        "before": {
+          "kind": "AllOf",
+          "args": [
+            {
+              "kind": "Any"
+            },
+            {
+              "kind": "ChosenFilter"
+            }
+          ]
+        },
+        "after": {
+          "kind": "ChosenFilter"
+        }
+      }
+    ]
+  },
+  "movement_destinations_v185.jsonl": {
+    "Abstract Performance": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/3/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "InSet",
+                  "args": {
+                    "kind": "Recorded",
+                    "args": 2
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "InSet",
+              "args": {
+                "kind": "Recorded",
+                "args": 2
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/5/args/body/instructions/0/args/operation/args/cards",
+        "before": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "InSet",
+                    "args": {
+                      "kind": "Recorded",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "Not",
+              "args": {
+                "kind": "InSet",
+                "args": {
+                  "kind": "Recorded",
+                  "args": 2
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/6/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "InSet",
+                    "args": {
+                      "kind": "Recorded",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "Not",
+              "args": {
+                "kind": "InSet",
+                "args": {
+                  "kind": "Recorded",
+                  "args": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Aid from the Cowl": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/otherwise/instructions/0/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        },
+        "after": {
+          "kind": "Observed",
+          "args": 0
+        }
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/then/instructions/0/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        },
+        "after": {
+          "kind": "Observed",
+          "args": 0
+        }
+      }
+    ],
+    "Caldera Breaker": [
+      {
+        "path": "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "EventSubject"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "EventSubject"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Summon: Esper Maduin": [
+      {
+        "path": "/faces/0/abilities/0/args/chapters/0/args/body/instructions/1/args/then/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "Take",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Players": {
+                    "zone": "Library",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "count": {
+              "kind": "Constant",
+              "args": 1
+            },
+            "from": "Top"
+          }
+        },
+        "after": {
+          "kind": "Observed",
+          "args": 0
+        }
+      }
+    ],
+    "Tawnos's Coffin": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/2/args/operation/args/body/instructions/1/args/then/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "InSet",
+                  "args": {
+                    "kind": "Recorded",
+                    "args": 0
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "InSet",
+              "args": {
+                "kind": "Recorded",
+                "args": 0
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "movement_selections_before.ronl": {
+    "Chaos Defiler": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/0/args/body/instructions/0/args/operation/args/objects/args/filter/args",
+        "before": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "Any"
+          },
+          {
+            "kind": "ControlledBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "Bound",
+                "args": 0
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "ControlledBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "Bound",
+                "args": 0
+              }
+            }
+          }
+        ]
+      },
+      {
+        "path": "/faces/0/abilities/2/args/body/instructions/0/args/body/instructions/0/args/operation/args/objects/args/filter/args",
+        "before": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "Any"
+          },
+          {
+            "kind": "ControlledBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "Bound",
+                "args": 0
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "Not",
+            "args": {
+              "kind": "CardType",
+              "args": "Land"
+            }
+          },
+          {
+            "kind": "ControlledBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "Bound",
+                "args": 0
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "Descent into Madness": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/1/args/body/instructions/0/args/operation/args/steps/0/objects/args/0/args/filter",
+        "before": {
+          "kind": "AllOf",
+          "args": [
+            {
+              "kind": "Any"
+            },
+            {
+              "kind": "ControlledBy",
+              "args": {
+                "kind": "One",
+                "args": {
+                  "kind": "Bound",
+                  "args": 0
+                }
+              }
+            }
+          ]
+        },
+        "after": {
+          "kind": "ControlledBy",
+          "args": {
+            "kind": "One",
+            "args": {
+              "kind": "Bound",
+              "args": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "reference_actors_20261108.json": {
+    "Knowledge Pool": [
+      {
+        "path": "/1/args/body/instructions/1/args/then/instructions/0/args/body/instructions/0/args/operation/args/cards",
+        "before": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "InSet",
+                        "args": {
+                          "kind": "CostObjects",
+                          "args": {
+                            "payment": {
+                              "Resolution": 0
+                            },
+                            "component": [
+                              0
+                            ],
+                            "view": "Performed",
+                            "phase": "After"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "ExiledWith",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "AllOf",
+              "args": [
+                {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "InSet",
+                    "args": {
+                      "kind": "CostObjects",
+                      "args": {
+                        "payment": {
+                          "Resolution": 0
+                        },
+                        "component": [
+                          0
+                        ],
+                        "view": "Performed",
+                        "phase": "After"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "reference_followup_expected.json": {
+    "Prowling Geistcatcher": [
+      {
+        "path": "/1/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "result_membership_before.jsonl": {
+    "Abstract Performance": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/3/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "InSet",
+                  "args": {
+                    "kind": "Recorded",
+                    "args": 2
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "InSet",
+              "args": {
+                "kind": "Recorded",
+                "args": 2
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/5/args/body/instructions/0/args/operation/args/cards",
+        "before": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "InSet",
+                    "args": {
+                      "kind": "Recorded",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "Not",
+              "args": {
+                "kind": "InSet",
+                "args": {
+                  "kind": "Recorded",
+                  "args": 2
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/6/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "InSet",
+                    "args": {
+                      "kind": "Recorded",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "Not",
+              "args": {
+                "kind": "InSet",
+                "args": {
+                  "kind": "Recorded",
+                  "args": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Flickerform": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/operation/args/body/instructions/1/args/then/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "InSet",
+                  "args": {
+                    "kind": "Recorded",
+                    "args": 0
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "InSet",
+              "args": {
+                "kind": "Recorded",
+                "args": 0
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Hostile Negotiations": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/6/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "InSet",
+                  "args": {
+                    "kind": "Recorded",
+                    "args": 5
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "InSet",
+              "args": {
+                "kind": "Recorded",
+                "args": 5
+              }
+            }
+          }
+        }
+      }
+    ],
+    "Kardum, Patron of Flames": [
+      {
+        "path": "/faces/0/abilities/2/args/body/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "ExiledWith",
+                      "args": {
+                        "kind": "EventSubject"
+                      }
+                    },
+                    {
+                      "kind": "OwnedBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "AllOf",
+              "args": [
+                {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "EventSubject"
+                  }
+                },
+                {
+                  "kind": "OwnedBy",
+                  "args": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "Mutational Advantage": [
+      {
+        "path": "/faces/0/abilities/0/args/body/instructions/0/args/operation/args/affected/Objects/args/filter/args",
+        "before": [
+          {
+            "kind": "Any"
+          },
+          {
+            "kind": "ControlledBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          },
+          {
+            "kind": "Counters",
+            "args": {
+              "kind": null,
+              "comparison": "Greater",
+              "value": {
+                "kind": "Constant",
+                "args": 0
+              }
+            }
+          }
+        ],
+        "after": [
+          {
+            "kind": "ControlledBy",
+            "args": {
+              "kind": "One",
+              "args": {
+                "kind": "AbilityController"
+              }
+            }
+          },
+          {
+            "kind": "Counters",
+            "args": {
+              "kind": null,
+              "comparison": "Greater",
+              "value": {
+                "kind": "Constant",
+                "args": 0
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "Noggin Whack": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/1/args/operation/args/objects",
+        "before": {
+          "kind": "Matching",
+          "args": {
+            "objects": {
+              "kind": "Recorded",
+              "args": 0
+            },
+            "filter": {
+              "kind": "Any"
+            }
+          }
+        },
+        "after": {
+          "kind": "Recorded",
+          "args": 0
+        }
+      }
+    ],
+    "Tawnos's Coffin": [
+      {
+        "path": "/faces/0/abilities/1/args/body/instructions/2/args/operation/args/body/instructions/1/args/then/instructions/0/args/operation/args/objects",
+        "before": {
+          "kind": "InZone",
+          "args": {
+            "objects": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "InSet",
+                  "args": {
+                    "kind": "Recorded",
+                    "args": 0
+                  }
+                }
+              }
+            },
+            "zone": "Exile"
+          }
+        },
+        "after": {
+          "kind": "Zone",
+          "args": {
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "InSet",
+              "args": {
+                "kind": "Recorded",
+                "args": 0
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

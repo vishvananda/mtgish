@@ -110,7 +110,7 @@ fn counter_replacement_retains_the_battlefield_domain_including_typeless_permane
     assert_eq!(objects["args"]["kind"],"Zone");
     assert_eq!(objects["args"]["args"]["scope"],json!({"Shared":"Battlefield"}));
     assert_eq!(objects["args"]["args"]["kind"],"Permanent");
-    assert_eq!(objects["args"]["args"]["filter"],json!({"kind":"AllOf","args":[{"kind":"Any"},{"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}]}));
+    assert_eq!(objects["args"]["args"]["filter"],json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}));
 }
 
 #[test]

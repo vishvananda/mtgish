@@ -9838,6 +9838,17 @@
    "template": "Each player adds {{ManaProduceSymbol}}{{ManaProduceSymbol}}{{ManaProduceSymbol}}",
    "result": "ActionList([EachPlayerAction(AnyPlayer, AddMana(And([{{ManaProduceSymbol[0]}}, {{ManaProduceSymbol[1]}}, {{ManaProduceSymbol[2]}}])))])",
    "reason": "Reviewed 2026-11-15: EachPlayerAction binds every player before AddMana. A nested PlayerAction wrapper is unnecessary; the word-token heuristic cannot distinguish this actor binder."
+  },
+  {
+   "id": "517aea8ad0c9d80fd251030b8d428bcba3c2d9c7304369f913999382b9fe1e63",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "TokenCopyOfGraveyardCard",
+   "word": "copy",
+   "support": "9/10",
+   "template": "Choose target {{SpecificCard}} in a graveyard or {{Permanent}} on the battlefield. Create {{Number}} tokens that are copies of it",
+   "result": "Targeted_Modal([Targeted([TargetGraveyardCard({{SpecificCard[0]}})], ActionList([CreateTokens([NumberTokens({{Number[0]}}, TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, NoTokenCopyEffects))], [])])), Targeted([TargetPermanent({{Permanent[0]}})], ActionList([CreateTokens([NumberTokens({{Number[0]}}, TokenCopyOfPermanent(Ref_TargetPermanent, NoTokenCopyEffects))], [])]))])",
+   "reason": "Reviewed 2026-11-16: copy does not imply a fixed graveyard domain. This modal template explicitly provides one graveyard-card-copy option and one battlefield-permanent-copy option, each with its own valid target. The changed mining support is not a missing-token defect; both alternatives preserve the printed choice."
   }
  ]
 }

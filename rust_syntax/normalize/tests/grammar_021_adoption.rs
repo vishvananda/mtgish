@@ -23,6 +23,21 @@ fn all_published_021_amendment_operands_are_produced_and_validate() {
                         if change["face"] != face.name {
                             continue;
                         }
+                        // U0049 replaces the old U0035 PlayersDo frame. Check
+                        // the complete independently amended program instead of
+                        // dereferencing a deliberately superseded leaf address.
+                        if group["id"] == "U0035" && face.name == "Thought Prison" {
+                            let reference: mtgish_ast::ir::UnifiedCard = include_str!("fixtures/grammar_adoption_expected.jsonl")
+                                .lines().map(|line| serde_json::from_str::<mtgish_ast::ir::UnifiedCard>(line).unwrap())
+                                .find(|card| card.faces.iter().any(|f| f.name == face.name)).unwrap();
+                            let mut expected = serde_json::to_value(&reference.faces.iter().find(|f| f.name == face.name).unwrap().abilities).unwrap();
+                            let mut actual = abilities.clone();
+                            mtgish_ast::canonical::semantic_abilities(&mut actual).unwrap();
+                            mtgish_ast::canonical::semantic_abilities(&mut expected).unwrap();
+                            assert_eq!(actual, expected, "U0035 after U0049");
+                            checked += 1;
+                            continue;
+                        }
                         let mut actual = &abilities;
                         for part in change["path"].as_array().unwrap() {
                             actual = if let Some(index) = part.as_u64() {
@@ -31,14 +46,7 @@ fn all_published_021_amendment_operands_are_produced_and_validate() {
                                 &actual[part.as_str().unwrap()]
                             };
                         }
-                        let mut expected = change["to"].clone();
-                        // U0046 corrects the actor inside this earlier U0035
-                        // observed-hand expression. Preserve the old ledger.
-                        if group["id"] == "U0035" && face.name == "Thought Prison" {
-                            let owner = expected.pointer_mut("/args/filter/args/1/args/args").unwrap();
-                            assert_eq!(*owner, serde_json::json!({"kind":"AbilityController"}));
-                            *owner = serde_json::json!({"kind":"Acting"});
-                        }
+                        let expected = change["to"].clone();
                         if actual != &expected {
                             errors.push(format!("{}: {} {:?}: {actual:?} != {:?}",
                                 face.name, group["id"], change["path"], expected));

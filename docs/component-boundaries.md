@@ -1,7 +1,7 @@
 # Component ownership
 
-The schema and contracts come from published `oracle-ir` 0.2.0 and
-`oracle-ir-contract` 0.2.1 (schema 191). MTGish does not own a second AST.
+The schema and contracts come from published `oracle-ir` 0.2.3 and
+`oracle-ir-contract` 0.2.3 (schema 191). MTGish does not own a second AST.
 
 | Repository | Responsibility |
 |---|---|

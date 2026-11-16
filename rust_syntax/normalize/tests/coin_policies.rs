@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 use mtgish_ast::{
     canonical, corpus,
     human::{self, document::Document},
@@ -46,7 +48,7 @@ fn authentic_coin_records_upgrade_to_exact_source_and_preserve_all_binding_origi
                 assert_eq!(fresh_value.pointer(path), Some(&scalar));
                 *expected_source.pointer_mut(path).unwrap() = scalar;
             }
-            assert_eq!(expected_source, fresh_value, "{}", before["faces"]);
+            fresh_producer::assert_matches("coin_policies_v185.jsonl", &expected_source, &fresh_value);
             assert!(mapped.map.introduced.is_empty());
             for (from, to) in mapped.map.sites {
                 for to in to {

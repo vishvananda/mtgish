@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 #[path = "support/legacy_entries.rs"]
 mod legacy_entries;
 use mtgish_ast::{canonical, corpus, ir::*, lower, mtg_types as source, validate};
@@ -38,7 +40,7 @@ fn complete_cards_preserve_all_operands_except_reviewed_damage_source_and_actor(
                 )
                 .unwrap();
             }
-            assert_eq!(actual, expected, "{}", c.name);
+            fresh_producer::assert_named("reference_actors_20261108.json", &c.name, &expected, &actual);
         }
     });
 }

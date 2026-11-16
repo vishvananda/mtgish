@@ -38,9 +38,13 @@ fn affinity(name: &str, base: Value) {
     assert_eq!(objects["args"]["kind"], json!("Spell"));
     assert_eq!(
         objects["args"]["filter"],
-        json!({"kind":"AllOf","args":[base,
-            {"kind":"Cast","args":{"by":{"kind":"One","args":{"kind":"AbilityController"}},"from":null}}
-        ]})
+        if base == json!({"kind":"Any"}) {
+            json!({"kind":"Cast","args":{"by":{"kind":"One","args":{"kind":"AbilityController"}},"from":null}})
+        } else {
+            json!({"kind":"AllOf","args":[base,
+                {"kind":"Cast","args":{"by":{"kind":"One","args":{"kind":"AbilityController"}},"from":null}}
+            ]})
+        }
     );
     assert!(static_effect["changes"].to_string().contains("Affinity"));
 }

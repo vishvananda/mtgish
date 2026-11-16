@@ -162,6 +162,9 @@ struct Context {
     looked: Option<ResultId>,
     /// The last definite look at one particular player's actual top card.
     looked_top: Option<(PlayerRef, ResultId)>,
+    /// A top-card observation with no intervening effect. Pure branches may
+    /// retain it; every emitted effect invalidates it before recording a new one.
+    revealed_top: Option<(PlayerRef, ResultId)>,
     /// Who exiled which cards when players take turns, by exile.
     exile_turns: Vec<(PlayerRef, ResultId)>,
     value_x: Option<ResultId>,
@@ -580,6 +583,23 @@ impl Context {
     }
 
     fn effect(&mut self, operation: Operation) -> Instruction {
+        self.revealed_top = match &operation {
+            Operation::Reveal {
+                objects: ObjectSet::Take {
+                    objects,
+                    count: Expr::Constant(1),
+                    from: SequenceEnd::Top,
+                },
+            } => match objects.as_ref() {
+                ObjectSet::Zone {
+                    scope: ZoneScope::Players { zone: EventZone::Library, players: PlayerSet::One(player) },
+                    kind: ObjectKind::Card,
+                    filter: ObjectFilter::Any,
+                } => Some((player.clone(), ResultId(self.result))),
+                _ => None,
+            },
+            _ => None,
+        };
         if let Operation::SetTapped {
             objects,
             tapped: true,
@@ -652,6 +672,9 @@ impl Context {
                 objects => objects.clone(),
             });
         }
+        if matches!(operation, Operation::RevealFromHand { .. }) {
+            self.revealed = Some(ObjectSet::Observed(ResultId(self.result)));
+        }
         if matches!(operation, Operation::RemoveCounters { .. }) {
             self.removed_counters = Some(ResultId(self.result));
         }
@@ -688,6 +711,11 @@ impl Context {
     }
 
     fn invalidate_child_bindings(&mut self, child: &Self) {
+        if self.revealed_top.as_ref().map(|(_, r)| r.0)
+            != child.revealed_top.as_ref().map(|(_, r)| r.0)
+        {
+            self.revealed_top = None;
+        }
         if self.looked_top.as_ref().map(|(_, r)| r.0)
             != child.looked_top.as_ref().map(|(_, r)| r.0)
         {
@@ -1793,6 +1821,22 @@ impl Context {
     }
 
     fn number(&self, value: &source::GameNumber) -> Result<Expr> {
+        // The observed card remains the referent after draws or other actions.
+        // Bind these Source pronouns before the generic historical fallback.
+        if let Some(objects) = &self.revealed {
+            let property = match value {
+                source::GameNumber::PowerOfTheRevealedCard => Some(Property::Power),
+                source::GameNumber::ToughnessOfTheRevealedCard => Some(Property::Toughness),
+                _ => None,
+            };
+            if let Some(property) = property {
+                return Ok(Expr::ObjectProperty {
+                    object: ObjectRef::Query { objects: Box::new(objects.clone()), index: 0 },
+                    property,
+                    information: Information::CurrentOrLastKnown,
+                });
+            }
+        }
         if matches!(
             value,
             source::GameNumber::ManaValueOfTheCardFoundThisWay
@@ -4012,11 +4056,17 @@ impl Context {
                     }
                     _ => unreachable!(),
                 };
-                crate::movement::move_to(self.library_slice(
+                let objects = match &self.revealed_top {
+                    Some((owner, result)) if crate::producer_forms::same_player_binding(owner, player) => {
+                        ObjectSet::Observed(result.clone())
+                    }
+                    _ => self.library_slice(
                         player.clone(),
                         Expr::Constant(1),
                         SequenceEnd::Top,
-                    ), destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?
+                    ),
+                };
+                crate::movement::move_to(objects, destination, entry, false, crate::ir::MovementTerms::default()).map_err(|message| invalid(&message))?
             }
             S::DiscardAnyNumberOfCards | S::DiscardAnyNumberOfCardsOfType(_) => {
                 let PlayerSet::One(player) = actor else {
@@ -6739,6 +6789,8 @@ fn bind_face(
     })();
     let mut errors = Vec::new();
     let mut abilities = Vec::new();
+    let cost_rules = crate::spell_paragraphs::branch_optional_cost(rules.as_deref().unwrap_or_default());
+    let rules = if cost_rules.is_some() { &cost_rules } else { rules };
     let joined_rules = crate::spell_paragraphs::join(rules.as_deref().unwrap_or_default());
     let rules = if joined_rules.is_some() { &joined_rules } else { rules };
     let casting_histories: Vec<_> = rules

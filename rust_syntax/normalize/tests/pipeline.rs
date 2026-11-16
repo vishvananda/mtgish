@@ -834,7 +834,7 @@ fn query_recipes_preserve_exclusions_distinct_values_and_cross_zone_aggregates()
         panic!()
     };
     assert!(
-        matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Graveyard,..},filter:ObjectFilter::AllOf(filters),..} if matches!(filters.as_slice(),[ObjectFilter::Any,ObjectFilter::Not(except)] if matches!(except.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:TargetSlot(0),..}))))
+        matches!(objects.as_ref(),ObjectSet::Zone {scope:ZoneScope::Players {zone:EventZone::Graveyard,..},filter:ObjectFilter::Not(except),..} if matches!(except.as_ref(),ObjectFilter::SameObject(ObjectRef::Target {slot:TargetSlot(0),..})))
     );
     assert!(
         matches!(numeric_amount(&card,1),Expr::Aggregate {objects,property:Property::Power,aggregation:Aggregation::Maximum} if matches!(objects.as_ref(),ObjectSet::Union(zones) if zones.len()==2))

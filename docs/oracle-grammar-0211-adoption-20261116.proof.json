@@ -1,0 +1,5571 @@
+{
+  "date": "2026-11-16",
+  "base_commit": "6de0770c41c824072f6e898b79b2d6c772584bc3",
+  "schema_version": 191,
+  "grammar_release": {
+    "tag": "grammar-v0.2.11",
+    "commit": "c8c7bf0f7df14e74a26ea07694f8867aa0aac061",
+    "face_tag": "faces-oracle-20261112220158-s191-g0.2.11-r1",
+    "manifest_sha256": "645740f6c9e6b84c9b311dcfcc399fdd0f5875027036448ed7733501bb834701",
+    "asset_checksums_verified": true
+  },
+  "published_models": {
+    "oracle-ir": {
+      "version": "0.2.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "c9634b6d9f4561b4c3736e79a418b5b6a0a112aca54981f4b16a424eb4057591"
+    },
+    "oracle-ir-contract": {
+      "version": "0.2.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "a37ec26bbc922699ba413fd1565d855db766fb44b80051792ab0d2b898f689ef"
+    }
+  },
+  "population": {
+    "oracle_version": "20261001.1",
+    "records": 33529,
+    "oracle_sha256": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
+    "new_scryfall_population_adopted": false
+  },
+  "source": {
+    "template_edits": [
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{TriggerEffect(~Permanent)}}"
+        ],
+        "key": "When a player casts {{a}} {{Spell}}, {{TriggerActions(~Permanent,ThatSpell)}}",
+        "value": "TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), {{Spell[0]}}), {{TriggerActions(~Permanent=^~Permanent,ThatSpell=Trigger_ThatSpell)[0]}})",
+        "updated": "TriggerA(WhenAPlayerCastsASpell(AnyPlayer, {{Spell[0]}}), {{TriggerActions(~Permanent=^~Permanent,ThatSpell=Trigger_ThatSpell)[0]}})",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{TriggerActions}}"
+        ],
+        "key": "create {{a}} {{PT}} {{CreatureToken}} with {{Hasable}}. Then if {{Condition}}, for each creature token you control, create a token that's a copy of it",
+        "value": "ActionList([CreateTokens([TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [{{Hasable[0]}}])], []), If({{Condition[0]}}, [CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), NoTokenCopyEffects)], [])])])",
+        "updated": "ActionList([CreateTokens([TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [{{Hasable[0]}}])], []), If({{Condition[0]}}, [CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), IsToken, ControlledByAPlayer(SinglePlayer(You))]), NoTokenCopyEffects)], [])])])",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{Creature}}"
+        ],
+        "key": "creature you control with toughness greater than its power",
+        "value": "And([IsCardtype(Creature), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))])",
+        "updated": "And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))])",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{StaticEffect[TheChosenName]}}"
+        ],
+        "key": "Spells with the chosen name cost {{ManaCost}} more to cast",
+        "value": "StackSpellsEffect(And([IsNamed(TheChosenName), CastByPlayer(You)]), [IncreaseManaCost({{ManaCost[0]}})])",
+        "updated": "StackSpellsEffect(IsNamed(TheChosenName), [IncreaseManaCost({{ManaCost[0]}})])",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{SpellActions}}"
+        ],
+        "key": "Choose a creature type. For each creature you control of the chosen type, create a token that's a copy of that creature. Those tokens gain {{Hasable}}. Exile them at the beginning of the next end step",
+        "value": "ActionList([ChooseACreatureType, CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), IsCreatureTypeVariable(TheChosenCreatureType)]), NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))])",
+        "updated": "ActionList([ChooseACreatureType, CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), IsCreatureTypeVariable(TheChosenCreatureType)]), NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))])",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{TriggerActions(~Permanent)}}"
+        ],
+        "key": "put {{a}} {{CounterType}} counter on {{~Permanent}} and tap target creature an opponent controls. Then you may have {{~Permanent}} become a copy of that creature, except its name is {{NamedCard}} and it has {{Hasable}} and this ability",
+        "value": "Targeted([TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Opponent)]))], ActionList([PutCounters([ACounterOfTypeOnPermanent({{CounterType[0]}}, ThisPermanent)]), TapPermanent(Ref_TargetPermanent), MayAction(CreatePermanentLayerEffect(Ref_TargetPermanent, [IsACopyOfPermanent(Ref_TargetPermanent, CopyEffects([SetName({{NamedCard[0]}}), AddAbility([{{Hasable[0]}}]), AddAbilityVariable(ThisAbility)]))]))]))",
+        "updated": "Targeted([TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Opponent)]))], ActionList([PutCounters([ACounterOfTypeOnPermanent({{CounterType[0]}}, ThisPermanent)]), TapPermanent(Ref_TargetPermanent), MayAction(CreatePermanentLayerEffect(ThisPermanent, [IsACopyOfPermanent(Ref_TargetPermanent, CopyEffects([SetName({{NamedCard[0]}}), AddAbility([{{Hasable[0]}}]), AddAbilityVariable(ThisAbility)]))]))]))",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{TriggerActions(~Permanent,ThatCreature)}}"
+        ],
+        "key": "you may have this creature become a copy of that creature until end of turn",
+        "value": "ActionList([MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfPermanent({{ThatCreature}}, CopyEffects([AddAbilityVariable(ThisAbility)]))], UntilEndOfTurn))])",
+        "updated": "ActionList([MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfPermanent({{ThatCreature}}, NoCopyEffects)], UntilEndOfTurn))])",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{ActivatedActions}}"
+        ],
+        "key": "Look at the top card of your library. If it's {{a}} {{SpecificCard}}, you may put it onto the battlefield tapped. If you don't put the card onto the battlefield, you may put it on the bottom of your library",
+        "value": "ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield({{SpecificCard[0]}}, [EntersTapped])), Unless(CostWasPaid, [PutTopOfLibraryOnBottomOfLibrary])])",
+        "updated": "ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield({{SpecificCard[0]}}, [EntersTapped])), Unless(CostWasPaid, [MayAction(PutTopOfLibraryOnBottomOfLibrary)])])",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{ActivatedActions}}"
+        ],
+        "key": "Look at the top card of your library. If it's {{a}} {{SpecificCard}}, you may put it onto the battlefield. If you don't put the card onto the battlefield, you may put it on the bottom of your library",
+        "value": "ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield({{SpecificCard[0]}}, [EntersNormally])), Unless(CostWasPaid, [PutTopOfLibraryOnBottomOfLibrary])])",
+        "updated": "ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield({{SpecificCard[0]}}, [EntersNormally])), Unless(CostWasPaid, [MayAction(PutTopOfLibraryOnBottomOfLibrary)])])",
+        "classification": "parser_correction"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{StaticEffect[TheChosenColor](~Permanent)}}"
+        ],
+        "key": "{{~Permanent}}'s power and toughness are each equal to {{GameNumber[TheChosenColor]}}",
+        "value": "PermanentLayerEffect(ThisPermanent, [SetPowerAndToughnessBoth({{GameNumber[TheChosenColor][0]}})])",
+        "updated": "CDA_PowerToughness({{GameNumber[TheChosenColor][0]}}, {{GameNumber[TheChosenColor][0]}})",
+        "classification": "explicit_source_classification"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{SelfCastModifier}}"
+        ],
+        "key": "If you've cast another {{Spell}} this turn, you may cast this spell without paying its mana cost",
+        "value": "CastEffect(MayCastWithoutPayingIf(PlayerPassesFilter(You, CastASpellThisTurn({{Spell[0]}}))))",
+        "updated": "CastEffect(MayCastWithoutPayingIf(PlayerPassesFilter(You, CastASpellThisTurn(And([Other(ThisSpell), {{Spell[0]}}])))))",
+        "classification": "source_normalization"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{SelfCastModifier}}"
+        ],
+        "key": "This spell costs {{CostReduce}} less to cast if you've cast another {{Spell}} this turn",
+        "value": "CastEffect(ReduceCastingCostIf({{CostReduce[0]}}, PlayerPassesFilter(You, CastASpellThisTurn({{Spell[0]}}))))",
+        "updated": "CastEffect(ReduceCastingCostIf({{CostReduce[0]}}, PlayerPassesFilter(You, CastASpellThisTurn(And([Other(ThisSpell), {{Spell[0]}}])))))",
+        "classification": "source_normalization"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{TriggerActions(ThatCreature)}}"
+        ],
+        "key": "create a token that's a copy of that creature. That token gains {{Hasable}}. Exile it at the beginning of the next end step",
+        "value": "ActionList([CreateTokens([TokenCopyOfPermanent({{ThatCreature}}, NoTokenCopyEffects)], []), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([Permanent(ThePermanentPutOnTheBattlefieldThisWay)], [])]))])",
+        "updated": "ActionList([CreateTokens([TokenCopyOfPermanent({{ThatCreature}}, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))])",
+        "classification": "explicit_source_population"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{TriggerActions}}"
+        ],
+        "key": "exile target {{SpecificCard}} from a graveyard. You gain life equal to that card's toughness",
+        "value": "Targeted([TargetGraveyardCard({{SpecificCard[0]}})], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), GainLife(ToughnessOfTheExiledCreature)]))",
+        "updated": "Targeted([TargetGraveyardCard({{SpecificCard[0]}})], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), GainLife(ToughnessOfGraveyardCard(Ref_TargetGraveyardCard))]))",
+        "classification": "explicit_source_reference"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{ActivatedActions(X)}}"
+        ],
+        "key": "Exile target {{SpecificCard}} with mana value X from your graveyard. Create a token that's a copy of it, except it's {{a}} {{PT}} {{Black}} {{Zombie}}",
+        "value": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, ManaValueIs(EqualTo({{X}})), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, TokenCopyEffects([SetPT({{PT[0]}}), SetColor(SimpleColorList([{{Black[0]}}])), SetCreatureTypes([{{Zombie[0]}}])]))], [])]))",
+        "updated": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, ManaValueIs(EqualTo({{X}})), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, TokenCopyEffects([SetPT({{PT[0]}}), SetColor(SimpleColorList([{{Black[0]}}])), SetCreatureTypes([{{Zombie[0]}}])]))], [])]))",
+        "classification": "explicit_source_reference"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{ActivatedActions}}"
+        ],
+        "key": "Exile target {{SpecificCard}} from a graveyard. Create a token that's a copy of it, except it's {{a}} {{PT}} {{Black}} {{Zombie}}",
+        "value": "Targeted([TargetGraveyardCard({{SpecificCard[0]}})], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, TokenCopyEffects([SetPT({{PT[0]}}), SetColor(SimpleColorList([{{Black[0]}}])), SetCreatureTypes([{{Zombie[0]}}])]))], [])]))",
+        "updated": "Targeted([TargetGraveyardCard({{SpecificCard[0]}})], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, TokenCopyEffects([SetPT({{PT[0]}}), SetColor(SimpleColorList([{{Black[0]}}])), SetCreatureTypes([{{Zombie[0]}}])]))], [])]))",
+        "classification": "explicit_source_reference"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{TriggerActions}}"
+        ],
+        "key": "exile target {{SpecificCard}} from your graveyard. Create a token that's a copy of that card, except it's {{PT}}. It gains {{Hasable}} until your next turn",
+        "value": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, TokenCopyEffects([SetPT({{PT[0]}})]))], []), CreateEachPermanentLayerEffectUntil(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])], UntilPlayersNextTurn(You))]))",
+        "updated": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, TokenCopyEffects([SetPT({{PT[0]}})]))], []), CreateEachPermanentLayerEffectUntil(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])], UntilPlayersNextTurn(You))]))",
+        "classification": "explicit_source_reference"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{SpellActions}}"
+        ],
+        "key": "Exile {{a}} {{SpecificCard}} from your graveyard. Create a token that's a copy of it. It gains {{Hasable}} until end of turn. Exile it at the beginning of the next end step",
+        "value": "ActionList([Exile([ACardInGraveyards(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []), CreatePermanentLayerEffectUntil(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([{{Hasable[0]}}])], UntilEndOfTurn), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([Permanent(ThePermanentPutOnTheBattlefieldThisWay)], [])]))])",
+        "updated": "ActionList([Exile([ACardInGraveyards(And([{{SpecificCard[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffectUntil(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])], UntilEndOfTurn), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))])",
+        "classification": "explicit_source_population"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{ActivatedActions(~Permanent)}}"
+        ],
+        "key": "Exile target creature or Equipment card with mana value less than {{GameNumber(~Permanent)}} from your graveyard. Create a token that's a copy of it. That token gains {{Hasable}}. Exile it at the beginning of the next end step",
+        "value": "Targeted([TargetGraveyardCard(And([Or([IsCardtype(Creature), IsArtifactType(Equipment)]), ManaValueIs(LessThan({{GameNumber(~Permanent=^~Permanent)[0]}})), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))]))",
+        "updated": "Targeted([TargetGraveyardCard(And([Or([IsCardtype(Creature), IsArtifactType(Equipment)]), ManaValueIs(LessThan({{GameNumber(~Permanent=^~Permanent)[0]}})), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([{{Hasable[0]}}])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))]))",
+        "classification": "explicit_source_reference"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{SelfEntersActions(~Permanent,X)}}"
+        ],
+        "key": "As {{ThisPermanent}} enters, exile X {{SpecificCards}} from your graveyard. If you can't, put {{ThisPermanent}} into its owner's graveyard instead of onto the battlefield. For each {{SpecificCard}} exiled this way, {{ThisPermanent}} enters with {{a}} {{CounterType}}, {{CounterType}}, or {{CounterType}} counter on it",
+        "value": "AsPermanentEnters(ThisPermanent, [Exile([NumberCardsInGraveyards({{X}}, And([{{SpecificCards[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], []), IfElse(DifferenceIs(NumberOfCardsOfTypeExiledThisWay({{SpecificCard[0]}}), {{X}}, EqualTo(Integer(0))), [EntersWithNumberCombinationCountersOfChoice(NumberOfCardsOfTypeExiledThisWay({{SpecificCard[0]}}), [{{CounterType[0]}}, {{CounterType[1]}}, {{CounterType[2]}}])], [PutIntoGraveyardInstead])])",
+        "updated": "AsPermanentEnters(ThisPermanent, [Exile([NumberCardsInGraveyards({{X}}, And([{{SpecificCards[0]}}, InAPlayersGraveyard(SinglePlayer(You))]))], []), IfElse(ValueIs(NumberOfCardsOfTypeExiledThisWay(AnyCard), EqualTo({{X}})), [EntersWithNumberCombinationCountersOfChoice(NumberOfCardsOfTypeExiledThisWay({{SpecificCard[0]}}), [{{CounterType[0]}}, {{CounterType[1]}}, {{CounterType[2]}}])], [PutIntoGraveyardInstead])])",
+        "classification": "source_normalization"
+      },
+      {
+        "file": "english_grammar.json5",
+        "path": [
+          "{{SpellActions(~Spell)}}"
+        ],
+        "key": "Target player reveals a card at random from their hand. {{~Spell}} deals damage to that player equal to that card's mana value",
+        "value": "Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerMustCost(Ref_TargetPlayer, RevealACardFromHandAtRandom), If(CostWasPaid, [SpellDealsDamage({{~Spell}}, ManaValueOfTheCardRevealedThisWay, Player(Ref_TargetPlayer))])]))",
+        "updated": "Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerAction(Ref_TargetPlayer, RevealACardFromHandAtRandom), SpellDealsDamage({{~Spell}}, ManaValueOfTheCardRevealedThisWay, Player(Ref_TargetPlayer))]))",
+        "classification": "source_normalization"
+      }
+    ],
+    "changed_records": [
+      {
+        "index": 861,
+        "names": [
+          "Ancient Lumberknot"
+        ],
+        "before": "Card(Name: \"Ancient Lumberknot\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Treefolk]), ManaCost: [ManaCostGeneric(2), ManaCostB, ManaCostG], Rules: [EachPermanentRuleEffect(And([IsCardtype(Creature), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage])], CardPT: (Power: 1, Toughness: 4))",
+        "after": "Card(Name: \"Ancient Lumberknot\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Treefolk]), ManaCost: [ManaCostGeneric(2), ManaCostB, ManaCostG], Rules: [EachPermanentRuleEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage])], CardPT: (Power: 1, Toughness: 4))"
+      },
+      {
+        "index": 2384,
+        "names": [
+          "Bedrock Tortoise"
+        ],
+        "before": "Card(Name: \"Bedrock Tortoise\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Turtle]), ManaCost: [ManaCostGeneric(3), ManaCostG], Rules: [If(IsPlayersTurn(You), [EachPermanentLayerEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), [AddAbility([Hexproof])])]), EachPermanentRuleEffect(And([IsCardtype(Creature), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage])], CardPT: (Power: 0, Toughness: 6))",
+        "after": "Card(Name: \"Bedrock Tortoise\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Turtle]), ManaCost: [ManaCostGeneric(3), ManaCostG], Rules: [If(IsPlayersTurn(You), [EachPermanentLayerEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), [AddAbility([Hexproof])])]), EachPermanentRuleEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage])], CardPT: (Power: 0, Toughness: 6))"
+      },
+      {
+        "index": 4467,
+        "names": [
+          "Chameleon Spirit"
+        ],
+        "before": "Card(Name: \"Chameleon Spirit\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Illusion, Spirit]), ManaCost: [ManaCostGeneric(3), ManaCostU], Rules: [AsPermanentEnters(ThisPermanent, [ChooseAColor(AnyColor)]), PermanentLayerEffect(ThisPermanent, [SetPowerAndToughnessBoth(TheNumberOfPermanentsOnTheBattlefield(And([IsColor(TheChosenColor), ControlledByAPlayer(Opponent)])))])], CardPT: (Power: 0, Toughness: 0))",
+        "after": "Card(Name: \"Chameleon Spirit\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Illusion, Spirit]), ManaCost: [ManaCostGeneric(3), ManaCostU], Rules: [AsPermanentEnters(ThisPermanent, [ChooseAColor(AnyColor)]), CDA_PowerToughness(TheNumberOfPermanentsOnTheBattlefield(And([IsColor(TheChosenColor), ControlledByAPlayer(Opponent)])), TheNumberOfPermanentsOnTheBattlefield(And([IsColor(TheChosenColor), ControlledByAPlayer(Opponent)])))], CardPT: (Power: 0, Toughness: 0))"
+      },
+      {
+        "index": 4661,
+        "names": [
+          "Chief Magistrate of Mercadia"
+        ],
+        "before": "Card(Name: \"Chief Magistrate of Mercadia\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Human, Noble]), ManaCost: [ManaCostGeneric(4), ManaCostR, ManaCostW], Rules: [TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([BecomeTheMonarch])), TriggerA(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)), ActionList([CreateTokens([TokenWithPT(PT(2, 1), Colors([Red]), [], [Creature], SubtypesList([Goblin]), [Haste])], []), If(PlayerPassesFilter(You, IsTheMonarch), [CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), NoTokenCopyEffects)], [])])]))], CardPT: (Power: 3, Toughness: 3))",
+        "after": "Card(Name: \"Chief Magistrate of Mercadia\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Human, Noble]), ManaCost: [ManaCostGeneric(4), ManaCostR, ManaCostW], Rules: [TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([BecomeTheMonarch])), TriggerA(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)), ActionList([CreateTokens([TokenWithPT(PT(2, 1), Colors([Red]), [], [Creature], SubtypesList([Goblin]), [Haste])], []), If(PlayerPassesFilter(You, IsTheMonarch), [CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), IsToken, ControlledByAPlayer(SinglePlayer(You))]), NoTokenCopyEffects)], [])])]))], CardPT: (Power: 3, Toughness: 3))"
+      },
+      {
+        "index": 7250,
+        "names": [
+          "Disruptor Flute"
+        ],
+        "before": "Card(Name: \"Disruptor Flute\", Typeline: (Supertypes: [], Cardtypes: [Artifact], Subtypes: []), ManaCost: [ManaCostGeneric(2)], Rules: [Flash, AsPermanentEnters(ThisPermanent, [ChooseACardName(AnyOracleCard)]), StackSpellsEffect(And([IsNamed(TheChosenName), CastByPlayer(You)]), [IncreaseManaCost([ManaCostGeneric(3)])]), ActivatedAbilityEffect(And([AbilityOfASource(IsNamed(TheChosenName)), NonManaAbility]), CantBeActivated)])",
+        "after": "Card(Name: \"Disruptor Flute\", Typeline: (Supertypes: [], Cardtypes: [Artifact], Subtypes: []), ManaCost: [ManaCostGeneric(2)], Rules: [Flash, AsPermanentEnters(ThisPermanent, [ChooseACardName(AnyOracleCard)]), StackSpellsEffect(IsNamed(TheChosenName), [IncreaseManaCost([ManaCostGeneric(3)])]), ActivatedAbilityEffect(And([AbilityOfASource(IsNamed(TheChosenName)), NonManaAbility]), CantBeActivated)])"
+      },
+      {
+        "index": 9558,
+        "names": [
+          "Fecund Greenshell"
+        ],
+        "before": "Card(Name: \"Fecund Greenshell\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Elemental, Turtle]), ManaCost: [ManaCostGeneric(3), ManaCostG, ManaCostG], Rules: [Reach, If(PlayerPassesFilter(You, ControlsNum(GreaterThanOrEqualTo(Integer(10)), IsCardtype(Land))), [EachPermanentLayerEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), [AdjustPT(+2, +2)])]), TriggerA(Or([WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), WhenAPermanentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))])]))]), ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield(IsCardtype(Land), [EntersTapped])), Unless(CostWasPaid, [PutTopOfLibraryInHand])]))], CardPT: (Power: 4, Toughness: 6))",
+        "after": "Card(Name: \"Fecund Greenshell\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Elemental, Turtle]), ManaCost: [ManaCostGeneric(3), ManaCostG, ManaCostG], Rules: [Reach, If(PlayerPassesFilter(You, ControlsNum(GreaterThanOrEqualTo(Integer(10)), IsCardtype(Land))), [EachPermanentLayerEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), [AdjustPT(+2, +2)])]), TriggerA(Or([WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), WhenAPermanentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))])]))]), ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield(IsCardtype(Land), [EntersTapped])), Unless(CostWasPaid, [PutTopOfLibraryInHand])]))], CardPT: (Power: 4, Toughness: 6))"
+      },
+      {
+        "index": 10211,
+        "names": [
+          "Focus the Mind"
+        ],
+        "before": "Card(Name: \"Focus the Mind\", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [ManaCostGeneric(4), ManaCostU], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(2)], PlayerPassesFilter(You, CastASpellThisTurn(AnySpell)))), SpellActions(ActionList([DrawNumberCards(Integer(3)), DiscardACard]))])",
+        "after": "Card(Name: \"Focus the Mind\", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [ManaCostGeneric(4), ManaCostU], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(2)], PlayerPassesFilter(You, CastASpellThisTurn(And([Other(ThisSpell), AnySpell]))))), SpellActions(ActionList([DrawNumberCards(Integer(3)), DiscardACard]))])"
+      },
+      {
+        "index": 10461,
+        "names": [
+          "Frankenstein's Monster"
+        ],
+        "before": "Card(Name: \"Frankenstein's Monster\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Zombie]), ManaCost: [ManaCostX, ManaCostB, ManaCostB], Rules: [AsPermanentEnters(ThisPermanent, [Exile([NumberCardsInGraveyards(ValueX, And([IsCardtype(Creature), InAPlayersGraveyard(SinglePlayer(You))]))], []), IfElse(DifferenceIs(NumberOfCardsOfTypeExiledThisWay(IsCardtype(Creature)), ValueX, EqualTo(Integer(0))), [EntersWithNumberCombinationCountersOfChoice(NumberOfCardsOfTypeExiledThisWay(IsCardtype(Creature)), [PTCounter(+2, +0), PTCounter(+1, +1), PTCounter(+0, +2)])], [PutIntoGraveyardInstead])])], CardPT: (Power: 0, Toughness: 1))",
+        "after": "Card(Name: \"Frankenstein's Monster\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Zombie]), ManaCost: [ManaCostX, ManaCostB, ManaCostB], Rules: [AsPermanentEnters(ThisPermanent, [Exile([NumberCardsInGraveyards(ValueX, And([IsCardtype(Creature), InAPlayersGraveyard(SinglePlayer(You))]))], []), IfElse(ValueIs(NumberOfCardsOfTypeExiledThisWay(AnyCard), EqualTo(ValueX)), [EntersWithNumberCombinationCountersOfChoice(NumberOfCardsOfTypeExiledThisWay(IsCardtype(Creature)), [PTCounter(+2, +0), PTCounter(+1, +1), PTCounter(+0, +2)])], [PutIntoGraveyardInstead])])], CardPT: (Power: 0, Toughness: 1))"
+      },
+      {
+        "index": 11066,
+        "names": [
+          "Ghalta the Immovable"
+        ],
+        "before": "Card(Name: \"Ghalta the Immovable\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Elder, Dinosaur]), ManaCost: [ManaCostGeneric(8), ManaCostW], Rules: [CastEffect(ReduceCastingCostX([CostReduceX], TheGreatestToughnessAmongPermanents(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])))), EachPermanentRuleEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), [CanAttackAsThoughItDidntHaveDefender]), EachPermanentRuleEffect(And([IsCardtype(Creature), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage])], CardPT: (Power: 0, Toughness: 7))",
+        "after": "Card(Name: \"Ghalta the Immovable\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Elder, Dinosaur]), ManaCost: [ManaCostGeneric(8), ManaCostW], Rules: [CastEffect(ReduceCastingCostX([CostReduceX], TheGreatestToughnessAmongPermanents(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])))), EachPermanentRuleEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]), [CanAttackAsThoughItDidntHaveDefender]), EachPermanentRuleEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage])], CardPT: (Power: 0, Toughness: 7))"
+      },
+      {
+        "index": 11259,
+        "names": [
+          "Gigastorm Titan"
+        ],
+        "before": "Card(Name: \"Gigastorm Titan\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Elemental]), ManaCost: [ManaCostGeneric(4), ManaCostU], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(3)], PlayerPassesFilter(You, CastASpellThisTurn(AnySpell))))], CardPT: (Power: 4, Toughness: 4))",
+        "after": "Card(Name: \"Gigastorm Titan\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Elemental]), ManaCost: [ManaCostGeneric(4), ManaCostU], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(3)], PlayerPassesFilter(You, CastASpellThisTurn(And([Other(ThisSpell), AnySpell])))))], CardPT: (Power: 4, Toughness: 4))"
+      },
+      {
+        "index": 13099,
+        "names": [
+          "Hesitation"
+        ],
+        "before": "Card(Name: \"Hesitation\", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(1), ManaCostU], Rules: [TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), AnySpell), ActionList([SacrificePermanent(ThisPermanent), CounterSpell(Trigger_ThatSpell)]))])",
+        "after": "Card(Name: \"Hesitation\", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(1), ManaCostU], Rules: [TriggerA(WhenAPlayerCastsASpell(AnyPlayer, AnySpell), ActionList([SacrificePermanent(ThisPermanent), CounterSpell(Trigger_ThatSpell)]))])"
+      },
+      {
+        "index": 13784,
+        "names": [
+          "Ignite Memories"
+        ],
+        "before": "Card(Name: \"Ignite Memories\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(4), ManaCostR], Rules: [SpellActions(Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerMustCost(Ref_TargetPlayer, RevealACardFromHandAtRandom), If(CostWasPaid, [SpellDealsDamage(ThisSpell, ManaValueOfTheCardRevealedThisWay, Player(Ref_TargetPlayer))])]))), Storm])",
+        "after": "Card(Name: \"Ignite Memories\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(4), ManaCostR], Rules: [SpellActions(Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerAction(Ref_TargetPlayer, RevealACardFromHandAtRandom), SpellDealsDamage(ThisSpell, ManaValueOfTheCardRevealedThisWay, Player(Ref_TargetPlayer))]))), Storm])"
+      },
+      {
+        "index": 15292,
+        "names": [
+          "Kenessos, Priest of Thassa"
+        ],
+        "before": "Card(Name: \"Kenessos, Priest of Thassa\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Merfolk, Cleric]), ManaCost: [ManaCostGeneric(1), ManaCostU], Rules: [ReplaceWouldScry(PlayerWouldScry(You), [Scry(Plus(WouldScry_ThatMuch, Integer(1)))]), Activated(PayMana([ManaCostGeneric(3), ManaCostGU]), ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield(And([Or([IsCreatureType(Kraken), IsCreatureType(Leviathan), IsCreatureType(Octopus), IsCreatureType(Serpent)]), IsCardtype(Creature)]), [EntersNormally])), Unless(CostWasPaid, [PutTopOfLibraryOnBottomOfLibrary])]))], CardPT: (Power: 1, Toughness: 3))",
+        "after": "Card(Name: \"Kenessos, Priest of Thassa\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Merfolk, Cleric]), ManaCost: [ManaCostGeneric(1), ManaCostU], Rules: [ReplaceWouldScry(PlayerWouldScry(You), [Scry(Plus(WouldScry_ThatMuch, Integer(1)))]), Activated(PayMana([ManaCostGeneric(3), ManaCostGU]), ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield(And([Or([IsCreatureType(Kraken), IsCreatureType(Leviathan), IsCreatureType(Octopus), IsCreatureType(Serpent)]), IsCardtype(Creature)]), [EntersNormally])), Unless(CostWasPaid, [MayAction(PutTopOfLibraryOnBottomOfLibrary)])]))], CardPT: (Power: 1, Toughness: 3))"
+      },
+      {
+        "index": 15382,
+        "names": [
+          "Kimahri, Valiant Guardian"
+        ],
+        "before": "Card(Name: \"Kimahri, Valiant Guardian\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Cat, Warrior]), ManaCost: [ManaCostGeneric(2), ManaCostG, ManaCostU], Rules: [Vigilance, TriggerA(AtTheBeginningOfCombatDuringAPlayersTurn(SinglePlayer(You)), Targeted([TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Opponent)]))], ActionList([PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1, +1), ThisPermanent)]), TapPermanent(Ref_TargetPermanent), MayAction(CreatePermanentLayerEffect(Ref_TargetPermanent, [IsACopyOfPermanent(Ref_TargetPermanent, CopyEffects([SetName(\"Kimahri, Valiant Guardian\"), AddAbility([Vigilance]), AddAbilityVariable(ThisAbility)]))]))])))], CardPT: (Power: 3, Toughness: 3))",
+        "after": "Card(Name: \"Kimahri, Valiant Guardian\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [Cat, Warrior]), ManaCost: [ManaCostGeneric(2), ManaCostG, ManaCostU], Rules: [Vigilance, TriggerA(AtTheBeginningOfCombatDuringAPlayersTurn(SinglePlayer(You)), Targeted([TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Opponent)]))], ActionList([PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1, +1), ThisPermanent)]), TapPermanent(Ref_TargetPermanent), MayAction(CreatePermanentLayerEffect(ThisPermanent, [IsACopyOfPermanent(Ref_TargetPermanent, CopyEffects([SetName(\"Kimahri, Valiant Guardian\"), AddAbility([Vigilance]), AddAbilityVariable(ThisAbility)]))]))])))], CardPT: (Power: 3, Toughness: 3))"
+      },
+      {
+        "index": 15400,
+        "names": [
+          "Kindred Charge"
+        ],
+        "before": "Card(Name: \"Kindred Charge\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(4), ManaCostR, ManaCostR], Rules: [SpellActions(ActionList([ChooseACreatureType, CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), IsCreatureTypeVariable(TheChosenCreatureType)]), NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))]))])",
+        "after": "Card(Name: \"Kindred Charge\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(4), ManaCostR, ManaCostR], Rules: [SpellActions(ActionList([ChooseACreatureType, CreateTokens([TokenCopyOfEachPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), IsCreatureTypeVariable(TheChosenCreatureType)]), NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))]))])"
+      },
+      {
+        "index": 15954,
+        "names": [
+          "Lantern of Revealing"
+        ],
+        "before": "Card(Name: \"Lantern of Revealing\", Typeline: (Supertypes: [], Cardtypes: [Artifact], Subtypes: []), ManaCost: [ManaCostGeneric(3)], Rules: [Activated(TapPermanent(ThisPermanent), ActionList([AddMana(AnyManaColor)])), Activated(And([PayMana([ManaCostGeneric(4)]), TapPermanent(ThisPermanent)]), ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield(IsCardtype(Land), [EntersTapped])), Unless(CostWasPaid, [PutTopOfLibraryOnBottomOfLibrary])]))])",
+        "after": "Card(Name: \"Lantern of Revealing\", Typeline: (Supertypes: [], Cardtypes: [Artifact], Subtypes: []), ManaCost: [ManaCostGeneric(3)], Rules: [Activated(TapPermanent(ThisPermanent), ActionList([AddMana(AnyManaColor)])), Activated(And([PayMana([ManaCostGeneric(4)]), TapPermanent(ThisPermanent)]), ActionList([LookAtTopOfLibrary, MayCost(PutTopCardOfLibraryOfTypeOnBattlefield(IsCardtype(Land), [EntersTapped])), Unless(CostWasPaid, [MayAction(PutTopOfLibraryOnBottomOfLibrary)])]))])"
+      },
+      {
+        "index": 16069,
+        "names": [
+          "Lazotep Quarry"
+        ],
+        "before": "Card(Name: \"Lazotep Quarry\", Typeline: (Supertypes: [], Cardtypes: [Land], Subtypes: [Desert]), Rules: [Activated(TapPermanent(ThisPermanent), ActionList([AddMana(ManaProduceC)])), Activated(And([TapPermanent(ThisPermanent), SacrificeAPermanent(IsCardtype(Creature))]), ActionList([AddMana(AnyManaColor)])), ActivatedWithModifiers(And([PayManaX([ManaCostX, ManaCostGeneric(2)], ValueX), TapPermanent(ThisPermanent), SacrificeAPermanent(IsLandType(Desert))]), Targeted([TargetGraveyardCard(And([IsCardtype(Creature), ManaValueIs(EqualTo(ValueX)), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, TokenCopyEffects([SetPT(PT(4, 4)), SetColor(SimpleColorList([Black])), SetCreatureTypes([Zombie])]))], [])])), ActivateOnlyAsASorcery)])",
+        "after": "Card(Name: \"Lazotep Quarry\", Typeline: (Supertypes: [], Cardtypes: [Land], Subtypes: [Desert]), Rules: [Activated(TapPermanent(ThisPermanent), ActionList([AddMana(ManaProduceC)])), Activated(And([TapPermanent(ThisPermanent), SacrificeAPermanent(IsCardtype(Creature))]), ActionList([AddMana(AnyManaColor)])), ActivatedWithModifiers(And([PayManaX([ManaCostX, ManaCostGeneric(2)], ValueX), TapPermanent(ThisPermanent), SacrificeAPermanent(IsLandType(Desert))]), Targeted([TargetGraveyardCard(And([IsCardtype(Creature), ManaValueIs(EqualTo(ValueX)), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, TokenCopyEffects([SetPT(PT(4, 4)), SetColor(SimpleColorList([Black])), SetCreatureTypes([Zombie])]))], [])])), ActivateOnlyAsASorcery)])"
+      },
+      {
+        "index": 16976,
+        "names": [
+          "Mage Duel"
+        ],
+        "before": "Card(Name: \"Mage Duel\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostG], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(2)], PlayerPassesFilter(You, CastASpellThisTurn(Or([IsCardtype(Instant), IsCardtype(Sorcery)]))))), SpellActions(Targeted([TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Other(You))]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent1, [AdjustPT(+1, +2)], UntilEndOfTurn), Fight(Ref_TargetPermanent1, Ref_TargetPermanent2)])))])",
+        "after": "Card(Name: \"Mage Duel\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostG], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(2)], PlayerPassesFilter(You, CastASpellThisTurn(And([Other(ThisSpell), Or([IsCardtype(Instant), IsCardtype(Sorcery)])]))))), SpellActions(Targeted([TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Other(You))]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent1, [AdjustPT(+1, +2)], UntilEndOfTurn), Fight(Ref_TargetPermanent1, Ref_TargetPermanent2)])))])"
+      },
+      {
+        "index": 18343,
+        "names": [
+          "Molten Echoes"
+        ],
+        "before": "Card(Name: \"Molten Echoes\", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostR, ManaCostR], Rules: [AsPermanentEnters(ThisPermanent, [ChooseACreatureType]), TriggerA(WhenAPermanentEntersTheBattlefield(And([IsNonToken, IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), IsCreatureTypeVariable(TheChosenCreatureType)])), ActionList([CreateTokens([TokenCopyOfPermanent(ThatEnteringPermanent, NoTokenCopyEffects)], []), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([Permanent(ThePermanentPutOnTheBattlefieldThisWay)], [])]))]))])",
+        "after": "Card(Name: \"Molten Echoes\", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostR, ManaCostR], Rules: [AsPermanentEnters(ThisPermanent, [ChooseACreatureType]), TriggerA(WhenAPermanentEntersTheBattlefield(And([IsNonToken, IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), IsCreatureTypeVariable(TheChosenCreatureType)])), ActionList([CreateTokens([TokenCopyOfPermanent(ThatEnteringPermanent, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))]))])"
+      },
+      {
+        "index": 18512,
+        "names": [
+          "Mordor on the March"
+        ],
+        "before": "Card(Name: \"Mordor on the March\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostB, ManaCostR], Rules: [SpellActions(ActionList([Exile([ACardInGraveyards(And([IsCardtype(Creature), InAPlayersGraveyard(SinglePlayer(You))]))], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []), CreatePermanentLayerEffectUntil(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])], UntilEndOfTurn), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([Permanent(ThePermanentPutOnTheBattlefieldThisWay)], [])]))])), Storm])",
+        "after": "Card(Name: \"Mordor on the March\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostB, ManaCostR], Rules: [SpellActions(ActionList([Exile([ACardInGraveyards(And([IsCardtype(Creature), InAPlayersGraveyard(SinglePlayer(You))]))], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffectUntil(TheTokensCreatedThisWay, [AddAbility([Haste])], UntilEndOfTurn), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))])), Storm])"
+      },
+      {
+        "index": 18911,
+        "names": [
+          "Nahiri, the Unforgiving"
+        ],
+        "before": "Card(Name: \"Nahiri, the Unforgiving\", Typeline: (Supertypes: [Legendary], Cardtypes: [Planeswalker], Subtypes: [Nahiri]), ManaCost: [ManaCostGeneric(1), ManaCostR, ManaCostRWP, ManaCostW], Rules: [Compleated, Activated(Loyalty(+1), Targeted([UptoOneTargetPermanent(IsCardtype(Creature))], ActionList([CreatePermanentRuleEffectUntil(Ref_TargetPermanent, [MustAttackAPlayer(AnyPlayer)], UntilPlayersNextTurn(You))]))), Activated(Loyalty(+1), ActionList([DiscardACard, DrawACard])), Activated(Loyalty(0), Targeted([TargetGraveyardCard(And([Or([IsCardtype(Creature), IsArtifactType(Equipment)]), ManaValueIs(LessThan(LoyaltyOfPermanent(ThisPermanent))), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))])))], Loyalty: Integer(5))",
+        "after": "Card(Name: \"Nahiri, the Unforgiving\", Typeline: (Supertypes: [Legendary], Cardtypes: [Planeswalker], Subtypes: [Nahiri]), ManaCost: [ManaCostGeneric(1), ManaCostR, ManaCostRWP, ManaCostW], Rules: [Compleated, Activated(Loyalty(+1), Targeted([UptoOneTargetPermanent(IsCardtype(Creature))], ActionList([CreatePermanentRuleEffectUntil(Ref_TargetPermanent, [MustAttackAPlayer(AnyPlayer)], UntilPlayersNextTurn(You))]))), Activated(Loyalty(+1), ActionList([DiscardACard, DrawACard])), Activated(Loyalty(0), Targeted([TargetGraveyardCard(And([Or([IsCardtype(Creature), IsArtifactType(Equipment)]), ManaValueIs(LessThan(LoyaltyOfPermanent(ThisPermanent))), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, NoTokenCopyEffects)], []), CreateEachPermanentLayerEffect(TheTokensCreatedThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))])))], Loyalty: Integer(5))"
+      },
+      {
+        "index": 19762,
+        "names": [
+          "Offspring's Revenge"
+        ],
+        "before": "Card(Name: \"Offspring's Revenge\", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostR, ManaCostW, ManaCostB], Rules: [TriggerA(AtTheBeginningOfCombatDuringAPlayersTurn(SinglePlayer(You)), Targeted([TargetGraveyardCard(And([And([Or([IsColor(Red), IsColor(White), IsColor(Black)]), IsCardtype(Creature)]), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, TokenCopyEffects([SetPT(PT(1, 1))]))], []), CreateEachPermanentLayerEffectUntil(TheTokensCreatedThisWay, [AddAbility([Haste])], UntilPlayersNextTurn(You))])))])",
+        "after": "Card(Name: \"Offspring's Revenge\", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostR, ManaCostW, ManaCostB], Rules: [TriggerA(AtTheBeginningOfCombatDuringAPlayersTurn(SinglePlayer(You)), Targeted([TargetGraveyardCard(And([And([Or([IsColor(Red), IsColor(White), IsColor(Black)]), IsCardtype(Creature)]), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, TokenCopyEffects([SetPT(PT(1, 1))]))], []), CreateEachPermanentLayerEffectUntil(TheTokensCreatedThisWay, [AddAbility([Haste])], UntilPlayersNextTurn(You))])))])"
+      },
+      {
+        "index": 20536,
+        "names": [
+          "Patrician's Scorn"
+        ],
+        "before": "Card(Name: \"Patrician's Scorn\", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostW], Rules: [CastEffect(MayCastWithoutPayingIf(PlayerPassesFilter(You, CastASpellThisTurn(IsColor(White))))), SpellActions(ActionList([DestroyEachPermanent(IsCardtype(Enchantment))]))])",
+        "after": "Card(Name: \"Patrician's Scorn\", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostW], Rules: [CastEffect(MayCastWithoutPayingIf(PlayerPassesFilter(You, CastASpellThisTurn(And([Other(ThisSpell), IsColor(White)]))))), SpellActions(ActionList([DestroyEachPermanent(IsCardtype(Enchantment))]))])"
+      },
+      {
+        "index": 22165,
+        "names": [
+          "Rally the Monastery"
+        ],
+        "before": "Card(Name: \"Rally the Monastery\", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostW], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(2)], PlayerPassesFilter(You, CastASpellThisTurn(AnySpell)))), SpellActions(Modal_ChooseOne([ActionList([CreateTokens([NumberTokens(Integer(2), TokenWithPT(PT(1, 1), Colors([White]), [], [Creature], SubtypesList([Monk]), [Prowess]))], [])]), Targeted([UptoNumberTargetPermanents(Integer(2), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))], ActionList([CreateEachPermanentLayerEffectUntil(Ref_TargetPermanents, [AdjustPT(+2, +2)], UntilEndOfTurn)])), Targeted([TargetPermanent(And([IsCardtype(Creature), PowerIs(GreaterThanOrEqualTo(Integer(4)))]))], ActionList([DestroyPermanent(Ref_TargetPermanent)]))]))])",
+        "after": "Card(Name: \"Rally the Monastery\", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostW], Rules: [CastEffect(ReduceCastingCostIf([CostReduceGeneric(2)], PlayerPassesFilter(You, CastASpellThisTurn(And([Other(ThisSpell), AnySpell]))))), SpellActions(Modal_ChooseOne([ActionList([CreateTokens([NumberTokens(Integer(2), TokenWithPT(PT(1, 1), Colors([White]), [], [Creature], SubtypesList([Monk]), [Prowess]))], [])]), Targeted([UptoNumberTargetPermanents(Integer(2), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))], ActionList([CreateEachPermanentLayerEffectUntil(Ref_TargetPermanents, [AdjustPT(+2, +2)], UntilEndOfTurn)])), Targeted([TargetPermanent(And([IsCardtype(Creature), PowerIs(GreaterThanOrEqualTo(Integer(4)))]))], ActionList([DestroyPermanent(Ref_TargetPermanent)]))]))])"
+      },
+      {
+        "index": 22765,
+        "names": [
+          "Renegade Doppelganger"
+        ],
+        "before": "Card(Name: \"Renegade Doppelganger\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Shapeshifter]), ManaCost: [ManaCostGeneric(1), ManaCostU], Rules: [TriggerA(WhenAPermanentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfPermanent(ThatEnteringPermanent, CopyEffects([AddAbilityVariable(ThisAbility)]))], UntilEndOfTurn))]))], CardPT: (Power: 0, Toughness: 1))",
+        "after": "Card(Name: \"Renegade Doppelganger\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Shapeshifter]), ManaCost: [ManaCostGeneric(1), ManaCostU], Rules: [TriggerA(WhenAPermanentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfPermanent(ThatEnteringPermanent, NoCopyEffects)], UntilEndOfTurn))]))], CardPT: (Power: 0, Toughness: 1))"
+      },
+      {
+        "index": 23539,
+        "names": [
+          "Rotfeaster Maggot"
+        ],
+        "before": "Card(Name: \"Rotfeaster Maggot\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Insect]), ManaCost: [ManaCostGeneric(4), ManaCostB], Rules: [TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), Targeted([TargetGraveyardCard(IsCardtype(Creature))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), GainLife(ToughnessOfTheExiledCreature)])))], CardPT: (Power: 3, Toughness: 5))",
+        "after": "Card(Name: \"Rotfeaster Maggot\", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: [Insect]), ManaCost: [ManaCostGeneric(4), ManaCostB], Rules: [TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), Targeted([TargetGraveyardCard(IsCardtype(Creature))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), GainLife(ToughnessOfGraveyardCard(Ref_TargetGraveyardCard))])))], CardPT: (Power: 3, Toughness: 5))"
+      },
+      {
+        "index": 28444,
+        "names": [
+          "Tapestry Warden"
+        ],
+        "before": "Card(Name: \"Tapestry Warden\", Typeline: (Supertypes: [], Cardtypes: [Artifact, Creature], Subtypes: [Robot, Soldier]), ManaCost: [ManaCostGeneric(3), ManaCostG], Rules: [Vigilance, EachPermanentRuleEffect(And([IsCardtype(Creature), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage]), EachPermanentRuleEffect(And([IsCardtype(Creature), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [StationsPermanentsUsingToughnessRatherThanPower])], CardPT: (Power: 3, Toughness: 4))",
+        "after": "Card(Name: \"Tapestry Warden\", Typeline: (Supertypes: [], Cardtypes: [Artifact, Creature], Subtypes: [Robot, Soldier]), ManaCost: [ManaCostGeneric(3), ManaCostG], Rules: [Vigilance, EachPermanentRuleEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [AssignsToughnessCombatDamage]), EachPermanentRuleEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), ToughnessIs(GreaterThan(PowerOfPermanent(Self_It)))]), [StationsPermanentsUsingToughnessRatherThanPower])], CardPT: (Power: 3, Toughness: 4))"
+      },
+      {
+        "index": 29175,
+        "names": [
+          "The Scarab God"
+        ],
+        "before": "Card(Name: \"The Scarab God\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [God]), ManaCost: [ManaCostGeneric(3), ManaCostU, ManaCostB], Rules: [TriggerA(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)), ActionList([EachPlayerAction(Opponent, LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([IsCreatureType(Zombie), ControlledByAPlayer(SinglePlayer(You))])))), Scry(TheNumberOfPermanentsOnTheBattlefield(And([IsCreatureType(Zombie), ControlledByAPlayer(SinglePlayer(You))])))])), Activated(PayMana([ManaCostGeneric(2), ManaCostU, ManaCostB]), Targeted([TargetGraveyardCard(IsCardtype(Creature))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, TokenCopyEffects([SetPT(PT(4, 4)), SetColor(SimpleColorList([Black])), SetCreatureTypes([Zombie])]))], [])]))), TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), ActionList([CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ReturnDeadGraveyardCardToHand]))]))], CardPT: (Power: 5, Toughness: 5))",
+        "after": "Card(Name: \"The Scarab God\", Typeline: (Supertypes: [Legendary], Cardtypes: [Creature], Subtypes: [God]), ManaCost: [ManaCostGeneric(3), ManaCostU, ManaCostB], Rules: [TriggerA(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)), ActionList([EachPlayerAction(Opponent, LoseLife(TheNumberOfPermanentsOnTheBattlefield(And([IsCreatureType(Zombie), ControlledByAPlayer(SinglePlayer(You))])))), Scry(TheNumberOfPermanentsOnTheBattlefield(And([IsCreatureType(Zombie), ControlledByAPlayer(SinglePlayer(You))])))])), Activated(PayMana([ManaCostGeneric(2), ManaCostU, ManaCostB]), Targeted([TargetGraveyardCard(IsCardtype(Creature))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, TokenCopyEffects([SetPT(PT(4, 4)), SetColor(SimpleColorList([Black])), SetCreatureTypes([Zombie])]))], [])]))), TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), ActionList([CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ReturnDeadGraveyardCardToHand]))]))], CardPT: (Power: 5, Toughness: 5))"
+      }
+    ],
+    "preexisting_tagged_json_drift_repaired": {
+      "index": 10461,
+      "name": "Frankenstein's Monster",
+      "base_commit": "6de0770c",
+      "tagged_record_sha256": "230b062a3703e1bb889272ef222ec09b050914a7c5122fa4fb666100570dd46d",
+      "decision": "Existing tagged JSON still had MustCost/CostWasPaid while RON already used Exile/DifferenceIs. Regenerate from current typed RON alongside the new normalization; do not treat this export drift as a new upstream parser defect."
+    },
+    "parser_records": 33529,
+    "existing_audit_findings_preserved": 182,
+    "existing_matched_use_evidence_preserved": true,
+    "unreviewed_template_findings": 0,
+    "unreviewed_literal_findings": 0,
+    "new_literal_triage": {
+      "id": "517aea8ad0c9d80fd251030b8d428bcba3c2d9c7304369f913999382b9fe1e63",
+      "kind": "mined_token",
+      "rule": "ActivatedActions",
+      "token": "TokenCopyOfGraveyardCard",
+      "word": "copy",
+      "support": "9/10",
+      "template": "Choose target {{SpecificCard}} in a graveyard or {{Permanent}} on the battlefield. Create {{Number}} tokens that are copies of it",
+      "result": "Targeted_Modal([Targeted([TargetGraveyardCard({{SpecificCard[0]}})], ActionList([CreateTokens([NumberTokens({{Number[0]}}, TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, NoTokenCopyEffects))], [])])), Targeted([TargetPermanent({{Permanent[0]}})], ActionList([CreateTokens([NumberTokens({{Number[0]}}, TokenCopyOfPermanent(Ref_TargetPermanent, NoTokenCopyEffects))], [])]))])",
+      "reason": "Reviewed 2026-11-16: copy does not imply a fixed graveyard domain. This modal template explicitly provides one graveyard-card-copy option and one battlefield-permanent-copy option, each with its own valid target. The changed mining support is not a missing-token defect; both alternatives preserve the printed choice."
+    }
+  },
+  "ir": {
+    "changed_records": [
+      {
+        "index": 90,
+        "names": [
+          "Abstract Performance"
+        ]
+      },
+      {
+        "index": 198,
+        "names": [
+          "Ad Nauseam"
+        ]
+      },
+      {
+        "index": 229,
+        "names": [
+          "Admonition Angel"
+        ]
+      },
+      {
+        "index": 248,
+        "names": [
+          "Adventure Awaits"
+        ]
+      },
+      {
+        "index": 287,
+        "names": [
+          "Aerialephant"
+        ]
+      },
+      {
+        "index": 365,
+        "names": [
+          "Aetherworks Marvel"
+        ]
+      },
+      {
+        "index": 447,
+        "names": [
+          "Aid from the Cowl"
+        ]
+      },
+      {
+        "index": 503,
+        "names": [
+          "Ajani, Sleeper Agent"
+        ]
+      },
+      {
+        "index": 586,
+        "names": [
+          "Alaundo the Seer"
+        ]
+      },
+      {
+        "index": 630,
+        "names": [
+          "Alistair, the Brigadier"
+        ]
+      },
+      {
+        "index": 660,
+        "names": [
+          "Allure of the Unknown"
+        ]
+      },
+      {
+        "index": 729,
+        "names": [
+          "Ambassador Blorpityblorpboop"
+        ]
+      },
+      {
+        "index": 764,
+        "names": [
+          "Aminatou, the Fateshifter"
+        ]
+      },
+      {
+        "index": 778,
+        "names": [
+          "Amplifire"
+        ]
+      },
+      {
+        "index": 861,
+        "names": [
+          "Ancient Lumberknot"
+        ]
+      },
+      {
+        "index": 897,
+        "names": [
+          "Angel of Serenity"
+        ]
+      },
+      {
+        "index": 1143,
+        "names": [
+          "Arbiter of the Ideal"
+        ]
+      },
+      {
+        "index": 1316,
+        "names": [
+          "Ardyn, the Usurper"
+        ]
+      },
+      {
+        "index": 1423,
+        "names": [
+          "Arna Kennerüd, Skycaptain"
+        ]
+      },
+      {
+        "index": 1525,
+        "names": [
+          "Ashiok, Nightmare Muse"
+        ]
+      },
+      {
+        "index": 1551,
+        "names": [
+          "Asmodeus the Archfiend"
+        ]
+      },
+      {
+        "index": 1622,
+        "names": [
+          "Atemsis, All-Seeing"
+        ]
+      },
+      {
+        "index": 1665,
+        "names": [
+          "Audacious Swap"
+        ]
+      },
+      {
+        "index": 1677,
+        "names": [
+          "Augury Adept"
+        ]
+      },
+      {
+        "index": 1705,
+        "names": [
+          "Aurelia's Vindicator"
+        ]
+      },
+      {
+        "index": 1936,
+        "names": [
+          "Baaallerina"
+        ]
+      },
+      {
+        "index": 1970,
+        "names": [
+          "Bag of Devouring"
+        ]
+      },
+      {
+        "index": 1971,
+        "names": [
+          "Bag of Holding"
+        ]
+      },
+      {
+        "index": 2059,
+        "names": [
+          "Bane Alley Broker"
+        ]
+      },
+      {
+        "index": 2061,
+        "names": [
+          "Bane of Progress"
+        ]
+      },
+      {
+        "index": 2082,
+        "names": [
+          "Banishment"
+        ]
+      },
+      {
+        "index": 2321,
+        "names": [
+          "Bazaar of Wonders"
+        ]
+      },
+      {
+        "index": 2384,
+        "names": [
+          "Bedrock Tortoise"
+        ]
+      },
+      {
+        "index": 2579,
+        "names": [
+          "Binding Negotiation"
+        ]
+      },
+      {
+        "index": 2587,
+        "names": [
+          "Bioluminary"
+        ]
+      },
+      {
+        "index": 2729,
+        "names": [
+          "Blasphemous Edict"
+        ]
+      },
+      {
+        "index": 2983,
+        "names": [
+          "Bloodline Shaman"
+        ]
+      },
+      {
+        "index": 3040,
+        "names": [
+          "Blossom Prancer"
+        ]
+      },
+      {
+        "index": 3164,
+        "names": [
+          "Bomat Courier"
+        ]
+      },
+      {
+        "index": 3286,
+        "names": [
+          "Boros Charm"
+        ]
+      },
+      {
+        "index": 3330,
+        "names": [
+          "Bottled Cloister"
+        ]
+      },
+      {
+        "index": 3345,
+        "names": [
+          "Bound by Moonsilver"
+        ]
+      },
+      {
+        "index": 3375,
+        "names": [
+          "Brad Boimler, Eager Ensign"
+        ]
+      },
+      {
+        "index": 3473,
+        "names": [
+          "Break Expectations"
+        ]
+      },
+      {
+        "index": 3483,
+        "names": [
+          "Breaker of Creation"
+        ]
+      },
+      {
+        "index": 3582,
+        "names": [
+          "Bring to Light"
+        ]
+      },
+      {
+        "index": 3667,
+        "names": [
+          "Brothers Yamazaki"
+        ]
+      },
+      {
+        "index": 3911,
+        "names": [
+          "Caldera Breaker"
+        ]
+      },
+      {
+        "index": 3934,
+        "names": [
+          "Call of the Wild"
+        ]
+      },
+      {
+        "index": 3950,
+        "names": [
+          "Call to the Grave"
+        ]
+      },
+      {
+        "index": 3996,
+        "names": [
+          "Candles of Leng"
+        ]
+      },
+      {
+        "index": 4134,
+        "names": [
+          "Carnival Carnivore"
+        ]
+      },
+      {
+        "index": 4193,
+        "names": [
+          "Case of the Shattered Pact"
+        ]
+      },
+      {
+        "index": 4229,
+        "names": [
+          "Cataclysm"
+        ]
+      },
+      {
+        "index": 4280,
+        "names": [
+          "Caustic Bronco"
+        ]
+      },
+      {
+        "index": 4352,
+        "names": [
+          "Celestial Vault"
+        ]
+      },
+      {
+        "index": 4467,
+        "names": [
+          "Chameleon Spirit"
+        ]
+      },
+      {
+        "index": 4539,
+        "names": [
+          "Chandra, Torch of Defiance"
+        ]
+      },
+      {
+        "index": 4563,
+        "names": [
+          "Chaos Defiler"
+        ]
+      },
+      {
+        "index": 4568,
+        "names": [
+          "Chaos Lord"
+        ]
+      },
+      {
+        "index": 4659,
+        "names": [
+          "Chicken Troupe"
+        ]
+      },
+      {
+        "index": 4661,
+        "names": [
+          "Chief Magistrate of Mercadia"
+        ]
+      },
+      {
+        "index": 4814,
+        "names": [
+          "Cinderslash Ravager"
+        ]
+      },
+      {
+        "index": 4816,
+        "names": [
+          "Circadian Struggle"
+        ]
+      },
+      {
+        "index": 4890,
+        "names": [
+          "Clandestine Chameleon"
+        ]
+      },
+      {
+        "index": 4920,
+        "names": [
+          "Cleansing Meditation"
+        ]
+      },
+      {
+        "index": 5037,
+        "names": [
+          "Cloudhoof Kirin"
+        ]
+      },
+      {
+        "index": 5128,
+        "names": [
+          "Coiling Oracle"
+        ]
+      },
+      {
+        "index": 5137,
+        "names": [
+          "Cold Storage"
+        ]
+      },
+      {
+        "index": 5143,
+        "names": [
+          "Colfenor's Urn"
+        ]
+      },
+      {
+        "index": 5150,
+        "names": [
+          "Collected Conjuring"
+        ]
+      },
+      {
+        "index": 5222,
+        "names": [
+          "Command Bridge"
+        ]
+      },
+      {
+        "index": 5224,
+        "names": [
+          "Command Performance"
+        ]
+      },
+      {
+        "index": 5275,
+        "names": [
+          "Complex Automaton"
+        ]
+      },
+      {
+        "index": 5353,
+        "names": [
+          "Connecting the Dots"
+        ]
+      },
+      {
+        "index": 5419,
+        "names": [
+          "Contagious Vorrac"
+        ]
+      },
+      {
+        "index": 5462,
+        "names": [
+          "Convert to Slime"
+        ]
+      },
+      {
+        "index": 5522,
+        "names": [
+          "Corpse Appraiser"
+        ]
+      },
+      {
+        "index": 5590,
+        "names": [
+          "Costume Shop"
+        ]
+      },
+      {
+        "index": 5615,
+        "names": [
+          "Countryside Crusher"
+        ]
+      },
+      {
+        "index": 5667,
+        "names": [
+          "Crabomination"
+        ]
+      },
+      {
+        "index": 5984,
+        "names": [
+          "Culling Ritual"
+        ]
+      },
+      {
+        "index": 6044,
+        "names": [
+          "Currency Converter"
+        ]
+      },
+      {
+        "index": 6079,
+        "names": [
+          "Curse of the Cabal"
+        ]
+      },
+      {
+        "index": 6104,
+        "names": [
+          "Cursed Wombat"
+        ]
+      },
+      {
+        "index": 6144,
+        "names": [
+          "Cyclone Summoner"
+        ]
+      },
+      {
+        "index": 6219,
+        "names": [
+          "Damping Engine"
+        ]
+      },
+      {
+        "index": 6285,
+        "names": [
+          "Dark Confidant"
+        ]
+      },
+      {
+        "index": 6316,
+        "names": [
+          "Dark Tutelage"
+        ]
+      },
+      {
+        "index": 6334,
+        "names": [
+          "Darkstar Augur"
+        ]
+      },
+      {
+        "index": 6452,
+        "names": [
+          "Day of the Dragons"
+        ]
+      },
+      {
+        "index": 6471,
+        "names": [
+          "Dazzling Sphinx"
+        ]
+      },
+      {
+        "index": 6502,
+        "names": [
+          "Deadly Brew"
+        ]
+      },
+      {
+        "index": 6529,
+        "names": [
+          "Death Begets Life"
+        ]
+      },
+      {
+        "index": 6826,
+        "names": [
+          "Demonic Covenant"
+        ]
+      },
+      {
+        "index": 6881,
+        "names": [
+          "Deputy of Detention"
+        ]
+      },
+      {
+        "index": 6890,
+        "names": [
+          "Dermotaxi"
+        ]
+      },
+      {
+        "index": 6899,
+        "names": [
+          "Descent into Madness"
+        ]
+      },
+      {
+        "index": 6982,
+        "names": [
+          "Detention Sphere"
+        ]
+      },
+      {
+        "index": 7057,
+        "names": [
+          "Dichotomancy"
+        ]
+      },
+      {
+        "index": 7081,
+        "names": [
+          "Dimension X Pizzasaur"
+        ]
+      },
+      {
+        "index": 7237,
+        "names": [
+          "Display of Dominance"
+        ]
+      },
+      {
+        "index": 7250,
+        "names": [
+          "Disruptor Flute"
+        ]
+      },
+      {
+        "index": 7345,
+        "names": [
+          "Doc Samson, Super Psychiatrist"
+        ]
+      },
+      {
+        "index": 7407,
+        "names": [
+          "Done for the Day"
+        ]
+      },
+      {
+        "index": 7442,
+        "names": [
+          "Dora Milaje Elite"
+        ]
+      },
+      {
+        "index": 7465,
+        "names": [
+          "Doubling Season"
+        ]
+      },
+      {
+        "index": 7477,
+        "names": [
+          "Dovin, Architect of Law"
+        ]
+      },
+      {
+        "index": 7919,
+        "names": [
+          "Duplicity"
+        ]
+      },
+      {
+        "index": 7963,
+        "names": [
+          "Dust of Moments"
+        ]
+      },
+      {
+        "index": 8038,
+        "names": [
+          "ED-E, Lonesome Eyebot"
+        ]
+      },
+      {
+        "index": 8231,
+        "names": [
+          "Eladamri, Korvecdal"
+        ]
+      },
+      {
+        "index": 8382,
+        "names": [
+          "Elspeth Tirel"
+        ]
+      },
+      {
+        "index": 8621,
+        "names": [
+          "Endless Sands"
+        ]
+      },
+      {
+        "index": 8855,
+        "names": [
+          "Summon: Esper Maduin",
+          "Esper Origins"
+        ]
+      },
+      {
+        "index": 8897,
+        "names": [
+          "Etali, Primal Storm"
+        ]
+      },
+      {
+        "index": 8981,
+        "names": [
+          "Evercoat Ursine"
+        ]
+      },
+      {
+        "index": 9025,
+        "names": [
+          "Evolving Door"
+        ]
+      },
+      {
+        "index": 9034,
+        "names": [
+          "Excalibur, Sword of Eden"
+        ]
+      },
+      {
+        "index": 9118,
+        "names": [
+          "Expert-Level Safe"
+        ]
+      },
+      {
+        "index": 9156,
+        "names": [
+          "Exterminator Magmarch"
+        ]
+      },
+      {
+        "index": 9165,
+        "names": [
+          "Extortion"
+        ]
+      },
+      {
+        "index": 9168,
+        "names": [
+          "Extract Brain"
+        ]
+      },
+      {
+        "index": 9181,
+        "names": [
+          "Extricator of Flesh",
+          "Extricator of Sin"
+        ]
+      },
+      {
+        "index": 9331,
+        "names": [
+          "Fall of the First Civilization"
+        ]
+      },
+      {
+        "index": 9505,
+        "names": [
+          "Fblthp, Lost on the Range"
+        ]
+      },
+      {
+        "index": 9510,
+        "names": [
+          "Fear of Abduction"
+        ]
+      },
+      {
+        "index": 9558,
+        "names": [
+          "Fecund Greenshell"
+        ]
+      },
+      {
+        "index": 9814,
+        "names": [
+          "Finishing Move"
+        ]
+      },
+      {
+        "index": 10013,
+        "names": [
+          "Flamewar, Streetwise Operative",
+          "Flamewar, Brash Veteran"
+        ]
+      },
+      {
+        "index": 10104,
+        "names": [
+          "Flickerform"
+        ]
+      },
+      {
+        "index": 10211,
+        "names": [
+          "Focus the Mind"
+        ]
+      },
+      {
+        "index": 10256,
+        "names": [
+          "Food Fight"
+        ]
+      },
+      {
+        "index": 10285,
+        "names": [
+          "Forbidden Ritual"
+        ]
+      },
+      {
+        "index": 10394,
+        "names": [
+          "Fortunate Few"
+        ]
+      },
+      {
+        "index": 10457,
+        "names": [
+          "Fracturing Gust"
+        ]
+      },
+      {
+        "index": 10461,
+        "names": [
+          "Frankenstein's Monster"
+        ]
+      },
+      {
+        "index": 10740,
+        "names": [
+          "Galadriel of Lothlórien"
+        ]
+      },
+      {
+        "index": 10860,
+        "names": [
+          "Garruk, Savage Herald"
+        ]
+      },
+      {
+        "index": 10883,
+        "names": [
+          "Gate to the Aether"
+        ]
+      },
+      {
+        "index": 10974,
+        "names": [
+          "Gene Pollinator"
+        ]
+      },
+      {
+        "index": 11066,
+        "names": [
+          "Ghalta the Immovable"
+        ]
+      },
+      {
+        "index": 11113,
+        "names": [
+          "Ghost Vacuum"
+        ]
+      },
+      {
+        "index": 11229,
+        "names": [
+          "Gideon, Champion of Justice"
+        ]
+      },
+      {
+        "index": 11259,
+        "names": [
+          "Gigastorm Titan"
+        ]
+      },
+      {
+        "index": 11307,
+        "names": [
+          "Gisa, Glorious Resurrector"
+        ]
+      },
+      {
+        "index": 11330,
+        "names": [
+          "Glacial Crasher"
+        ]
+      },
+      {
+        "index": 11425,
+        "names": [
+          "Glimpse the Impossible"
+        ]
+      },
+      {
+        "index": 11458,
+        "names": [
+          "Glitterflitter"
+        ]
+      },
+      {
+        "index": 11492,
+        "names": [
+          "Glorious Purpose"
+        ]
+      },
+      {
+        "index": 11746,
+        "names": [
+          "God-Eternal Bontu"
+        ]
+      },
+      {
+        "index": 11838,
+        "names": [
+          "Goliath Daydreamer"
+        ]
+      },
+      {
+        "index": 11875,
+        "names": [
+          "Gorex, the Tombshell"
+        ]
+      },
+      {
+        "index": 12011,
+        "names": [
+          "Gravegouger"
+        ]
+      },
+      {
+        "index": 12061,
+        "names": [
+          "Great Desert Hellion"
+        ]
+      },
+      {
+        "index": 12111,
+        "names": [
+          "Green Slime"
+        ]
+      },
+      {
+        "index": 12137,
+        "names": [
+          "Grenzo's Rebuttal"
+        ]
+      },
+      {
+        "index": 12206,
+        "names": [
+          "Grindstone"
+        ]
+      },
+      {
+        "index": 12325,
+        "names": [
+          "Gríma, Saruman's Footman"
+        ]
+      },
+      {
+        "index": 12428,
+        "names": [
+          "Gustha's Scepter"
+        ]
+      },
+      {
+        "index": 12533,
+        "names": [
+          "Hall of Echoes"
+        ]
+      },
+      {
+        "index": 12611,
+        "names": [
+          "Hans Eriksson"
+        ]
+      },
+      {
+        "index": 12625,
+        "names": [
+          "Happily Ever After"
+        ]
+      },
+      {
+        "index": 12641,
+        "names": [
+          "Harbor Serpent"
+        ]
+      },
+      {
+        "index": 12963,
+        "names": [
+          "Hellcarver Demon"
+        ]
+      },
+      {
+        "index": 12995,
+        "names": [
+          "Helmut Zemo, Mastermind"
+        ]
+      },
+      {
+        "index": 12998,
+        "names": [
+          "Helvault"
+        ]
+      },
+      {
+        "index": 13089,
+        "names": [
+          "Heroic Intervention"
+        ]
+      },
+      {
+        "index": 13099,
+        "names": [
+          "Hesitation"
+        ]
+      },
+      {
+        "index": 13158,
+        "names": [
+          "Hidetsugu and Kairi"
+        ]
+      },
+      {
+        "index": 13449,
+        "names": [
+          "Hostile Negotiations"
+        ]
+      },
+      {
+        "index": 13472,
+        "names": [
+          "Hour of Revelation"
+        ]
+      },
+      {
+        "index": 13639,
+        "names": [
+          "Hydra Trainer"
+        ]
+      },
+      {
+        "index": 13675,
+        "names": [
+          "Hypnox"
+        ]
+      },
+      {
+        "index": 13770,
+        "names": [
+          "Idolized"
+        ]
+      },
+      {
+        "index": 13784,
+        "names": [
+          "Ignite Memories"
+        ]
+      },
+      {
+        "index": 13895,
+        "names": [
+          "Impending Disaster"
+        ]
+      },
+      {
+        "index": 13945,
+        "names": [
+          "Impromptu Raid"
+        ]
+      },
+      {
+        "index": 13946,
+        "names": [
+          "Improvisation Capstone"
+        ]
+      },
+      {
+        "index": 13961,
+        "names": [
+          "In Search of Greatness"
+        ]
+      },
+      {
+        "index": 14022,
+        "names": [
+          "Indominus Rex, Alpha"
+        ]
+      },
+      {
+        "index": 14025,
+        "names": [
+          "Indomitable Creativity"
+        ]
+      },
+      {
+        "index": 14034,
+        "names": [
+          "Induced Amnesia"
+        ]
+      },
+      {
+        "index": 14069,
+        "names": [
+          "Infernal Offering"
+        ]
+      },
+      {
+        "index": 14103,
+        "names": [
+          "Infinite Guideline Station"
+        ]
+      },
+      {
+        "index": 14161,
+        "names": [
+          "Innkeeper's Talent"
+        ]
+      },
+      {
+        "index": 14324,
+        "names": [
+          "Awaken the Maelstrom",
+          "Invasion of Alara"
+        ]
+      },
+      {
+        "index": 14435,
+        "names": [
+          "Iroh, Tea Master"
+        ]
+      },
+      {
+        "index": 14533,
+        "names": [
+          "Itazura, Lingering Wick"
+        ]
+      },
+      {
+        "index": 14646,
+        "names": [
+          "Journey to the Oracle",
+          "Jadzi, Oracle of Arcavios"
+        ]
+      },
+      {
+        "index": 14863,
+        "names": [
+          "Journey to the Lost City"
+        ]
+      },
+      {
+        "index": 14984,
+        "names": [
+          "Kagha, Shadow Archdruid"
+        ]
+      },
+      {
+        "index": 15042,
+        "names": [
+          "Kami of Whispered Hopes"
+        ]
+      },
+      {
+        "index": 15073,
+        "names": [
+          "Kardum, Patron of Flames"
+        ]
+      },
+      {
+        "index": 15107,
+        "names": [
+          "Karn, Scion of Urza"
+        ]
+      },
+      {
+        "index": 15137,
+        "names": [
+          "Kasmina, Enigma Sage"
+        ]
+      },
+      {
+        "index": 15150,
+        "names": [
+          "Kate Stewart"
+        ]
+      },
+      {
+        "index": 15180,
+        "names": [
+          "Kaya the Inexorable"
+        ]
+      },
+      {
+        "index": 15247,
+        "names": [
+          "Kefka, Dancing Mad"
+        ]
+      },
+      {
+        "index": 15258,
+        "names": [
+          "Keldon Flamesage"
+        ]
+      },
+      {
+        "index": 15275,
+        "names": [
+          "Kellan, Daring Traveler",
+          "Journey On"
+        ]
+      },
+      {
+        "index": 15292,
+        "names": [
+          "Kenessos, Priest of Thassa"
+        ]
+      },
+      {
+        "index": 15324,
+        "names": [
+          "Key to the Side-Door"
+        ]
+      },
+      {
+        "index": 15366,
+        "names": [
+          "Killer Instinct"
+        ]
+      },
+      {
+        "index": 15382,
+        "names": [
+          "Kimahri, Valiant Guardian"
+        ]
+      },
+      {
+        "index": 15400,
+        "names": [
+          "Kindred Charge"
+        ]
+      },
+      {
+        "index": 15602,
+        "names": [
+          "Knowledge Pool"
+        ]
+      },
+      {
+        "index": 15604,
+        "names": [
+          "Knowledge Vault"
+        ]
+      },
+      {
+        "index": 15682,
+        "names": [
+          "Korvold, Fae-Cursed King"
+        ]
+      },
+      {
+        "index": 15716,
+        "names": [
+          "Krang & Shredder"
+        ]
+      },
+      {
+        "index": 15808,
+        "names": [
+          "Kuldotha Cackler"
+        ]
+      },
+      {
+        "index": 15854,
+        "names": [
+          "Kyren Archive"
+        ]
+      },
+      {
+        "index": 15954,
+        "names": [
+          "Lantern of Revealing"
+        ]
+      },
+      {
+        "index": 16069,
+        "names": [
+          "Lazotep Quarry"
+        ]
+      },
+      {
+        "index": 16309,
+        "names": [
+          "Lifeline"
+        ]
+      },
+      {
+        "index": 16390,
+        "names": [
+          "Liliana of the Veil"
+        ]
+      },
+      {
+        "index": 16432,
+        "names": [
+          "Limited Resources"
+        ]
+      },
+      {
+        "index": 16487,
+        "names": [
+          "Living Death"
+        ]
+      },
+      {
+        "index": 16489,
+        "names": [
+          "Living End"
+        ]
+      },
+      {
+        "index": 16500,
+        "names": [
+          "Living Lore"
+        ]
+      },
+      {
+        "index": 16510,
+        "names": [
+          "Livio, Oathsworn Sentinel"
+        ]
+      },
+      {
+        "index": 16524,
+        "names": [
+          "Llanowar Empath"
+        ]
+      },
+      {
+        "index": 16637,
+        "names": [
+          "Loot, the Key to Everything"
+        ]
+      },
+      {
+        "index": 16705,
+        "names": [
+          "Lost in the Woods"
+        ]
+      },
+      {
+        "index": 16842,
+        "names": [
+          "Lunar Insight"
+        ]
+      },
+      {
+        "index": 16870,
+        "names": [
+          "Lurking Predators"
+        ]
+      },
+      {
+        "index": 16873,
+        "names": [
+          "Lurking Spinecrawler"
+        ]
+      },
+      {
+        "index": 16976,
+        "names": [
+          "Mage Duel"
+        ]
+      },
+      {
+        "index": 17452,
+        "names": [
+          "Massimo, the Magician"
+        ]
+      },
+      {
+        "index": 17544,
+        "names": [
+          "Mayael the Anima Avatar"
+        ]
+      },
+      {
+        "index": 17581,
+        "names": [
+          "Mechtitan Core"
+        ]
+      },
+      {
+        "index": 17653,
+        "names": [
+          "Memory Theft"
+        ]
+      },
+      {
+        "index": 17909,
+        "names": [
+          "Mimeoplasm, Revered One"
+        ]
+      },
+      {
+        "index": 17911,
+        "names": [
+          "Mimic Vat"
+        ]
+      },
+      {
+        "index": 17961,
+        "names": [
+          "Mind's Dilation"
+        ]
+      },
+      {
+        "index": 18040,
+        "names": [
+          "Minotaur de Force"
+        ]
+      },
+      {
+        "index": 18111,
+        "names": [
+          "Mirror of Fate"
+        ]
+      },
+      {
+        "index": 18113,
+        "names": [
+          "Mirror of Life Trapping"
+        ]
+      },
+      {
+        "index": 18169,
+        "names": [
+          "Mishra, Tamer of Mak Fawa"
+        ]
+      },
+      {
+        "index": 18254,
+        "names": [
+          "Mnemonic Betrayal"
+        ]
+      },
+      {
+        "index": 18311,
+        "names": [
+          "Moira Brown, Guide Author"
+        ]
+      },
+      {
+        "index": 18343,
+        "names": [
+          "Molten Echoes"
+        ]
+      },
+      {
+        "index": 18361,
+        "names": [
+          "Molten Sentry"
+        ]
+      },
+      {
+        "index": 18384,
+        "names": [
+          "Momentum Breaker"
+        ]
+      },
+      {
+        "index": 18386,
+        "names": [
+          "Momir Vig, Simic Visionary"
+        ]
+      },
+      {
+        "index": 18472,
+        "names": [
+          "Moonring Mirror"
+        ]
+      },
+      {
+        "index": 18512,
+        "names": [
+          "Mordor on the March"
+        ]
+      },
+      {
+        "index": 18537,
+        "names": [
+          "Morphic Tide"
+        ]
+      },
+      {
+        "index": 18721,
+        "names": [
+          "Muse Vortex"
+        ]
+      },
+      {
+        "index": 18739,
+        "names": [
+          "Mutational Advantage"
+        ]
+      },
+      {
+        "index": 18823,
+        "names": [
+          "Mysterious Limousine"
+        ]
+      },
+      {
+        "index": 18825,
+        "names": [
+          "Mysterious Stranger"
+        ]
+      },
+      {
+        "index": 18889,
+        "names": [
+          "Nadu, Winged Wisdom"
+        ]
+      },
+      {
+        "index": 18911,
+        "names": [
+          "Nahiri, the Unforgiving"
+        ]
+      },
+      {
+        "index": 18980,
+        "names": [
+          "Nathan Drake, Treasure Hunter"
+        ]
+      },
+      {
+        "index": 18989,
+        "names": [
+          "Natural Selection"
+        ]
+      },
+      {
+        "index": 19114,
+        "names": [
+          "Negative Zone Portal"
+        ]
+      },
+      {
+        "index": 19192,
+        "names": [
+          "Neurok Familiar"
+        ]
+      },
+      {
+        "index": 19262,
+        "names": [
+          "Nicol Bolas, Dragon-God"
+        ]
+      },
+      {
+        "index": 19402,
+        "names": [
+          "Nissa's Revelation"
+        ]
+      },
+      {
+        "index": 19411,
+        "names": [
+          "Nissa, Sage Animist",
+          "Nissa, Vastwood Seer"
+        ]
+      },
+      {
+        "index": 19421,
+        "names": [
+          "Niv-Mizzet, Guildpact"
+        ]
+      },
+      {
+        "index": 19467,
+        "names": [
+          "Noggin Whack"
+        ]
+      },
+      {
+        "index": 19506,
+        "names": [
+          "Northampton Farm"
+        ]
+      },
+      {
+        "index": 19589,
+        "names": [
+          "Nurturing Pixie"
+        ]
+      },
+      {
+        "index": 19604,
+        "names": [
+          "Nylea, Keen-Eyed"
+        ]
+      },
+      {
+        "index": 19692,
+        "names": [
+          "Oblivion Sower"
+        ]
+      },
+      {
+        "index": 19762,
+        "names": [
+          "Offspring's Revenge"
+        ]
+      },
+      {
+        "index": 19798,
+        "names": [
+          "Temple of Cultivation",
+          "Ojer Kaslem, Deepest Growth"
+        ]
+      },
+      {
+        "index": 19876,
+        "names": [
+          "Omenpath Journey"
+        ]
+      },
+      {
+        "index": 19942,
+        "names": [
+          "Only I Know What Awaits"
+        ]
+      },
+      {
+        "index": 20088,
+        "names": [
+          "Cosmium Catalyst",
+          "Ore-Rich Stalactite"
+        ]
+      },
+      {
+        "index": 20101,
+        "names": [
+          "Ori, Plate Stacker"
+        ]
+      },
+      {
+        "index": 20228,
+        "names": [
+          "Over the Top"
+        ]
+      },
+      {
+        "index": 20337,
+        "names": [
+          "Pain Seer"
+        ]
+      },
+      {
+        "index": 20434,
+        "names": [
+          "Parallax Nexus"
+        ]
+      },
+      {
+        "index": 20435,
+        "names": [
+          "Parallax Tide"
+        ]
+      },
+      {
+        "index": 20436,
+        "names": [
+          "Parallax Wave"
+        ]
+      },
+      {
+        "index": 20536,
+        "names": [
+          "Patrician's Scorn"
+        ]
+      },
+      {
+        "index": 20690,
+        "names": [
+          "Pest Control"
+        ]
+      },
+      {
+        "index": 20698,
+        "names": [
+          "Pestilence"
+        ]
+      },
+      {
+        "index": 20714,
+        "names": [
+          "Petra Sphinx"
+        ]
+      },
+      {
+        "index": 20715,
+        "names": [
+          "Petradon"
+        ]
+      },
+      {
+        "index": 20781,
+        "names": [
+          "Phenomenon Investigators"
+        ]
+      },
+      {
+        "index": 20793,
+        "names": [
+          "Phoenix Fleet Airship"
+        ]
+      },
+      {
+        "index": 20835,
+        "names": [
+          "Phyrexian Grimoire"
+        ]
+      },
+      {
+        "index": 20956,
+        "names": [
+          "Pinnacle Starcage"
+        ]
+      },
+      {
+        "index": 20959,
+        "names": [
+          "Wayward Disciple",
+          "Pious Evangel"
+        ]
+      },
+      {
+        "index": 20961,
+        "names": [
+          "Pious Kitsune"
+        ]
+      },
+      {
+        "index": 20973,
+        "names": [
+          "Pir, Imaginative Rascal"
+        ]
+      },
+      {
+        "index": 21039,
+        "names": [
+          "Plaguecrafter"
+        ]
+      },
+      {
+        "index": 21052,
+        "names": [
+          "Planar Collapse"
+        ]
+      },
+      {
+        "index": 21077,
+        "names": [
+          "Plargg and Nassari"
+        ]
+      },
+      {
+        "index": 21211,
+        "names": [
+          "Portent"
+        ]
+      },
+      {
+        "index": 21214,
+        "names": [
+          "Portent of Calamity"
+        ]
+      },
+      {
+        "index": 21266,
+        "names": [
+          "Pox Plague"
+        ]
+      },
+      {
+        "index": 21420,
+        "names": [
+          "Primeval Spawn"
+        ]
+      },
+      {
+        "index": 21429,
+        "names": [
+          "Primordial Mist"
+        ]
+      },
+      {
+        "index": 21477,
+        "names": [
+          "Prize Wall"
+        ]
+      },
+      {
+        "index": 21513,
+        "names": [
+          "Proficient Pyrodancer"
+        ]
+      },
+      {
+        "index": 21532,
+        "names": [
+          "Promise of Tomorrow"
+        ]
+      },
+      {
+        "index": 21604,
+        "names": [
+          "Prowling Geistcatcher"
+        ]
+      },
+      {
+        "index": 21665,
+        "names": [
+          "Puca's Eye"
+        ]
+      },
+      {
+        "index": 21679,
+        "names": [
+          "Pulsar Squadron Ace"
+        ]
+      },
+      {
+        "index": 21795,
+        "names": [
+          "Pyrohemia"
+        ]
+      },
+      {
+        "index": 21814,
+        "names": [
+          "Pyxis of Pandemonium"
+        ]
+      },
+      {
+        "index": 22165,
+        "names": [
+          "Rally the Monastery"
+        ]
+      },
+      {
+        "index": 22393,
+        "names": [
+          "Razia's Purification"
+        ]
+      },
+      {
+        "index": 22448,
+        "names": [
+          "Realm Razer"
+        ]
+      },
+      {
+        "index": 22460,
+        "names": [
+          "Reap"
+        ]
+      },
+      {
+        "index": 22646,
+        "names": [
+          "Regal Bunnicorn"
+        ]
+      },
+      {
+        "index": 22765,
+        "names": [
+          "Renegade Doppelganger"
+        ]
+      },
+      {
+        "index": 22778,
+        "names": [
+          "Renet, Temporal Apprentice"
+        ]
+      },
+      {
+        "index": 22912,
+        "names": [
+          "Restoration Magic"
+        ]
+      },
+      {
+        "index": 23114,
+        "names": [
+          "Rift Elemental"
+        ]
+      },
+      {
+        "index": 23148,
+        "names": [
+          "Rimefeather Owl"
+        ]
+      },
+      {
+        "index": 23195,
+        "names": [
+          "Ripples of Undeath"
+        ]
+      },
+      {
+        "index": 23308,
+        "names": [
+          "River Song's Diary"
+        ]
+      },
+      {
+        "index": 23366,
+        "names": [
+          "Robo-Piñata"
+        ]
+      },
+      {
+        "index": 23399,
+        "names": [
+          "Rod of Absorption"
+        ]
+      },
+      {
+        "index": 23519,
+        "names": [
+          "Rosecot Knight"
+        ]
+      },
+      {
+        "index": 23539,
+        "names": [
+          "Rotfeaster Maggot"
+        ]
+      },
+      {
+        "index": 23548,
+        "names": [
+          "Rottenmouth Viper"
+        ]
+      },
+      {
+        "index": 23580,
+        "names": [
+          "Rowdy Crew"
+        ]
+      },
+      {
+        "index": 23585,
+        "names": [
+          "Roxi, Publicist to the Stars"
+        ]
+      },
+      {
+        "index": 23625,
+        "names": [
+          "Ruin Raider"
+        ]
+      },
+      {
+        "index": 23839,
+        "names": [
+          "Safe Haven"
+        ]
+      },
+      {
+        "index": 23950,
+        "names": [
+          "Sami, Wildcat Captain"
+        ]
+      },
+      {
+        "index": 23975,
+        "names": [
+          "Sanar, Innovative First-Year"
+        ]
+      },
+      {
+        "index": 24075,
+        "names": [
+          "Sapling of Colfenor"
+        ]
+      },
+      {
+        "index": 24099,
+        "names": [
+          "Sarcomancy"
+        ]
+      },
+      {
+        "index": 24115,
+        "names": [
+          "Sarkhan the Mad"
+        ]
+      },
+      {
+        "index": 24206,
+        "names": [
+          "Savior of Ollenbock"
+        ]
+      },
+      {
+        "index": 24214,
+        "names": [
+          "Saw"
+        ]
+      },
+      {
+        "index": 24260,
+        "names": [
+          "Scalpelexis"
+        ]
+      },
+      {
+        "index": 24411,
+        "names": [
+          "Scourglass"
+        ]
+      },
+      {
+        "index": 24427,
+        "names": [
+          "Scrap Mastery"
+        ]
+      },
+      {
+        "index": 24597,
+        "names": [
+          "Season of Gathering"
+        ]
+      },
+      {
+        "index": 24630,
+        "names": [
+          "Secret Arcade",
+          "Dusty Parlor"
+        ]
+      },
+      {
+        "index": 24746,
+        "names": [
+          "Selective Obliteration"
+        ]
+      },
+      {
+        "index": 24773,
+        "names": [
+          "Selfless Safewright"
+        ]
+      },
+      {
+        "index": 24999,
+        "names": [
+          "Shadow of the Grave"
+        ]
+      },
+      {
+        "index": 25085,
+        "names": [
+          "Shapeshifter's Marrow"
+        ]
+      },
+      {
+        "index": 25142,
+        "names": [
+          "Shauku, Endbringer"
+        ]
+      },
+      {
+        "index": 25159,
+        "names": [
+          "Shell of the Last Kappa"
+        ]
+      },
+      {
+        "index": 25179,
+        "names": [
+          "Sheoldred's Assimilator"
+        ]
+      },
+      {
+        "index": 25350,
+        "names": [
+          "Shredder's Armor"
+        ]
+      },
+      {
+        "index": 25624,
+        "names": [
+          "Simic Charm"
+        ]
+      },
+      {
+        "index": 25643,
+        "names": [
+          "Sin Prodder"
+        ]
+      },
+      {
+        "index": 25653,
+        "names": [
+          "Singing Towers of Darillium"
+        ]
+      },
+      {
+        "index": 25774,
+        "names": [
+          "Skirk Drill Sergeant"
+        ]
+      },
+      {
+        "index": 25827,
+        "names": [
+          "Skull Storm"
+        ]
+      },
+      {
+        "index": 25925,
+        "names": [
+          "Skyship Weatherlight"
+        ]
+      },
+      {
+        "index": 25957,
+        "names": [
+          "Skyward Eye Prophets"
+        ]
+      },
+      {
+        "index": 26125,
+        "names": [
+          "Smirking Spelljacker"
+        ]
+      },
+      {
+        "index": 26132,
+        "names": [
+          "Smog Smasher"
+        ]
+      },
+      {
+        "index": 26158,
+        "names": [
+          "Smuggler's Buggy"
+        ]
+      },
+      {
+        "index": 26291,
+        "names": [
+          "Solid Ground"
+        ]
+      },
+      {
+        "index": 26394,
+        "names": [
+          "Sorin, Grim Nemesis"
+        ]
+      },
+      {
+        "index": 26403,
+        "names": [
+          "Sothera, the Supervoid"
+        ]
+      },
+      {
+        "index": 26457,
+        "names": [
+          "Soul of New Phyrexia"
+        ]
+      },
+      {
+        "index": 26652,
+        "names": [
+          "Spell Queller"
+        ]
+      },
+      {
+        "index": 26862,
+        "names": [
+          "Spirit Mirror"
+        ]
+      },
+      {
+        "index": 26872,
+        "names": [
+          "Spirit of Resistance"
+        ]
+      },
+      {
+        "index": 27082,
+        "names": [
+          "Staff of Eden, Vault's Key"
+        ]
+      },
+      {
+        "index": 27295,
+        "names": [
+          "Stensia Uprising"
+        ]
+      },
+      {
+        "index": 27329,
+        "names": [
+          "Stiltstrider"
+        ]
+      },
+      {
+        "index": 27545,
+        "names": [
+          "Storybook Ride"
+        ]
+      },
+      {
+        "index": 27662,
+        "names": [
+          "Struggle for Sanity"
+        ]
+      },
+      {
+        "index": 27722,
+        "names": [
+          "Sudden Disappearance"
+        ]
+      },
+      {
+        "index": 27782,
+        "names": [
+          "Summon: Bahamut"
+        ]
+      },
+      {
+        "index": 27939,
+        "names": [
+          "Superior Spider-Man"
+        ]
+      },
+      {
+        "index": 28044,
+        "names": [
+          "Sutured Ghoul"
+        ]
+      },
+      {
+        "index": 28045,
+        "names": [
+          "Svella, Ice Shaper"
+        ]
+      },
+      {
+        "index": 28149,
+        "names": [
+          "Sword-Swallowing Seraph"
+        ]
+      },
+      {
+        "index": 28179,
+        "names": [
+          "Sylvan Primordial"
+        ]
+      },
+      {
+        "index": 28223,
+        "names": [
+          "Synod Sanctum"
+        ]
+      },
+      {
+        "index": 28243,
+        "names": [
+          "Syr Joshua and Syr Saxon"
+        ]
+      },
+      {
+        "index": 28301,
+        "names": [
+          "Tainted Specter"
+        ]
+      },
+      {
+        "index": 28444,
+        "names": [
+          "Tapestry Warden"
+        ]
+      },
+      {
+        "index": 28459,
+        "names": [
+          "Tarnation Vista"
+        ]
+      },
+      {
+        "index": 28467,
+        "names": [
+          "Tasha, the Witch Queen"
+        ]
+      },
+      {
+        "index": 28506,
+        "names": [
+          "Tavern Scoundrel"
+        ]
+      },
+      {
+        "index": 28510,
+        "names": [
+          "Tawnos's Coffin"
+        ]
+      },
+      {
+        "index": 28568,
+        "names": [
+          "Teferi's Reproach"
+        ]
+      },
+      {
+        "index": 28580,
+        "names": [
+          "Teferi, Temporal Pilgrim"
+        ]
+      },
+      {
+        "index": 28662,
+        "names": [
+          "Temporal Distortion"
+        ]
+      },
+      {
+        "index": 28852,
+        "names": [
+          "Tezzeret, Master of the Bridge"
+        ]
+      },
+      {
+        "index": 28942,
+        "names": [
+          "The Caves of Androzani"
+        ]
+      },
+      {
+        "index": 29008,
+        "names": [
+          "Fragment of Konda",
+          "The Fall of Lord Konda"
+        ]
+      },
+      {
+        "index": 29175,
+        "names": [
+          "The Scarab God"
+        ]
+      },
+      {
+        "index": 29198,
+        "names": [
+          "The Spot, Living Portal"
+        ]
+      },
+      {
+        "index": 29207,
+        "names": [
+          "The Tale of Tamiyo"
+        ]
+      },
+      {
+        "index": 29231,
+        "names": [
+          "The Ur-Sphinx"
+        ]
+      },
+      {
+        "index": 29406,
+        "names": [
+          "Thought Prison"
+        ]
+      },
+      {
+        "index": 29485,
+        "names": [
+          "Thrasios, Triton Hero"
+        ]
+      },
+      {
+        "index": 29647,
+        "names": [
+          "Ticketomaton"
+        ]
+      },
+      {
+        "index": 29655,
+        "names": [
+          "Tidal Influence"
+        ]
+      },
+      {
+        "index": 29861,
+        "names": [
+          "Toluz, Clever Conductor"
+        ]
+      },
+      {
+        "index": 30057,
+        "names": [
+          "Tradewind Rider Avatar"
+        ]
+      },
+      {
+        "index": 30060,
+        "names": [
+          "Tragic Arrogance"
+        ]
+      },
+      {
+        "index": 30117,
+        "names": [
+          "Transforming Flourish"
+        ]
+      },
+      {
+        "index": 30162,
+        "names": [
+          "Traverse Eternity"
+        ]
+      },
+      {
+        "index": 30225,
+        "names": [
+          "Trench Gorger"
+        ]
+      },
+      {
+        "index": 30233,
+        "names": [
+          "Trepanation Blade"
+        ]
+      },
+      {
+        "index": 30254,
+        "names": [
+          "Trial of a Time Lord"
+        ]
+      },
+      {
+        "index": 30275,
+        "names": [
+          "Trickbind"
+        ]
+      },
+      {
+        "index": 30344,
+        "names": [
+          "Trove Warden"
+        ]
+      },
+      {
+        "index": 30444,
+        "names": [
+          "Turnabout"
+        ]
+      },
+      {
+        "index": 30464,
+        "names": [
+          "Tusk and Whiskers"
+        ]
+      },
+      {
+        "index": 30479,
+        "names": [
+          "Twilight Prophet"
+        ]
+      },
+      {
+        "index": 30480,
+        "names": [
+          "Twilight Shepherd"
+        ]
+      },
+      {
+        "index": 30498,
+        "names": [
+          "Twinning Glass"
+        ]
+      },
+      {
+        "index": 30549,
+        "names": [
+          "Tyrant of Discord"
+        ]
+      },
+      {
+        "index": 30578,
+        "names": [
+          "Ugin's Labyrinth"
+        ]
+      },
+      {
+        "index": 30603,
+        "names": [
+          "Uldaros Theorix"
+        ]
+      },
+      {
+        "index": 30613,
+        "names": [
+          "Ultimate Magic: Holy"
+        ]
+      },
+      {
+        "index": 30734,
+        "names": [
+          "Undergrowth"
+        ]
+      },
+      {
+        "index": 30758,
+        "names": [
+          "Underworld Sentinel"
+        ]
+      },
+      {
+        "index": 30934,
+        "names": [
+          "Urabrask's Anointer"
+        ]
+      },
+      {
+        "index": 31004,
+        "names": [
+          "Urza's Sylex"
+        ]
+      },
+      {
+        "index": 31038,
+        "names": [
+          "Vaan, Street Thief"
+        ]
+      },
+      {
+        "index": 31044,
+        "names": [
+          "Vaevictis Asmadi, the Dire"
+        ]
+      },
+      {
+        "index": 31048,
+        "names": [
+          "Valakut Exploration"
+        ]
+      },
+      {
+        "index": 31154,
+        "names": [
+          "Vanish into Memory"
+        ]
+      },
+      {
+        "index": 31197,
+        "names": [
+          "Vault 13: Dweller's Journey"
+        ]
+      },
+      {
+        "index": 31421,
+        "names": [
+          "Vexing Arcanix"
+        ]
+      },
+      {
+        "index": 31649,
+        "names": [
+          "Visions"
+        ]
+      },
+      {
+        "index": 31778,
+        "names": [
+          "Volatile Chimera"
+        ]
+      },
+      {
+        "index": 31833,
+        "names": [
+          "Voltage Surge"
+        ]
+      },
+      {
+        "index": 31900,
+        "names": [
+          "Vraska, Golgari Queen"
+        ]
+      },
+      {
+        "index": 32017,
+        "names": [
+          "Wall of Nets"
+        ]
+      },
+      {
+        "index": 32034,
+        "names": [
+          "Wall of Stolen Identity"
+        ]
+      },
+      {
+        "index": 32178,
+        "names": [
+          "Warp World"
+        ]
+      },
+      {
+        "index": 32222,
+        "names": [
+          "Wash Out"
+        ]
+      },
+      {
+        "index": 32457,
+        "names": [
+          "When Will You Learn?"
+        ]
+      },
+      {
+        "index": 32665,
+        "names": [
+          "Willie Lumpkin, Postman"
+        ]
+      },
+      {
+        "index": 32767,
+        "names": [
+          "Winnow"
+        ]
+      },
+      {
+        "index": 32797,
+        "names": [
+          "Wirecat"
+        ]
+      },
+      {
+        "index": 32864,
+        "names": [
+          "Withering Wisps"
+        ]
+      },
+      {
+        "index": 32928,
+        "names": [
+          "Wondrous Crucible"
+        ]
+      },
+      {
+        "index": 32981,
+        "names": [
+          "Words of Wind"
+        ]
+      },
+      {
+        "index": 32997,
+        "names": [
+          "Worldgorger Dragon"
+        ]
+      },
+      {
+        "index": 33011,
+        "names": [
+          "Wormfang Behemoth"
+        ]
+      },
+      {
+        "index": 33012,
+        "names": [
+          "Wormfang Crab"
+        ]
+      },
+      {
+        "index": 33141,
+        "names": [
+          "Xolatoyac, the Smiling Flood"
+        ]
+      },
+      {
+        "index": 33220,
+        "names": [
+          "Yorion, Sky Nomad"
+        ]
+      },
+      {
+        "index": 33280,
+        "names": [
+          "Yuan-Ti Scaleshield"
+        ]
+      },
+      {
+        "index": 33293,
+        "names": [
+          "Yuriko, the Tiger's Shadow"
+        ]
+      },
+      {
+        "index": 33452,
+        "names": [
+          "Zoologist"
+        ]
+      }
+    ],
+    "validated_records": 33529,
+    "records_with_diagnostics": 0
+  },
+  "amended_reference": {
+    "groups": 67,
+    "amended_faces": 948,
+    "complete_records": 947,
+    "agreeing_complete_records": 935,
+    "exact_remaining_records": [
+      {
+        "names": [
+          "Chandra, Torch of Defiance"
+        ],
+        "classification": "producer_normalization_followup",
+        "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+        "changes": [
+          {
+            "path": "/0/0/args/body/instructions/1/args/operation/args/cost/parts/0/PlayerAction/body/instructions/0/args/operation/args/cards",
+            "source": {
+              "kind": "One",
+              "args": {
+                "kind": "Result",
+                "args": {
+                  "result": 0,
+                  "phase": "After",
+                  "index": 0
+                }
+              }
+            },
+            "reference": {
+              "kind": "Matching",
+              "args": {
+                "objects": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "Result",
+                    "args": {
+                      "result": 0,
+                      "phase": "After",
+                      "index": 0
+                    }
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            }
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+      },
+      {
+        "names": [
+          "Esper Origins",
+          "Summon: Esper Maduin"
+        ],
+        "classification": "producer_normalization_followup",
+        "reason": "The stable observation window now reads Observed in Summon: Esper Maduin just as Vexing Arcanix does. No intervening effect or different library can use this alias.",
+        "changes": [
+          {
+            "path": "/1/0/args/chapters/0/args/body/instructions/1/args/then/instructions/0/args/operation/args/objects",
+            "source": {
+              "kind": "Observed",
+              "args": 0
+            },
+            "reference": {
+              "kind": "Take",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Players": {
+                        "zone": "Library",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "Any"
+                    }
+                  }
+                },
+                "count": {
+                  "kind": "Constant",
+                  "args": 1
+                },
+                "from": "Top"
+              }
+            }
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+      },
+      {
+        "names": [
+          "Gate of the Black Dragon"
+        ],
+        "classification": "intrinsic_mana_representation_question",
+        "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+        "changes": [
+          {
+            "path": "/0",
+            "source": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Black"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "reference": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Black"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": false,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "AddMana",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "mana": {
+                                "Amount": {
+                                  "color": "Black",
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              },
+                              "restriction": null
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+      },
+      {
+        "names": [
+          "Gate to Manorborn"
+        ],
+        "classification": "intrinsic_mana_representation_question",
+        "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+        "changes": [
+          {
+            "path": "/0",
+            "source": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Green"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "reference": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Green"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": false,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "AddMana",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "mana": {
+                                "Amount": {
+                                  "color": "Green",
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              },
+                              "restriction": null
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+      },
+      {
+        "names": [
+          "Gate to Seatower"
+        ],
+        "classification": "intrinsic_mana_representation_question",
+        "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+        "changes": [
+          {
+            "path": "/0",
+            "source": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Blue"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "reference": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Blue"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": false,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "AddMana",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "mana": {
+                                "Amount": {
+                                  "color": "Blue",
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              },
+                              "restriction": null
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+      },
+      {
+        "names": [
+          "Gate to Tumbledown"
+        ],
+        "classification": "intrinsic_mana_representation_question",
+        "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+        "changes": [
+          {
+            "path": "/0",
+            "source": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Red"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "reference": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "Red"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": false,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "AddMana",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "mana": {
+                                "Amount": {
+                                  "color": "Red",
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              },
+                              "restriction": null
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+      },
+      {
+        "names": [
+          "Gate to the Citadel"
+        ],
+        "classification": "intrinsic_mana_representation_question",
+        "reason": "Source intentionally derives basic-land mana from the recorded basic land subtype; the new native reference spells the printed ability explicitly.",
+        "changes": [
+          {
+            "path": "/0",
+            "source": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "White"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "reference": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "SourceEntering",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetTapped": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 3
+                          },
+                          {
+                            "Color": "White"
+                          }
+                        ]
+                      },
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": true,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Library",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Activated",
+                "args": {
+                  "origin": "Ordinary",
+                  "cost": {
+                    "parts": [
+                      "TapSymbol"
+                    ]
+                  },
+                  "limits": {
+                    "once": false,
+                    "once_each_turn": false,
+                    "sorcery": false,
+                    "condition": null,
+                    "activators": null,
+                    "keyword": null,
+                    "modifiers": []
+                  },
+                  "announcement": {
+                    "targets": [],
+                    "modes": null
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 4294967295,
+                          "operation": {
+                            "kind": "AddMana",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "mana": {
+                                "Amount": {
+                                  "color": "White",
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              },
+                              "restriction": null
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/32"
+      },
+      {
+        "names": [
+          "Gustha's Scepter"
+        ],
+        "classification": "producer_normalization_followup",
+        "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+        "changes": [
+          {
+            "path": "/0/2/args/body/instructions/0/args/operation/args/objects",
+            "source": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "reference": {
+              "kind": "InZone",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Exile"
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "ExiledWith",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                },
+                "zone": "Exile"
+              }
+            }
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+      },
+      {
+        "names": [
+          "Mimeoplasm, Revered One"
+        ],
+        "classification": "exile_arrival_reference_question",
+        "reason": "Keep the Exile destination guard on actual movement arrivals, including replacement redirects; request confirmation/correction of the unguarded reference count.",
+        "changes": [
+          {
+            "path": "/0/0/args/body/instructions/2/args/operation/args/change/AddCounters/amount/args/1/args/args/filter",
+            "source": {
+              "kind": "InZone",
+              "args": {
+                "Shared": "Exile"
+              }
+            },
+            "reference": {
+              "kind": "CardType",
+              "args": "Creature"
+            }
+          },
+          {
+            "path": "/0/0/args/body/instructions/2/args/operation/args/change/AddCounters/amount/args/1/args/args/objects",
+            "source": {
+              "kind": "Matching",
+              "args": {
+                "objects": {
+                  "kind": "Transition",
+                  "args": {
+                    "result": 1,
+                    "phase": "After"
+                  }
+                },
+                "filter": {
+                  "kind": "CardType",
+                  "args": "Creature"
+                }
+              }
+            },
+            "reference": {
+              "kind": "Transition",
+              "args": {
+                "result": 1,
+                "phase": "After"
+              }
+            }
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/31"
+      },
+      {
+        "names": [
+          "Northampton Farm"
+        ],
+        "classification": "producer_normalization_followup",
+        "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+        "changes": [
+          {
+            "path": "/0/2/args/body/instructions/2/args/operation/args/objects",
+            "source": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "reference": {
+              "kind": "InZone",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Exile"
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "ExiledWith",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                },
+                "zone": "Exile"
+              }
+            }
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+      },
+      {
+        "names": [
+          "Ugin's Labyrinth"
+        ],
+        "classification": "producer_normalization_followup",
+        "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+        "changes": [
+          {
+            "path": "/0/1/args/body/instructions/0/args/condition/args/left/args",
+            "source": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "reference": {
+              "kind": "Matching",
+              "args": {
+                "objects": {
+                  "kind": "InZone",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Exile"
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "ExiledWith",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      }
+                    },
+                    "zone": "Exile"
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                }
+              }
+            }
+          },
+          {
+            "path": "/0/2/args/body/instructions/0/args/operation/args/objects",
+            "source": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "reference": {
+              "kind": "InZone",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Exile"
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "ExiledWith",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                },
+                "zone": "Exile"
+              }
+            }
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+      },
+      {
+        "names": [
+          "Vault 13: Dweller's Journey"
+        ],
+        "classification": "producer_normalization_followup",
+        "reason": "The fresh producer removes a redundant live-zone membership guard or uses the already-proved singleton movement result; other reference operands still retain the earlier equivalent form.",
+        "changes": [
+          {
+            "path": "/0/0/args/chapters/2/args/body/instructions/2/args/operation/args/objects",
+            "source": {
+              "kind": "Zone",
+              "args": {
+                "scope": {
+                  "Shared": "Exile"
+                },
+                "kind": "Card",
+                "filter": {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "reference": {
+              "kind": "InZone",
+              "args": {
+                "objects": {
+                  "kind": "Zone",
+                  "args": {
+                    "scope": {
+                      "Shared": "Exile"
+                    },
+                    "kind": "Card",
+                    "filter": {
+                      "kind": "ExiledWith",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  }
+                },
+                "zone": "Exile"
+              }
+            }
+          }
+        ],
+        "report": "https://github.com/vishvananda/oracle-grammar/issues/33"
+      }
+    ],
+    "original_reference_values_preserved": true,
+    "production_comparison_unchanged": true,
+    "historical_snapshot_records_with_explicit_deltas": 26,
+    "historical_snapshot_delta_paths": 32,
+    "historical_fixture_bytes_not_rewritten": true
+  },
+  "validation": {
+    "rust": {
+      "command": "cargo test --locked --manifest-path rust_syntax/Cargo.toml --workspace --no-fail-fast",
+      "targets": 140,
+      "passed": 1595,
+      "failed": 0,
+      "ignored": 10
+    },
+    "go": "go test ./... (go_mtg_parser), passed",
+    "python": {
+      "command": "python3 -m unittest discover -s rust_syntax/normalize/tools -p 'test_*.py'",
+      "passed": 8
+    },
+    "git_diff_check": true
+  },
+  "performance": {
+    "threads": 8,
+    "population": 33529,
+    "source_sha256": "be98c861573a5d33d831f9235e0468ddf16e411e58ad71c711d939734d464736",
+    "old_library_reproduces_baseline_bytes": true,
+    "runs": [
+      {
+        "version": "old",
+        "wall_seconds": 4.21,
+        "user_seconds": 32.88,
+        "system_seconds": 0.19,
+        "max_rss_kib": 122100
+      },
+      {
+        "version": "new",
+        "wall_seconds": 4.2,
+        "user_seconds": 32.51,
+        "system_seconds": 0.21,
+        "max_rss_kib": 120652
+      },
+      {
+        "version": "new",
+        "wall_seconds": 4.13,
+        "user_seconds": 32.12,
+        "system_seconds": 0.2,
+        "max_rss_kib": 125648
+      },
+      {
+        "version": "old",
+        "wall_seconds": 4.27,
+        "user_seconds": 33.16,
+        "system_seconds": 0.2,
+        "max_rss_kib": 123952
+      },
+      {
+        "version": "old",
+        "wall_seconds": 4.09,
+        "user_seconds": 31.73,
+        "system_seconds": 0.18,
+        "max_rss_kib": 124560
+      },
+      {
+        "version": "new",
+        "wall_seconds": 4.17,
+        "user_seconds": 32.32,
+        "system_seconds": 0.18,
+        "max_rss_kib": 124640
+      }
+    ],
+    "median_wall_seconds": {
+      "old": 4.21,
+      "new": 4.17
+    },
+    "median_max_rss_kib": {
+      "old": 123952,
+      "new": 124640
+    },
+    "notes": "Identical original Source input; interleaved immutable helpers linked to cached old and final new library artifacts. Concurrent worker load makes small timing differences inconclusive."
+  },
+  "reports": [
+    {
+      "repository": "i5jb/mtgish",
+      "title": "Restore printed creature/controller restrictions in three templates",
+      "body_file": "/mnt/vizier/grammar-adoption-20261116/reports/mtgish-filters.md",
+      "classification": "parser_correction",
+      "templates": 3,
+      "url": "https://github.com/i5jb/mtgish/issues/298"
+    },
+    {
+      "repository": "i5jb/mtgish",
+      "title": "Hesitation: “When a player casts” template selects only You",
+      "body_file": "/mnt/vizier/grammar-adoption-20261116/reports/mtgish-hesitation.md",
+      "classification": "parser_correction",
+      "templates": 1,
+      "url": "https://github.com/i5jb/mtgish/issues/299"
+    },
+    {
+      "repository": "i5jb/mtgish",
+      "title": "Copy templates: Kimahri affects its target; Renegade Doppelganger retains an unprinted ability",
+      "body_file": "/mnt/vizier/grammar-adoption-20261116/reports/mtgish-copies.md",
+      "classification": "parser_correction",
+      "templates": 2,
+      "url": "https://github.com/i5jb/mtgish/issues/300"
+    },
+    {
+      "repository": "i5jb/mtgish",
+      "title": "Kenessos and Lantern of Revealing: the second optional bottom placement is mandatory",
+      "body_file": "/mnt/vizier/grammar-adoption-20261116/reports/mtgish-bottom.md",
+      "classification": "parser_correction",
+      "templates": 2,
+      "url": "https://github.com/i5jb/mtgish/issues/301"
+    },
+    {
+      "repository": "vishvananda/oracle-grammar",
+      "title": "U0050: preserve the Exile arrival-zone guard in Mimeoplasm’s counter amount",
+      "body_file": "/mnt/vizier/grammar-adoption-20261116/reports/grammar-mimeoplasm.md",
+      "classification": "reference_correction_or_contract_clarification",
+      "url": "https://github.com/vishvananda/oracle-grammar/issues/31"
+    },
+    {
+      "repository": "vishvananda/oracle-grammar",
+      "title": "U0068: choose one contract for intrinsic basic-land mana abilities",
+      "body_file": "/mnt/vizier/grammar-adoption-20261116/reports/grammar-intrinsic.md",
+      "classification": "representation_question",
+      "url": "https://github.com/vishvananda/oracle-grammar/issues/32"
+    },
+    {
+      "repository": "vishvananda/oracle-grammar",
+      "title": "Follow up U0060 / #29: remaining live-zone and observation normal forms",
+      "body_file": "/mnt/vizier/grammar-adoption-20261116/reports/grammar-normalization.md",
+      "classification": "normalization_proposal",
+      "url": "https://github.com/vishvananda/oracle-grammar/issues/33"
+    }
+  ],
+  "existing_issue_followups": [
+    "https://github.com/i5jb/mtgish/issues/260#issuecomment-6907994757",
+    "https://github.com/i5jb/mtgish/issues/275#issuecomment-6907995123"
+  ],
+  "blocks": {
+    "ci_fix_commit": "0375015",
+    "adoption_commit": "d431f21",
+    "grammar": "0.2.11",
+    "contract": "0.2.3",
+    "rust_tests_passed": 5,
+    "python_tests_passed": 1,
+    "browser_suites_passed": 29,
+    "ci_fix_run": "https://github.com/vishvananda/oracle-blocks/actions/runs/43805386915",
+    "adoption_ci_run": "https://github.com/vishvananda/oracle-blocks/actions/runs/43807733773",
+    "deployment": {
+      "repository": "vishvananda/oracle-blocks",
+      "commit": "d431f21",
+      "grammar_version": "0.2.11",
+      "model_version": "0.2.3",
+      "contract_version": "0.2.3",
+      "schema_version": 191,
+      "catalog_records": 33529,
+      "browser_suites_passed": 29,
+      "ci_run": "https://github.com/vishvananda/oracle-blocks/actions/runs/43807733773",
+      "index_sha256": "ab52b58e9d84830ff40932bb437011b049f296c6b80eb8637e2716654a9c656a",
+      "previous_release": "/srv/mtgish-blocks/releases/20261115-887b3c62-61936c96",
+      "release": "/srv/mtgish-blocks/releases/20261116-d431f21-ab52b58e"
+    },
+    "https_bytes_match": true
+  },
+  "file_sha256": {
+    "data/mtgish.lines.ron": "1abe7c7a11ea13ec63ef5f824690d991c5c437407cb3c5c0d225c1d198ac3e65",
+    "data/mtgish.lines.json": "2ad46d3f1a3e77719144ffce57aba3021738ff597185ffbd8462c80f871a5881",
+    "data/oracle_grammar_reference.json": "b86c3e2c08d0bc086bc07dd328b7382d19bd6bffcc4fb27a63f20d44deb2a17c",
+    "data/grammar_audit_review.json": "a53130ff819ba754bede9cbff40dfceb6e36547c6f2ce4e5299c39c15c57d9ec",
+    "data/grammar_literal_review.json": "eab5ddd72821976795b1bfb782e552e709b815b3349e0716e7d913efcb9b923e",
+    "grammars/english_grammar.json5": "616ff357c34b98df407c8d687a217ad112c99ba0ed119493aaa9c2bfe74b5fff",
+    "grammars/mtgish_grammar.json5": "4d4dd0239c807d4ca0021e468f2beee87341f565ff0f54ce7737720bc7f4cecb",
+    "rust_syntax/Cargo.lock": "1fbcb7a2b71c74effc25934ef4726e34981a31478273e866a0be3fc455cf7859",
+    "rust_syntax/normalize/tests/fixtures/grammar_adoption.ronl": "520045b7f1eb629bf92f054ff9f3fe80f86008b991e11a0cb6e462e6ad620f62",
+    "rust_syntax/normalize/tests/fixtures/grammar_adoption_expected.jsonl": "c1029a3ba56668bd12167dc84cb22d116ecf5ef7a1d29827c0d0d7a5ff02afe1",
+    "rust_syntax/normalize/tests/fixtures/grammar_adoption_remaining.json": "64f1d9f7455bcb382d44720b44e039badb20cf3016175b88110ae760159fa49a",
+    "rust_syntax/normalize/tests/fixtures/grammar_adoption_fresh_changes.json": "c442efa081cf14d81eb307c8bf989e2ff553c5b047309da4f052e654164ab0c6"
+  },
+  "evidence_directory": "/mnt/vizier/grammar-adoption-20261116",
+  "evidence_sha256": {
+    "rust-workspace-final.log": "5c9cc96b26200772b5cb181b94398bc567c039b3f1ab7477d82717fd7c2f3222",
+    "adoption-tests-r1.log": "f35af01c90fefee58f451eb84fd42dbbc486134fcd8751e98ce3388ae2c82782",
+    "go-final-tests.log": "85bff83560e93ddaa3008bd8ac4d2aeb7c02093be0a92ede8f296aad91803217",
+    "python-tests.log": "3e5da844f1824a82652941f99635e09a97f05c3845d2eabc98f1abf1df76a2c6",
+    "usage-verified.json": "a19784c6c1643ed1f77651937a3d928669df7f9d715aaf7998e9d73e363c6186",
+    "literal-audit-final.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "final-export.log": "81b92f62050c0b4a5ec3322d5c1bc8eb555b39896d8018199b2fc64d6caa84c6",
+    "final-records.log": "7ef1fb701076365d33adfc98f3a9d23eabf5153e50c63e46150ebabf7183ae6f",
+    "performance.json": "084ec5232403ab61e27eed3e6d5c9f4e915995f0f9fc974b1f583f1f92432642",
+    "published-reports.json": "e0f3939ad8364eb69da1807276d573359836a698460067622425c7594870b35e"
+  },
+  "scope_exclusions": [
+    "No owned schema or numeric-width change",
+    "No local crate patches",
+    "No Cantrip/backend/engine/worker/reservation changes",
+    "No upstream MTGish merge or pull",
+    "No reference or production-equality substitutions",
+    "User consolidation.md is untouched"
+  ]
+}

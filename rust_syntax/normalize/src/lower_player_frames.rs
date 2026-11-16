@@ -6,13 +6,23 @@ impl Context {
         actor: &PlayerSet,
     ) -> Option<Result<Instruction>> {
         use source::Action as A;
+        if let A::MayHavePlayerAction(player, action) = value {
+            return Some((|| {
+                let player = self.player(player)?;
+                let mut child = self.nested_program();
+                child.acting = Some(player.clone());
+                let body = child.action_list(
+                    std::slice::from_ref(action.as_ref()),
+                    &PlayerSet::One(player),
+                )?;
+                self.result = child.result;
+                Ok(Instruction::Optional {
+                    decider: self.player(&source::Player::You)?,
+                    body,
+                })
+            })());
+        }
         let (players, any_one, optional, actions) = match value {
-            A::MayHavePlayerAction(player, action) => (
-                self.player(player).map(PlayerSet::One),
-                false,
-                true,
-                vec![action.as_ref().clone()],
-            ),
             A::APlayerMayAction(players, action) => (
                 self.players(players),
                 true,

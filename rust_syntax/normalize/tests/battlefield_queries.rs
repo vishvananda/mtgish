@@ -1,3 +1,5 @@
+#[path = "support/fresh_producer.rs"]
+mod fresh_producer;
 #[path = "support/epoch189.rs"]
 mod epoch189;
 #[path = "support/query_aliases.rs"]
@@ -145,10 +147,7 @@ fn complete_producer_records_change_only_query_aliases_and_schema_stamps() {
                 "filter":{"kind":"Not","args":{"kind":"HasKeyword","args":{"kind":"Indestructible"}}}
             }});
         }
-        assert_eq!(
-            serde_json::to_value(unified::lower(&source).card).unwrap(),
-            expected,
-            "{line}"
-        );
+        let actual = serde_json::to_value(unified::lower(&source).card).unwrap();
+        fresh_producer::assert_matches("battlefield_queries_before.jsonl", &expected, &actual);
     }
 }

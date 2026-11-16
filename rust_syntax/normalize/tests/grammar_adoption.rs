@@ -11,8 +11,12 @@ fn key(card: &UnifiedCard) -> Vec<String> {
     names
 }
 fn meaning(card: &UnifiedCard) -> serde_json::Value {
+    // Face arrays are not a primary-face ordering contract. Compare each
+    // complete ability list under its immutable face name.
+    let mut faces = card.faces.iter().collect::<Vec<_>>();
+    faces.sort_by(|a, b| a.name.cmp(&b.name));
     let mut abilities =
-        serde_json::to_value(card.faces.iter().map(|f| &f.abilities).collect::<Vec<_>>()).unwrap();
+        serde_json::to_value(faces.iter().map(|f| &f.abilities).collect::<Vec<_>>()).unwrap();
     for face in abilities.as_array_mut().unwrap() {
         canonical::semantic_abilities(face).unwrap();
     }
@@ -21,7 +25,7 @@ fn meaning(card: &UnifiedCard) -> serde_json::Value {
 #[test]
 fn amendments_align_with_only_explicitly_reported_remaining_differences() {
     corpus::on_large_stack(|| {
-        let expected = include_str!("fixtures/grammar_023_expected.jsonl")
+        let expected = include_str!("fixtures/grammar_adoption_expected.jsonl")
             .lines()
             .map(|l| {
                 let c: UnifiedCard = serde_json::from_str(l).unwrap();
@@ -29,10 +33,10 @@ fn amendments_align_with_only_explicitly_reported_remaining_differences() {
             })
             .collect::<BTreeMap<_, _>>();
         let remaining: serde_json::Value =
-            serde_json::from_str(include_str!("fixtures/grammar_023_remaining.json")).unwrap();
+            serde_json::from_str(include_str!("fixtures/grammar_adoption_remaining.json")).unwrap();
         let mut errors = vec![];
         let mut checked = 0;
-        for line in include_str!("fixtures/grammar_023.ronl").lines() {
+        for line in include_str!("fixtures/grammar_adoption.ronl").lines() {
             let source: OracleCard = ron::from_str(line).unwrap();
             let actual = unified::lower(&source);
             assert!(
