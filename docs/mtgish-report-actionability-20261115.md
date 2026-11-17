@@ -3,9 +3,10 @@
 ## Subsequent feedback — 2026-11-16
 
 MTGish #290 is withdrawn: the maintainer clarified the inspection-list contract;
-Lamp needs a consumer fix, not a new Source constructor. #289 is now a disputed
-interpretation: a judge precedent for Emeria Shepherd needs reconciliation with
-the maintainer’s Snowfall reading. The dated inventory below is historical. See
+Lamp needs a consumer fix, not a new Source constructor. #289 was disputed
+after maintainer feedback; on 2026-11-17 the user reported external judge
+confirmation and chose to retain zero/one/two for snow. See
+[the adopted decision](snowfall-optional-mana-20261114.md). The dated inventory below is historical. See
 [the follow-up](upstream-feedback-289-290-20261116.md).
 
 ## Finding

@@ -1,6 +1,15 @@
 # Upstream feedback on MTGish #289 and #290 — 2026-11-16
 
-## Decisions
+## Snowfall decision — 2026-11-17
+
+The user reports external judge confirmation of zero/one/two additional blue
+for a snow Island and instructs us to retain that behavior. Existing code, tests
+and U0038 already implement it. The pending interpretation discussion below is
+the historical 2026-11-16 checkpoint; it no longer blocks our fork's decision.
+See [the adopted decision](snowfall-optional-mana-20261114.md). The adjacent
+proof JSON remains an immutable record of the earlier validation checkpoint.
+
+## Decisions at the 2026-11-16 checkpoint
 
 **Aladdin's Lamp (#290): accept the maintainer's Source contract.** The complete
 draw-replacement inspection partition reserves a card; lowering must not emit
