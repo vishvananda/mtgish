@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -61,9 +62,25 @@ func testSourceReferenceFixtures(t *testing.T, fixtureNames ...string) {
 		}
 		fixture = append(fixture, data...)
 	}
+	// Preserve historical Rust Source captures. These three exact old/new pairs
+	// adopt already-reviewed Source corrections in fresh parser comparisons.
+	updatesData, err := os.ReadFile("../rust_syntax/normalize/tests/fixtures/source_fixture_updates_030.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var updates []struct{ Before, After string }
+	if err := json.Unmarshal(updatesData, &updates); err != nil {
+		t.Fatal(err)
+	}
 	namePattern := regexp.MustCompile(`Name: "([^"]+)"`)
 	stickerNames := regexp.MustCompile(`NameSticker\(("(?:\\.|[^"\\])*")\)`)
 	for _, expected := range strings.Split(strings.TrimSpace(string(fixture)), "\n") {
+		for _, update := range updates {
+			if expected == update.Before {
+				expected = update.After
+				break
+			}
+		}
 		var name string
 		if named := namePattern.FindStringSubmatch(expected); named != nil {
 			name = named[1]

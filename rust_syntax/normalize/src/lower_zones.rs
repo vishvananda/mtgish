@@ -445,6 +445,14 @@ impl Context {
     fn grave_cards(&self, value: &source::CardsInGraveyards) -> Result<ObjectSet> {
         use source::CardsInGraveyards as S;
         Ok(match value {
+            S::DiedThisTurn(objects) => ObjectSet::FromHistoryDestinations {
+                event: Box::new(EventSpec::ZoneChange {
+                    objects: self.filter(objects)?,
+                    from: Some(EventZone::Battlefield),
+                    to: EventZone::Graveyard,
+                }),
+                window: HistoryWindow::ThisTurn,
+            },
             S::InTheGraveyardPileChosenThisWay => ObjectSet::Selected(self.pile_chosen()?),
             S::InTheGraveyardPileNotChosenThisWay => ObjectSet::Unselected(self.pile_chosen()?),
             S::Trigger_ThoseGraveyardCards if self.event.group => ObjectSet::EventGroup,

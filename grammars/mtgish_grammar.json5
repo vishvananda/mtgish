@@ -3093,6 +3093,11 @@
     "+{{DIGITS}}": "",
     "-{{DIGITS}}": ""
   },
+  "{{MANA_REPLACEMENT_SOURCE_OPTIONS}}": {
+    "({{PERMANENTS}}, {{MANA_PRODUCE_SYMBOL}})": "",
+    "({{PERMANENTS}}, {{MANA_PRODUCE_SYMBOL}}), {{MANA_REPLACEMENT_SOURCE_OPTIONS}}": ""
+  },
+
   "{{KEYWORD_RULE[CraftWith]}}": {
     "CraftWithACraftable({{CRAFTABLE}}, {{MANACOST}})": "",
     "CraftWithANumberOfCraftables({{COMPARISON}}, {{CRAFTABLE}}, {{MANACOST}})": "",
@@ -6052,6 +6057,7 @@
     "ReplaceWouldPayLife({{REPLACABLE_EVENT[WouldPayLife]}}, {{REPLACEMENT_ACTIONS[WouldPayLife]}})": "",
     "ReplaceWouldPlaneswalk({{REPLACABLE_EVENT[WouldPlaneswalk]}}, {{REPLACEMENT_ACTIONS[WouldPlaneswalk]}})": "",
     "ReplaceWouldProduceMana({{REPLACABLE_EVENT[WouldProduceMana]}}, {{REPLACEMENT_ACTIONS[WouldProduceMana]}})": "",
+    "ReplaceWouldProduceManaBySource([{{MANA_REPLACEMENT_SOURCE_OPTIONS}}])": "",
     "ReplaceWouldProliferate({{REPLACABLE_EVENT[WouldProliferate]}}, {{REPLACEMENT_ACTIONS[WouldProliferate]}})": "",
     "ReplaceWouldPutAPermanentOnTheBattlefield({{REPLACABLE_EVENT[WouldPutAPermanentOnTheBattlefield]}}, {{REPLACEMENT_ACTIONS[WouldPutAPermanentOnTheBattlefield]}})": "",
     "ReplaceWouldPutIntoGraveyard({{REPLACABLE_EVENT[WouldPutIntoGraveyard]}}, {{REPLACEMENT_ACTIONS[WouldPutIntoGraveyard]}})": "",

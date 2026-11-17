@@ -1843,6 +1843,7 @@ pub enum Rule {
   DeckBuildingIfCommander(Vec<DeckBuildingAction>),
   // Append forms to preserve existing legacy bincode variant indices.
   CDA_PowerToughness(Box<GameNumber>, Box<GameNumber>),
+  ReplaceWouldProduceManaBySource(Vec<(Box<Permanents>, ManaProduce)>),
 
 }
 

@@ -1118,49 +1118,41 @@
       {
         "path": "/1/args/body/instructions/1/args/then/instructions/0/args/body/instructions/0/args/operation/args/cards",
         "before": {
-          "kind": "Matching",
+          "kind": "Zone",
           "args": {
-            "objects": {
-              "kind": "Zone",
-              "args": {
-                "scope": {
-                  "Shared": "Exile"
-                },
-                "kind": "Card",
-                "filter": {
-                  "kind": "AllOf",
-                  "args": [
-                    {
-                      "kind": "Not",
+            "scope": {
+              "Shared": "Exile"
+            },
+            "kind": "Card",
+            "filter": {
+              "kind": "AllOf",
+              "args": [
+                {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "InSet",
+                    "args": {
+                      "kind": "CostObjects",
                       "args": {
-                        "kind": "InSet",
-                        "args": {
-                          "kind": "CostObjects",
-                          "args": {
-                            "payment": {
-                              "Resolution": 0
-                            },
-                            "component": [
-                              0
-                            ],
-                            "view": "Performed",
-                            "phase": "After"
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "kind": "ExiledWith",
-                      "args": {
-                        "kind": "Source"
+                        "payment": {
+                          "Resolution": 0
+                        },
+                        "component": [
+                          0
+                        ],
+                        "view": "Performed",
+                        "phase": "After"
                       }
                     }
-                  ]
+                  }
+                },
+                {
+                  "kind": "ExiledWith",
+                  "args": {
+                    "kind": "Source"
+                  }
                 }
-              }
-            },
-            "filter": {
-              "kind": "Any"
+              ]
             }
           }
         },
@@ -1211,24 +1203,18 @@
       {
         "path": "/1/args/body/instructions/0/args/operation/args/objects",
         "before": {
-          "kind": "InZone",
+          "kind": "Zone",
           "args": {
-            "objects": {
-              "kind": "Zone",
-              "args": {
-                "scope": {
-                  "Shared": "Exile"
-                },
-                "kind": "Card",
-                "filter": {
-                  "kind": "ExiledWith",
-                  "args": {
-                    "kind": "Source"
-                  }
-                }
-              }
+            "scope": {
+              "Shared": "Exile"
             },
-            "zone": "Exile"
+            "kind": "Card",
+            "filter": {
+              "kind": "ExiledWith",
+              "args": {
+                "kind": "Source"
+              }
+            }
           }
         },
         "after": {

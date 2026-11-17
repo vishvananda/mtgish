@@ -1527,8 +1527,8 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
         }
         (
             "TheNumberOfPermanentsSacrificedAsPermenantEnteredBattlefield",
-            [Objects(set), Object(_)],
-        ) => earlier_count(EarlierObjects::Sacrificed, Some(objects_filter(set))),
+            [Objects(set), Object(object)],
+        ) => count_of(filtered(&ObjectSet::SacrificedAsEntered(object.clone()), objects_filter(set))),
         (
             "NumSpellsCastByAnyPlayerBeforeSpellThisTurn",
             [Filter(spells), Players(players), Object(object)],

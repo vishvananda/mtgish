@@ -7323,6 +7323,7 @@ type Rule =
 | { "_Rule": "CDA_Color", "args": SettableColor }
 | { "_Rule": "CDA_Power", "args": GameNumber }
 | { "_Rule": "CDA_PowerToughness", "args": [GameNumber, GameNumber] }
+| { "_Rule": "ReplaceWouldProduceManaBySource", "args": Array<[Permanents, ManaProduce]> }
 | { "_Rule": "CDA_Toughness", "args": GameNumber }
 | { "_Rule": "CDA_Types", "args": CDA_Types }
 | { "_Rule": "Companion", "args": Companion }

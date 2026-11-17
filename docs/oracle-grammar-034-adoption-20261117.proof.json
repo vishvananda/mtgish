@@ -1,0 +1,357 @@
+{
+  "date": "2026-11-17",
+  "base_commit": "970079fa",
+  "grammar_release": "grammar-v0.3.4",
+  "grammar_commit": "568fdca6ae6bdce3fd76fd0e3ba1087145b8b354",
+  "face_release": "faces-oracle-20261112220158-s192-g0.3.4-r1",
+  "face_manifest_sha256": "9bab862bf155f1bc51d0b8eecac754251c7cd6ab678564659cd662d2900ef05f",
+  "face_manifest_checksum_verified": true,
+  "model_packages": {
+    "oracle-ir": "0.3.0",
+    "oracle-ir-contract": "0.3.0"
+  },
+  "schema_version": 192,
+  "population": {
+    "frozen_oracle_version": "20261001.1",
+    "records": 33529,
+    "new_scryfall_population_adopted": false,
+    "diagnostic_records": 0
+  },
+  "reference": {
+    "groups": 75,
+    "amended_faces": 988,
+    "complete_records": 987,
+    "agreeing_records": 985,
+    "explicit_remaining_records": 2,
+    "gold_edited": false,
+    "ledger_sha256": "8ce14d49005ffb89a423e8a5e7d5940cf5b637a9525287d673502fc03e715582",
+    "prepared_gold_sha256": "afcad3ce4b4fa297f1151c40189bb806e2fa78e414ba2625bd4a166fc0ad4f2a"
+  },
+  "source_changes": [
+    "Naked Singularity",
+    "Reality Twist"
+  ],
+  "hashes": {
+    "data/oracle.json": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
+    "data/mtgish.lines.ron": "7c1f493906004497a6682071481ddabf1ce15e9efc63834a904554ffd35a14a7",
+    "data/mtgish.lines.json": "d70dd9a2e7ff15dfdda3efb0037fed5333702ca4b9579cbcefe01a8d97ff3baf",
+    "data/mtgish.pretty.ron": "90197b6e2627b8e60924fbbe6cf7c37ad71ef1d0762d3dbdf4a3960329f9dbee",
+    "rust_syntax/normalize/tests/fixtures/grammar_adoption_expected.jsonl": "0b97ae3ec9a13ed8389c16571dd66537d1dce393b748dbd2b0e8e13db3679131",
+    "rust_syntax/normalize/tests/fixtures/grammar_adoption.ronl": "2ed0ae54c4fe32d5ab3a4f941d3602a1510c9eeda3109cb80e9841bd1c84e742"
+  },
+  "validation": {
+    "rust_workspace": {
+      "command": "MTGISH_THREADS=8 cargo test --locked --manifest-path rust_syntax/Cargo.toml --workspace",
+      "passed": 1596,
+      "ignored": 10,
+      "log_sha256": "2b928c1b91c03c7c960bcc4b87885a5724be3ca2f1e477ccf4b45c38e4a2204f"
+    },
+    "go": {
+      "command": "cd go_mtg_parser && go test ./...",
+      "result": "passed",
+      "log_sha256": "aef97536c79e01011cbbb5e3a121a557284953d432442ebf759f427fb7246ca0"
+    },
+    "full_export": {
+      "command": "MTGISH_THREADS=8 rust_syntax/target/debug/ast export-ir-records data/mtgish.lines.ron records.jsonl",
+      "sha256": "aae56c0eb75490a6a82ecc32ef6c4db260fb439fb7081c8ef73716e93df1e9cf"
+    }
+  },
+  "reports": {
+    "source_grouping": "https://github.com/i5jb/mtgish/issues/302",
+    "linked_creation_followup": "https://github.com/vishvananda/oracle-grammar/issues/20#issuecomment-6934199376",
+    "selector_normalization_followup": "https://github.com/vishvananda/oracle-grammar/issues/33#issuecomment-6934200147"
+  },
+  "owned_migration_comparison": {
+    "baseline": "970079fa-equivalent schema-191 export",
+    "migrated_records": 33529,
+    "fresh_producer_changed_records": 47,
+    "changed_names": [
+      {
+        "index": 975,
+        "names": [
+          "Animate Dead"
+        ]
+      },
+      {
+        "index": 1169,
+        "names": [
+          "Arcane Artisan"
+        ]
+      },
+      {
+        "index": 1316,
+        "names": [
+          "Ardyn, the Usurper"
+        ]
+      },
+      {
+        "index": 1680,
+        "names": [
+          "Augusta, Order Returned"
+        ]
+      },
+      {
+        "index": 3473,
+        "names": [
+          "Break Expectations"
+        ]
+      },
+      {
+        "index": 4007,
+        "names": [
+          "Canoptek Scarab Swarm"
+        ]
+      },
+      {
+        "index": 5522,
+        "names": [
+          "Corpse Appraiser"
+        ]
+      },
+      {
+        "index": 5988,
+        "names": [
+          "Culmination of Studies"
+        ]
+      },
+      {
+        "index": 6224,
+        "names": [
+          "Dance of Many"
+        ]
+      },
+      {
+        "index": 6226,
+        "names": [
+          "Dance of the Dead"
+        ]
+      },
+      {
+        "index": 6575,
+        "names": [
+          "Deathbonnet Hulk",
+          "Deathbonnet Sprout"
+        ]
+      },
+      {
+        "index": 7042,
+        "names": [
+          "Diabolic Servitude"
+        ]
+      },
+      {
+        "index": 7866,
+        "names": [
+          "Dual Nature"
+        ]
+      },
+      {
+        "index": 9261,
+        "names": [
+          "Faerie Artisans"
+        ]
+      },
+      {
+        "index": 10285,
+        "names": [
+          "Forbidden Ritual"
+        ]
+      },
+      {
+        "index": 10461,
+        "names": [
+          "Frankenstein's Monster"
+        ]
+      },
+      {
+        "index": 10539,
+        "names": [
+          "Froghemoth"
+        ]
+      },
+      {
+        "index": 12034,
+        "names": [
+          "Graveyard Glutton",
+          "Graveyard Trespasser"
+        ]
+      },
+      {
+        "index": 12147,
+        "names": [
+          "Grey Host Reinforcements"
+        ]
+      },
+      {
+        "index": 12759,
+        "names": [
+          "Havengul Mystery",
+          "Havengul Laboratory"
+        ]
+      },
+      {
+        "index": 14191,
+        "names": [
+          "Inscribed Tablet"
+        ]
+      },
+      {
+        "index": 14324,
+        "names": [
+          "Awaken the Maelstrom",
+          "Invasion of Alara"
+        ]
+      },
+      {
+        "index": 14863,
+        "names": [
+          "Journey to the Lost City"
+        ]
+      },
+      {
+        "index": 14977,
+        "names": [
+          "Kaervek's Purge"
+        ]
+      },
+      {
+        "index": 15007,
+        "names": [
+          "Kalitas, Bloodchief of Ghet"
+        ]
+      },
+      {
+        "index": 15788,
+        "names": [
+          "Krovikan Vampire"
+        ]
+      },
+      {
+        "index": 17124,
+        "names": [
+          "Malanthrope"
+        ]
+      },
+      {
+        "index": 17909,
+        "names": [
+          "Mimeoplasm, Revered One"
+        ]
+      },
+      {
+        "index": 18916,
+        "names": [
+          "Naked Singularity"
+        ]
+      },
+      {
+        "index": 19064,
+        "names": [
+          "Necromancy"
+        ]
+      },
+      {
+        "index": 19589,
+        "names": [
+          "Nurturing Pixie"
+        ]
+      },
+      {
+        "index": 19954,
+        "names": [
+          "Oona, Queen of the Fae"
+        ]
+      },
+      {
+        "index": 20353,
+        "names": [
+          "Pako, Arcane Retriever"
+        ]
+      },
+      {
+        "index": 20478,
+        "names": [
+          "Part in Friendship"
+        ]
+      },
+      {
+        "index": 22164,
+        "names": [
+          "Rally the Horde"
+        ]
+      },
+      {
+        "index": 22447,
+        "names": [
+          "Reality Twist"
+        ]
+      },
+      {
+        "index": 22697,
+        "names": [
+          "Release to Memory"
+        ]
+      },
+      {
+        "index": 24090,
+        "names": [
+          "Saproling Burst"
+        ]
+      },
+      {
+        "index": 24216,
+        "names": [
+          "Saw in Half"
+        ]
+      },
+      {
+        "index": 25179,
+        "names": [
+          "Sheoldred's Assimilator"
+        ]
+      },
+      {
+        "index": 28812,
+        "names": [
+          "Tetravus"
+        ]
+      },
+      {
+        "index": 28923,
+        "names": [
+          "The Binding of the Titans"
+        ]
+      },
+      {
+        "index": 29878,
+        "names": [
+          "Tombstone Stairwell"
+        ]
+      },
+      {
+        "index": 30117,
+        "names": [
+          "Transforming Flourish"
+        ]
+      },
+      {
+        "index": 30536,
+        "names": [
+          "Tymaret, Chosen from Death"
+        ]
+      },
+      {
+        "index": 32228,
+        "names": [
+          "Waste Management"
+        ]
+      },
+      {
+        "index": 32930,
+        "names": [
+          "Wood Elemental"
+        ]
+      }
+    ]
+  }
+}

@@ -1448,10 +1448,10 @@ impl Context {
         ) {
             return Ok(ObjectSet::Affected(self.done(Done::Effect)?));
         }
-        if matches!(
-            value,
-            source::Permanents::TheTokensCreatedThisWay | source::Permanents::TheCreatedTokens
-        ) {
+        if matches!(value, source::Permanents::TheCreatedTokens) {
+            return self.tokens_made_here().map(ObjectSet::battlefield);
+        }
+        if matches!(value, source::Permanents::TheTokensCreatedThisWay) {
             return match &self.created_tokens {
                 Some(result) => Ok(ObjectSet::Created(result.clone())),
                 None => self
@@ -1504,13 +1504,11 @@ impl Context {
                 "movement reference has no transition in this scope",
             ));
         }
-        Ok(ObjectFilter::MadeBy(ObjectRef::Source))
+        Ok(ObjectFilter::CreatedWith(ObjectRef::Source))
     }
 
-    /// A token reference never includes nontokens put onto the battlefield by
-    /// the source. MadeBy remains broader for actual put-onto-battlefield text.
-    /// The separate CR 607 linked-ability identity still needs an IR contract;
-    /// this intersection fixes only the missing token restriction.
+    /// A linked token reference excludes nontokens created by the source.
+    /// CreatedWith preserves the creating text and its acquisition identity.
     fn tokens_made_here(&self) -> Result<ObjectFilter> {
         Ok(ObjectFilter::AllOf(vec![ObjectFilter::Token, self.made_here()?]))
     }
@@ -1735,9 +1733,9 @@ impl Context {
                 return Ok(ObjectFilter::Not(Box::new(matching)));
             }
             source::Permanents::PutOntoBattlefieldByPermanent(permanent) => {
-                return Ok(ObjectFilter::MadeBy(self.object(permanent)?));
+                return Ok(ObjectFilter::CreatedWith(self.object(permanent)?));
             }
-            source::Permanents::TheCreatedTokens if self.created_tokens.is_none() => {
+            source::Permanents::TheCreatedTokens => {
                 return self.tokens_made_here();
             }
             source::Permanents::IsNotACommander => {

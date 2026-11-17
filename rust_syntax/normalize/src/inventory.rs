@@ -1031,6 +1031,9 @@ impl Inventory<'_> {
             Operation::ModifyEvent { change } => {
                 self.form("EventChange", change);
                 match change {
+                    EventChange::ReplaceManaChoices(options) => {
+                        for option in options { self.filter(&option.sources); }
+                    }
                     EventChange::SetTapped(_)
                     | EventChange::SearchTop(_)
                     | EventChange::Repeats(_)
@@ -2192,8 +2195,8 @@ impl Inventory<'_> {
             | ObjectSet::AnyZone(filter)
             | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
-            ObjectSet::CreationLinkedCards(object) | ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
-            ObjectSet::FromHistory { event, window } => {
+            ObjectSet::SacrificedAsEntered(object) | ObjectSet::CreationLinkedCards(object) | ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
+            ObjectSet::FromHistoryDestinations { event, window } | ObjectSet::FromHistory { event, window } => {
                 self.event(event);
                 self.form("HistoryWindow", window);
             }
@@ -2574,6 +2577,7 @@ impl Inventory<'_> {
             ObjectFilter::SharesColorWith(object)
             | ObjectFilter::ExiledWith(object)
             | ObjectFilter::MadeBy(object)
+            | ObjectFilter::CreatedWith(object)
             | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DamagedBy(_) | ObjectFilter::DealtExcessBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),

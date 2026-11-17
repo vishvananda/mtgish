@@ -369,13 +369,14 @@ impl VisitorMut for Normalize {
         else {
             return;
         };
-        let ObjectSet::Matching { objects, filter } = objects.as_ref() else {
-            return;
+        let (objects, filter) = match objects.as_ref() {
+            ObjectSet::Matching { objects, filter } => (objects.as_ref(), filter.clone()),
+            objects => (objects, ObjectFilter::Any),
         };
         if let Some(object) = self.scope.scalar(objects) {
             *condition = Condition::ObjectMatches {
                 object,
-                filter: filter.clone(),
+                filter,
             };
         }
     }

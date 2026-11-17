@@ -841,6 +841,26 @@ impl Context {
 
     /// Every `Rule::Replace...` over a would-be event has one shape: event and body.
     fn replacement_rule(&mut self, value: &source::Rule) -> Option<Result<Ability>> {
+        if let source::Rule::ReplaceWouldProduceManaBySource(options) = value {
+            return Some((|| {
+                let options = options.iter().map(|(sources, mana)| {
+                    let ManaProduction::Amount { color, amount: Expr::Constant(1) } = self.mana_production(mana)? else {
+                        return Err(invalid("a source-conditioned mana replacement needs a single fixed mana type"));
+                    };
+                    Ok(ManaReplacementOption { sources: self.filter(sources)?, color })
+                }).collect::<Result<Vec<_>>>()?;
+                Ok(Ability::Replacement {
+                    active: ReplacementActive::Battlefield,
+                    event: ReplacementEvent::ProduceMana {
+                        sources: ObjectFilter::Any,
+                        by: None,
+                    },
+                    body: Program { instructions: vec![self.effect(Operation::ModifyEvent {
+                        change: EventChange::ReplaceManaChoices(options),
+                    })] },
+                })
+            })());
+        }
         if let source::Rule::AsPutIntoAGraveyardFromAnywhere(card, steps) = value {
             return Some((|| {
                 let event = ReplacementEvent::ZoneChange {

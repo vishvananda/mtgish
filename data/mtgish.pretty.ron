@@ -880299,36 +880299,28 @@ Card(
     CumulativeUpkeep(PayMana([
       ManaCostGeneric(3),
     ])),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Plains)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceR),
-      ],
-    ),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Island)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceG),
-      ],
-    ),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Swamp)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceW),
-      ],
-    ),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Mountain)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceU),
-      ],
-    ),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Forest)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceB),
-      ],
-    ),
+    ReplaceWouldProduceManaBySource([
+      (
+        IsLandType(Plains),
+        ManaProduceR,
+      ),
+      (
+        IsLandType(Island),
+        ManaProduceG,
+      ),
+      (
+        IsLandType(Swamp),
+        ManaProduceW,
+      ),
+      (
+        IsLandType(Mountain),
+        ManaProduceU,
+      ),
+      (
+        IsLandType(Forest),
+        ManaProduceB,
+      ),
+    ]),
   ],
 )
 ------------------
@@ -1045680,30 +1045672,24 @@ Card(
       ManaCostU,
       ManaCostU,
     ])),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Plains)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceR),
-      ],
-    ),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Swamp)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceG),
-      ],
-    ),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Mountain)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceW),
-      ],
-    ),
-    ReplaceWouldProduceMana(
-      TappingAPermanentWouldProduceMana(IsLandType(Forest)),
-      [
-        WouldProduceMana_ReplaceType(ManaProduceB),
-      ],
-    ),
+    ReplaceWouldProduceManaBySource([
+      (
+        IsLandType(Plains),
+        ManaProduceR,
+      ),
+      (
+        IsLandType(Swamp),
+        ManaProduceG,
+      ),
+      (
+        IsLandType(Mountain),
+        ManaProduceW,
+      ),
+      (
+        IsLandType(Forest),
+        ManaProduceB,
+      ),
+    ]),
   ],
 )
 ------------------

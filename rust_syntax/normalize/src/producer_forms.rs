@@ -393,6 +393,14 @@ impl VisitorMut for Normalize {
         // A live zone query already enforces its zone. Movement observations
         // and positional selections do not, so their guards stay explicit.
         match objects {
+            ObjectSet::Matching { objects: inner, filter }
+                if matches!(inner.as_ref(), ObjectSet::Matching { .. }) => {
+                let ObjectSet::Matching { objects: base, filter: first } = inner.as_ref() else { unreachable!() };
+                *objects = ObjectSet::Matching {
+                    objects: base.clone(),
+                    filter: ObjectFilter::AllOf(vec![first.clone(), filter.clone()]),
+                };
+            }
             ObjectSet::Matching { objects: inner, filter: ObjectFilter::Any } => {
                 *objects = inner.as_ref().clone();
             }

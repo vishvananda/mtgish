@@ -1,13 +1,13 @@
 # Component ownership
 
-The schema and contracts come from published `oracle-ir` 0.2.3 and
-`oracle-ir-contract` 0.2.3 (schema 191). MTGish does not own a second AST.
+The schema and contracts come from published `oracle-ir` 0.3.0 and
+`oracle-ir-contract` 0.3.0 (schema 192). MTGish does not own a second AST.
 
 | Repository | Responsibility |
 |---|---|
 | [oracle-grammar](https://github.com/vishvananda/oracle-grammar) | Owned AST, validation, canonicalization, migrations, Oracle parse/print and face releases |
 | [mtgish fork](https://github.com/vishvananda/mtgish) | Source parser, Source → AST lowering, preservation audits and comparison against released faces |
-| [Cantrip tooling branch](https://github.com/vishvananda/cantrip-rs/tree/tools/oracle-codegen-20261115) | AST → Cantrip generation, gap surveys, card lanes, dashboard, scenario validation and publication |
+| [Cantrip tooling branch](https://github.com/vishvananda/cantrip-rs/tree/tools/oracle-codegen-20261117) | AST → Cantrip generation, gap surveys, card lanes, dashboard, scenario validation and publication |
 | [oracle-blocks](https://github.com/vishvananda/oracle-blocks) | Blocks ↔ AST, authoring UI and optional Oracle projection using the Grammar crate |
 
 Historical reports under `docs/` describe the revisions that produced them. Their

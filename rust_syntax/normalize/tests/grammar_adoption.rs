@@ -16,7 +16,7 @@ fn meaning(card: &UnifiedCard) -> serde_json::Value {
     let mut faces = card.faces.iter().collect::<Vec<_>>();
     faces.sort_by(|a, b| a.name.cmp(&b.name));
     let mut abilities =
-        serde_json::to_value(faces.iter().map(|f| &f.abilities).collect::<Vec<_>>()).unwrap();
+        serde_json::to_value(faces.iter().map(|f| canonical::semantic_card(f).unwrap().abilities).collect::<Vec<_>>()).unwrap();
     for face in abilities.as_array_mut().unwrap() {
         canonical::semantic_abilities(face).unwrap();
     }

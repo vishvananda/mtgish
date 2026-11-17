@@ -5,24 +5,24 @@
       "oracle": "2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065",
       "reference": "68c1f37c748a09a1b4edc60a110ebad8f75100ae11334060515098bd9b40bd76",
       "transform": 3,
-      "updates": "4083bc0879cb3d3c90d254bc657020f33e33adbf5506d5ef54e99379829ee2f3",
-      "model": "ae276435426662e96f53a51428e3268def1b1f924f6606d6d0b8d7b860a05feb",
-      "migration": "330e03e417714ca23362f6b040213ba79e3363ae9dbef54c170d00b6ef951373"
+      "updates": "8ce14d49005ffb89a423e8a5e7d5940cf5b637a9525287d673502fc03e715582",
+      "model": "fa8dc89f6ac4898f5be68bd2cd3d0e79f114f5491e05fa530f859df0352c6879",
+      "migration": "64c05d1a4c7b6e5b3783f74220985f0e8b4baa7132686fa279aa1b2cb3ba6326"
     },
     "files": {
       "oracle.json": "8947627319f1a035ecc9e48b3adaad18704b9dabcc517fa66fae62693e3e5d19",
-      "gold.jsonl": "c7c628eb86d6203606610495cbabd01ca4c2d283c976227b40580edaca7f3dee",
-      "updates.json": "5abb6089a6095bc01049005114c6c9969cf5cd57096aa4731551e838374ab4a2"
+      "gold.jsonl": "afcad3ce4b4fa297f1151c40189bb806e2fa78e414ba2625bd4a166fc0ad4f2a",
+      "updates.json": "f04e96393337b8e1e36810ce19e8fc9b1465b321d0c70c3f2bb9e2c542c73afd"
     }
   },
-  "selected_records": 947,
-  "amended_faces": 948,
-  "amendment_groups": 67,
-  "ledger_sha256": "4083bc0879cb3d3c90d254bc657020f33e33adbf5506d5ef54e99379829ee2f3",
-  "selected_reference_sha256": "d722c9ee51db650c0c353988fa8baec18dd36733ad823e4f86ad159b1f520fec",
-  "grammar_tag": "grammar-v0.2.11",
-  "grammar_commit": "c8c7bf0f7df14e74a26ea07694f8867aa0aac061",
-  "policy": "Complete immutable prepared reference records containing every U0001–U0068 amended face. Keep original gold unchanged. Compare faces by name; array order is not a primary-face-role contract. Retain exact, input-checked remaining differences without changing production comparison.",
-  "reference_fixture_sha256": "c1029a3ba56668bd12167dc84cb22d116ecf5ef7a1d29827c0d0d7a5ff02afe1",
-  "source_fixture_sha256": "1e21dd9c20fd7a292474dbc8852cc8b0463f460cdcf40fb953f25c456b0a021c"
+  "selected_records": 987,
+  "amended_faces": 988,
+  "amendment_groups": 75,
+  "ledger_sha256": "8ce14d49005ffb89a423e8a5e7d5940cf5b637a9525287d673502fc03e715582",
+  "selected_reference_sha256": "0b97ae3ec9a13ed8389c16571dd66537d1dce393b748dbd2b0e8e13db3679131",
+  "grammar_tag": "grammar-v0.3.4",
+  "grammar_commit": "568fdca6ae6bdce3fd76fd0e3ba1087145b8b354",
+  "policy": "Complete immutable prepared reference records containing every U0001–U0076 (U0044 withdrawn) amended face. Keep original gold unchanged. Compare faces by name; array order is not a primary-face-role contract. Retain exact, input-checked remaining differences without changing production comparison. Use the owned semantic-card projection for intrinsic basic-land mana.",
+  "reference_fixture_sha256": "0b97ae3ec9a13ed8389c16571dd66537d1dce393b748dbd2b0e8e13db3679131",
+  "source_fixture_sha256": "2ed0ae54c4fe32d5ab3a4f941d3602a1510c9eeda3109cb80e9841bd1c84e742"
 }

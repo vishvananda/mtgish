@@ -5493,6 +5493,8 @@ impl Effects {
             | ObjectSet::SplicedOnto(_)
             | ObjectSet::TargetsOf(_)
             | ObjectSet::FromHistory { .. }
+            | ObjectSet::FromHistoryDestinations { .. }
+            | ObjectSet::SacrificedAsEntered(_)
             | ObjectSet::DamageSources(_) => false,
             ObjectSet::EventGroup
             | ObjectSet::Damage(_)

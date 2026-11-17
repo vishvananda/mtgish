@@ -208,11 +208,8 @@ fn compare_face(request: &Request, index: &BTreeMap<Key, Vec<LoweredFace>>) -> V
         let semantic_equal = if a == b {
             true
         } else {
-            let mut a = a.clone();
-            let mut b = b.clone();
-            canonical::semantic_abilities(&mut a["abilities"])?;
-            canonical::semantic_abilities(&mut b["abilities"])?;
-            a == b
+            serde_json::to_value(canonical::semantic_card(&local.face)?).map_err(|e| e.to_string())?
+                == serde_json::to_value(canonical::semantic_card(&expected)?).map_err(|e| e.to_string())?
         };
         Ok((raw_local, raw_expected, a, b, semantic_equal))
     })();
